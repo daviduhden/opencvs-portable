@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: buf.c,v 1.86 2021/10/24 21:24:16 deraadt Exp $	*/
 /*
  * Copyright (c) 2003 Jean-Francois Brousseau <jfb@openbsd.org>
@@ -174,6 +191,8 @@ buf_append(BUF *b, const void *data, size_t len)
 	size_t left;
 	u_char *bp;
 
+	if (len == 0)
+		return;
 	left = SIZE_LEFT(b);
 
 	if (left < len)
@@ -211,25 +230,28 @@ buf_write_fd(BUF *b, int fd)
 int
 buf_write(BUF *b, const char *path, mode_t mode)
 {
-	int fd;
-open:
-	if ((fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, mode)) == -1) {
-		if (errno == EACCES && unlink(path) != -1)
-			goto open;
-		else
-			fatal("open: `%s': %s", path, strerror(errno));
+	int fd, saved;
+	char *temporary;
+	xasprintf(&temporary, "%s.XXXXXXXX", path);
+	if ((fd = mkstemp(temporary)) == -1)
+		fatal("buf_write: temporary: %s", strerror(errno));
+	worklist_add(temporary, &temp_files);
+	if (buf_write_fd(b, fd) == -1 || fchmod(fd, mode) == -1 ||
+	    fsync(fd) == -1) {
+		saved = errno;
+		close(fd);
+		unlink(temporary);
+		fatal("buf_write: %s: %s", path, strerror(saved));
 	}
-
-	if (buf_write_fd(b, fd) == -1) {
-		(void)unlink(path);
-		fatal("buf_write: buf_write_fd: `%s'", path);
+	if (close(fd) == -1) {
+		saved = errno;
+		unlink(temporary);
+		fatal("buf_write: close: %s", strerror(saved));
 	}
-
-	if (fchmod(fd, mode) == -1)
-		cvs_log(LP_ERR, "permissions not set on file %s", path);
-
-	(void)close(fd);
-
+	if (rename(temporary, path) == -1)
+		fatal("buf_write: rename: %s", strerror(errno));
+	worklist_remove(temporary, &temp_files);
+	free(temporary);
 	return (0);
 }
 
@@ -277,7 +299,8 @@ buf_differ(const BUF *b1, const BUF *b2)
 	if (b1->cb_len != b2->cb_len)
 		return (1);
 
-	return (memcmp(b1->cb_buf, b2->cb_buf, b1->cb_len));
+	return (b1->cb_len == 0 ? 0 :
+	    memcmp(b1->cb_buf, b2->cb_buf, b1->cb_len));
 }
 
 /*
@@ -287,6 +310,8 @@ buf_differ(const BUF *b1, const BUF *b2)
 static void
 buf_grow(BUF *b, size_t len)
 {
+	if (len > SIZE_MAX - b->cb_size)
+		fatal("buf_grow: size overflow");
 	b->cb_buf = xreallocarray(b->cb_buf, 1, b->cb_size + len);
 	b->cb_size += len;
 }

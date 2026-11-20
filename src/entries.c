@@ -33,6 +33,7 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -270,7 +271,8 @@ cvs_ent_close(CVSENTRIES *ep, int writefile)
 {
 	FILE *fp;
 	struct cvs_ent_line *l;
-	int dflag;
+	int dflag, fd, saved;
+	char *temporary = NULL;
 
 	dflag = 1;
 	cvs_log(LP_TRACE, "cvs_ent_close(%s, %d)", ep->cef_bpath, writefile);
@@ -279,8 +281,14 @@ cvs_ent_close(CVSENTRIES *ep, int writefile)
 		writefile = 0;
 
 	fp = NULL;
-	if (writefile)
-		fp = fopen(ep->cef_bpath, "w");
+	if (writefile) {
+		xasprintf(&temporary, "%s.XXXXXXXX", ep->cef_bpath);
+		if ((fd = mkstemp(temporary)) == -1)
+			fatal("cvs_ent_close: create temporary: %s", strerror(errno));
+		worklist_add(temporary, &temp_files);
+		if ((fp = fdopen(fd, "w")) == NULL)
+			fatal("cvs_ent_close: fdopen: %s", strerror(errno));
+	}
 
 	while ((l = TAILQ_FIRST(&(ep->cef_ent))) != NULL) {
 		if (fp != NULL) {
@@ -301,15 +309,30 @@ cvs_ent_close(CVSENTRIES *ep, int writefile)
 			fputc('D', fp);
 			fputc('\n', fp);
 		}
-		(void)fclose(fp);
+		if (fflush(fp) == EOF || ferror(fp) || fsync(fileno(fp)) == -1) {
+			saved = errno;
+			(void)fclose(fp);
+			(void)unlink(temporary);
+			fatal("cvs_ent_close: flush: %s", strerror(saved));
+		}
+		if (fclose(fp) == EOF) {
+			saved = errno;
+			(void)unlink(temporary);
+			fatal("cvs_ent_close: close: %s", strerror(saved));
+		}
 
-		if (rename(ep->cef_bpath, ep->cef_path) == -1)
+		if (rename(temporary, ep->cef_path) == -1)
 			fatal("cvs_ent_close: rename: `%s'->`%s': %s",
-			    ep->cef_bpath, ep->cef_path, strerror(errno));
+			    temporary, ep->cef_path, strerror(errno));
+		worklist_remove(temporary, &temp_files);
+		free(temporary);
 
-		(void)unlink(ep->cef_lpath);
+		if (unlink(ep->cef_lpath) == -1 && errno != ENOENT)
+			fatal("cvs_ent_close: remove log: %s", strerror(errno));
 	}
 
+	if (current_list == ep)
+		current_list = NULL;
 	free(ep->cef_path);
 	free(ep->cef_bpath);
 	free(ep->cef_lpath);

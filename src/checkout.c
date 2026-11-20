@@ -501,12 +501,12 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 {
 	BUF *bp;
 	mode_t mode;
-	int cf_kflag, exists;
+	int cf_kflag, exists, oldfd = -1;
 	time_t rcstime;
 	CVSENTRIES *ent;
 	struct timeval tv[2];
 	struct tm datetm;
-	char *entry, *tosend;
+	char *entry, *tosend, *temporary = NULL;
 	char kbuf[8], sticky[CVS_REV_BUFSZ], rev[CVS_REV_BUFSZ];
 	char timebuf[CVS_TIME_BUFSZ], tbuf[CVS_TIME_BUFSZ];
 	static char lastwd[PATH_MAX];
@@ -529,19 +529,14 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 	}
 
 	if (cvs_server_active == 0) {
-		(void)unlink(cf->file_path);
-
 		if (!(co_flags & CO_MERGE)) {
-			if (cf->file_flags & FILE_ON_DISK) {
+			if (cf->file_flags & FILE_ON_DISK)
 				exists = 1;
-				(void)close(cf->fd);
-			}
-
-			cf->fd = open(cf->file_path,
-			    O_CREAT | O_RDWR | O_TRUNC);
-			if (cf->fd == -1)
-				fatal("cvs_checkout_file: open: %s",
-				    strerror(errno));
+			oldfd = cf->fd;
+			xasprintf(&temporary, "%s.XXXXXXXX", cf->file_path);
+			if ((cf->fd = mkstemp(temporary)) == -1)
+				fatal("cvs_checkout_file: create temporary: %s", strerror(errno));
+			worklist_add(temporary, &temp_files);
 
 			rcs_rev_write_fd(cf->file_rcs, rnum, cf->fd, 0);
 			cf->file_flags |= FILE_ON_DISK;
@@ -567,6 +562,17 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 		if (futimes(cf->fd, tv) == -1)
 			fatal("cvs_checkout_file: futimes: %s",
 			    strerror(errno));
+		if (temporary != NULL) {
+			if (fsync(cf->fd) == -1)
+				fatal("checkout: sync: %s", strerror(errno));
+			if (rename(temporary, cf->file_path) == -1)
+				fatal("checkout: replace: %s", strerror(errno));
+			worklist_remove(temporary, &temp_files);
+			free(temporary);
+			if (oldfd >= 0 && close(oldfd) == -1)
+				fatal("checkout: close original: %s", strerror(errno));
+		}
+
 	} else {
 		time(&rcstime);
 	}
@@ -626,7 +632,6 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 		}
 	} else {
 		if (co_flags & CO_MERGE) {
-			(void)unlink(cf->file_path);
 			cvs_merge_file(cf, (cvs_join_rev1 == NULL));
 			tosend = cf->file_path;
 		}

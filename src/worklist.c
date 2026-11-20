@@ -102,3 +102,20 @@ worklist_unlink(struct worklist *wkl)
 {
 	(void)unlink(wkl->wkl_path);
 }
+
+void
+worklist_remove(const char *path, struct wklhead *list)
+{
+	struct worklist *entry, *previous = NULL;
+	SLIST_FOREACH(entry, list, wkl_list) {
+		if (!strcmp(entry->wkl_path, path)) {
+			if (previous == NULL)
+				SLIST_REMOVE_HEAD(list, wkl_list);
+			else
+				SLIST_NEXT(previous, wkl_list) = SLIST_NEXT(entry, wkl_list);
+			free(entry);
+			return;
+		}
+		previous = entry;
+	}
+}
