@@ -1,0 +1,174 @@
+{
+  "repository": "https://github.com/openbsd/src",
+  "revision": "4453305eb9b84bbd8b912a2794d5b2b12caa1b0f",
+  "files": [
+    {
+      "upstream_path": "sys/sys/queue.h",
+      "local_path": "compat/include/sys/queue.h",
+      "sha256": "a2abb97bd570e63c6f547174d2557d5d8c640bd669c61efdfd20d707e7a8dd13",
+      "size": 21471,
+      "modifications": []
+    },
+    {
+      "upstream_path": "sys/sys/tree.h",
+      "local_path": "compat/include/sys/tree.h",
+      "sha256": "cbbe65854ef9ee5ec400aa4127c4d87f0a4ed27e699cbdbe92d7db005842f793",
+      "size": 33827,
+      "modifications": []
+    },
+    {
+      "upstream_path": "sys/sys/_null.h",
+      "local_path": "compat/include/sys/_null.h",
+      "sha256": "4814ceea49a3f80f3ec94575bffe878782f512a3882774703b9ae35695f825c6",
+      "size": 333,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/string/strlcpy.c",
+      "local_path": "compat/imported/strlcpy.c",
+      "sha256": "9f54aff1872c7c115904048af065ab17273ab5b2bc129924ea24b4300a20cdd2",
+      "size": 1612,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/string/strlcat.c",
+      "local_path": "compat/imported/strlcat.c",
+      "sha256": "c9c21a67f582291097473ef20e68b6e211c8a5e89381247b180b89c4a976986c",
+      "size": 1759,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/string/strsep.c",
+      "local_path": "compat/imported/strsep.c",
+      "sha256": "4861c2b5c3b0143839601874fec6d646d5a09bc2e53216603a3e30a5ab4553ca",
+      "size": 2519,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/stdlib/strtonum.c",
+      "local_path": "compat/imported/strtonum.c",
+      "sha256": "60521a48c14e81d7b9386fd6cf5d45663af52a51070d11c5a63d2c11437d5aa3",
+      "size": 1792,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/stdlib/reallocarray.c",
+      "local_path": "compat/imported/reallocarray.c",
+      "sha256": "813952c9ae8a0d699d86024e4d1b9ec23efb762a6064fb5fe2592c420b509348",
+      "size": 1387,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/stdlib/getopt_long.c",
+      "local_path": "compat/imported/getopt.c",
+      "sha256": "c22e28aedf32ff90231768937ee33a34d0d7f4f5873dec170808e56b276cd27b",
+      "size": 14466,
+      "modifications": []
+    },
+    {
+      "upstream_path": "include/getopt.h",
+      "local_path": "compat/imported/include/getopt.h",
+      "sha256": "288c5c3c4c03d2b35382ab4c23319cd1c375681985de40ee2ba2704412ef613c",
+      "size": 2654,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/gen/fnmatch.c",
+      "local_path": "compat/imported/fnmatch.c",
+      "sha256": "2d1a9dba8b52dccbb44b5f962f868654eed1e49f1aa0b8ded0dd349366e99e4f",
+      "size": 15459,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/gen/charclass.h",
+      "local_path": "compat/imported/charclass.h",
+      "sha256": "a4f33c4d17e3ca4ce3e2467445d23a7f78a8d98f0526537f58fe242c65fad60d",
+      "size": 653,
+      "modifications": []
+    },
+    {
+      "upstream_path": "include/fnmatch.h",
+      "local_path": "compat/imported/include/fnmatch.h",
+      "sha256": "1aade28541dbf596407927657f910202a696deca434c7373bad0d88cdb174991",
+      "size": 2494,
+      "modifications": []
+    },
+    {
+      "upstream_path": "include/regex.h",
+      "local_path": "compat/imported/include/regex.h",
+      "sha256": "282d5bc9421763451d1d1724a9a68cf665a76c79796dbd69ebf29c59837e2328",
+      "size": 3551,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/COPYRIGHT",
+      "local_path": "compat/imported/regex/COPYRIGHT",
+      "sha256": "0424e57d4303164dc59a8509c20dae0518b853692e5c2b0e98b11816fdbc97c7",
+      "size": 2718,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/cclass.h",
+      "local_path": "compat/imported/regex/cclass.h",
+      "sha256": "35db1e126aeb2903c069efd20cc807fa4da1435fd9d13447a0055dc00b2494c3",
+      "size": 2720,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/cname.h",
+      "local_path": "compat/imported/regex/cname.h",
+      "sha256": "0bcb42a989f3c0334658a1df150e88cc9529be3c517698b281e417e7ac30005d",
+      "size": 4249,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/engine.c",
+      "local_path": "compat/imported/regex/engine.c",
+      "sha256": "aab4dd522738664f9a5b6c7874dafb2b80214e01b7883a9fab32bbe31b4078d8",
+      "size": 27254,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/regcomp.c",
+      "local_path": "compat/imported/regex/regcomp.c",
+      "sha256": "e516641dc651b6de471504bb6532cad03cc596e58b920dac56069612c100444f",
+      "size": 32150,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/regerror.c",
+      "local_path": "compat/imported/regex/regerror.c",
+      "sha256": "86c0d5d9578ccab7b12a23364286f689741a5c7323d4e7cac92ae4f85418c3b3",
+      "size": 4410,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/regex2.h",
+      "local_path": "compat/imported/regex/regex2.h",
+      "sha256": "8518ff452f0db5dd00b331445b46a4b074a7f2948be38edaf4f5bacf403a050e",
+      "size": 6374,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/regexec.c",
+      "local_path": "compat/imported/regex/regexec.c",
+      "sha256": "ba003095ffebc4c197f3d390605876f463685e077cbd422ed115b0ea9baa15a9",
+      "size": 5709,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/regfree.c",
+      "local_path": "compat/imported/regex/regfree.c",
+      "sha256": "435d3520e1fbeed747ad428d2232e62834b5fe3a37f010192e3825d853aef214",
+      "size": 2426,
+      "modifications": []
+    },
+    {
+      "upstream_path": "lib/libc/regex/utils.h",
+      "local_path": "compat/imported/regex/utils.h",
+      "sha256": "c89ee6acae6f97aa3111ff2c15e88dc5c16d966644526319ee357803fb83270c",
+      "size": 2311,
+      "modifications": []
+    }
+  ]
+}
