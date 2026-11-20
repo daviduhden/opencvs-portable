@@ -1,0 +1,13 @@
+Project: OpenBSD OpenCVS (not an official OpenBSD portable distribution)
+Repository: https://github.com/openbsd/src
+Path: usr.bin/cvs/
+Revision: 4453305eb9b84bbd8b912a2794d5b2b12caa1b0f
+Import date (UTC): 2026-11-20
+Imported files: 68; exact paths and SHA256 in upstream/manifest.json
+Additional dependencies: pending completed audit; recorded separately in upstream/compat-manifest.json
+Modifications at import: none in src/. Portable changes follow in separate commits.
+Update procedure: compare pinned tree against selected upstream revision; stage changes
+in an isolated directory, verify hashes/licenses, apply as a reviewed three-way change
+against the import commit, preserve local portability patches, run all tests, then
+update both this record and the manifests. Never overwrite a working tree automatically.
+Historical reference: https://chl.be/opencvs/ (reference only; no code copied).

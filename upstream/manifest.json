@@ -1,0 +1,483 @@
+{
+  "repository": "https://github.com/openbsd/src",
+  "revision": "4453305eb9b84bbd8b912a2794d5b2b12caa1b0f",
+  "import_date": "2026-11-20",
+  "files": [
+    {
+      "upstream_path": "usr.bin/cvs/Makefile",
+      "local_path": "src/Makefile",
+      "sha256": "c3f6d25a1b66046a2fbc45ee9919f6793c6e354bf087fe62d9d08ea296566ca4",
+      "git_blob": "4a10bd50121eb18c1d69b95a15ed04e37302c98e",
+      "size": 772
+    },
+    {
+      "upstream_path": "usr.bin/cvs/README",
+      "local_path": "src/README",
+      "sha256": "7540e33d9636ca1fc146c0bd0fe3674e9d80d1a35964406db00c68fb837c6ca5",
+      "git_blob": "d13b71db13d9bbac36c9247045bec7c9cdcda84d",
+      "size": 602
+    },
+    {
+      "upstream_path": "usr.bin/cvs/add.c",
+      "local_path": "src/add.c",
+      "sha256": "a9bc5b750a652059d6572a02cffd58a7fbb77a669603b447bf27788a31983fa1",
+      "git_blob": "a135c109c45b16da564302eafce10670d8ee9dfb",
+      "size": 13786
+    },
+    {
+      "upstream_path": "usr.bin/cvs/admin.c",
+      "local_path": "src/admin.c",
+      "sha256": "e777cb212937f6845dc51bd1f038b4c7920bb6ace494c5ccc9cb5a00625d81da",
+      "git_blob": "360a06668920edb471beddd0cdbd35e952786ff3",
+      "size": 9506
+    },
+    {
+      "upstream_path": "usr.bin/cvs/annotate.c",
+      "local_path": "src/annotate.c",
+      "sha256": "2eac85257290b7f0b88d6a4ba7d4eba526ef43f4298c1a0653f7931261459c1f",
+      "git_blob": "b177f9d25a6197baca9cb0e78061a4c3e83ec9ac",
+      "size": 6197
+    },
+    {
+      "upstream_path": "usr.bin/cvs/atomicio.c",
+      "local_path": "src/atomicio.c",
+      "sha256": "a7ce2d2f12f3fa0ac6c5e55ff36cf3f36020530621074397569df52bc4c17dfb",
+      "git_blob": "f05bfdb4d18240d510fc80241a27a058ce0379a3",
+      "size": 2228
+    },
+    {
+      "upstream_path": "usr.bin/cvs/atomicio.h",
+      "local_path": "src/atomicio.h",
+      "sha256": "ad030cef6d6ba50f29311462f27ac665d6c61548018dcd0c36abf5613449d7f5",
+      "git_blob": "e292c0b32c386876fa88f37fe4815ec6ef5e7074",
+      "size": 1742
+    },
+    {
+      "upstream_path": "usr.bin/cvs/buf.c",
+      "local_path": "src/buf.c",
+      "sha256": "11b3474f4a17d673593d4ffc37991469f66467199dfcf0a4fd12faba1fc1596b",
+      "git_blob": "2780e1c2275ade769c4a8d7a96fb35412f2a5d7a",
+      "size": 6376
+    },
+    {
+      "upstream_path": "usr.bin/cvs/buf.h",
+      "local_path": "src/buf.h",
+      "sha256": "38dc1b0f5b73794c9be3d3c5b087c6c38ad5e20926b550239d6315983de8021a",
+      "git_blob": "0ce11437b8c3e1906f0558bf34dee5191bfe2631",
+      "size": 1916
+    },
+    {
+      "upstream_path": "usr.bin/cvs/checkout.c",
+      "local_path": "src/checkout.c",
+      "sha256": "000c4abf8bbd63fa0db48d34610a8719e985c77b8fb4cb12db55f5b4b9a3fd00",
+      "git_blob": "bf0b1ad7401a05d60cc6ea4f46109bf2e0b5efd8",
+      "size": 15618
+    },
+    {
+      "upstream_path": "usr.bin/cvs/client.c",
+      "local_path": "src/client.c",
+      "sha256": "98d138d691407b04d5ec6305119a54d574cdba0ba32a6dfaf2eb404ebdaddaec",
+      "git_blob": "ec92d13bb0d05d0d785ac1e2e1b1dd0c753fe170",
+      "size": 26868
+    },
+    {
+      "upstream_path": "usr.bin/cvs/cmd.c",
+      "local_path": "src/cmd.c",
+      "sha256": "3fb400193469fea6f291b66a127fe438e0288a0d3bd11d44a53eb88fb55f9302",
+      "git_blob": "c4c5837fee24d7923efcaa3febd7cf6903718cae",
+      "size": 2330
+    },
+    {
+      "upstream_path": "usr.bin/cvs/commit.c",
+      "local_path": "src/commit.c",
+      "sha256": "430b28f6afada20eeb41054e2d4ab35f967cc10a057e1538678bb9b89af79dcf",
+      "git_blob": "61d5dd26217b3d4f5b07ba93f260612faf744152",
+      "size": 17842
+    },
+    {
+      "upstream_path": "usr.bin/cvs/config.c",
+      "local_path": "src/config.c",
+      "sha256": "605399f08a2d7a9c03d97a1d68b651661eee55a6ed9f04513801526f35d0af4e",
+      "git_blob": "142edfd839d2acb21b45dc65d57673e71b229565",
+      "size": 2879
+    },
+    {
+      "upstream_path": "usr.bin/cvs/config.h",
+      "local_path": "src/config.h",
+      "sha256": "105467f018cc47e6279de6a4de4a827b2e4a54ff18f1c437e3649c27ec0ae933",
+      "git_blob": "6c0cb294232f7c6502a3fb55e1743604b604f755",
+      "size": 1778
+    },
+    {
+      "upstream_path": "usr.bin/cvs/cvs.1",
+      "local_path": "src/cvs.1",
+      "sha256": "a496718eeeecf9ce14fd38c3c8a81dedb964cdabbe6b0744c17c75d35d440c40",
+      "git_blob": "9873e3968d8a185051e78f7729edcbd6eeaaa898",
+      "size": 45441
+    },
+    {
+      "upstream_path": "usr.bin/cvs/cvs.5",
+      "local_path": "src/cvs.5",
+      "sha256": "39dec57243b7c1f4ddd3c8a9c512d1547ee85bf93fc95ee0cad3e9f2a86488b2",
+      "git_blob": "a74c7108cd671d5dff48598dcc075d38409a6b98",
+      "size": 11927
+    },
+    {
+      "upstream_path": "usr.bin/cvs/cvs.c",
+      "local_path": "src/cvs.c",
+      "sha256": "4fc86bc7a3e7c27271bffd531ff6cd89c963089ca280e5191131ef1b6591a3a8",
+      "git_blob": "492376b014322a225ad16828bfc6d0d3e0a5e444",
+      "size": 13613
+    },
+    {
+      "upstream_path": "usr.bin/cvs/cvs.h",
+      "local_path": "src/cvs.h",
+      "sha256": "bf6cac36cb2101e2125b136d348623ea737dae3e9456a3cd8dd25e6d58c60a58",
+      "git_blob": "7793e177253162ecd9e385eaaf1cf602d5cc93bb",
+      "size": 12159
+    },
+    {
+      "upstream_path": "usr.bin/cvs/cvsintro.7",
+      "local_path": "src/cvsintro.7",
+      "sha256": "44ccde2420f9f0025da201a33389d1b6e17bb56b23e6a7ed16bf7a1fd198ea99",
+      "git_blob": "fb5ac47a35df65e19fdd9eb10385a2aebfd267ee",
+      "size": 7383
+    },
+    {
+      "upstream_path": "usr.bin/cvs/date.y",
+      "local_path": "src/date.y",
+      "sha256": "cdc20a3bcba3ecfe9052404cfe102820bbeb4ae4d813d16d31322fa47e2f1b7d",
+      "git_blob": "23444e4b3224cadd5c0cf1c488ef15ee3d79bcf6",
+      "size": 20585
+    },
+    {
+      "upstream_path": "usr.bin/cvs/diff.c",
+      "local_path": "src/diff.c",
+      "sha256": "7c2533c91b53028e695d50e90733fd0b6430cfad0992bd431b62eee43a0384f6",
+      "git_blob": "f6e65ca550d2032a4f9c94aea729cd7a8ccf78a5",
+      "size": 15805
+    },
+    {
+      "upstream_path": "usr.bin/cvs/diff.h",
+      "local_path": "src/diff.h",
+      "sha256": "91c93792cda4af219b96fe3537075a7d7e82ac63bf92f4be6c9bbf719d35dd42",
+      "git_blob": "8951612d6b28a4e8785455e86d91679cfc4ce53f",
+      "size": 5548
+    },
+    {
+      "upstream_path": "usr.bin/cvs/diff3.c",
+      "local_path": "src/diff3.c",
+      "sha256": "6874600da12acd53873e72a68129ed9d600ec6664fa9ea37829122d31385a9af",
+      "git_blob": "70c625301b879f1af1c5bb11fb1e93b651c82201",
+      "size": 20722
+    },
+    {
+      "upstream_path": "usr.bin/cvs/diff_internals.c",
+      "local_path": "src/diff_internals.c",
+      "sha256": "e79926b712024acda5d76f85f81c108c52661e52f62068c6ef7b6d30d6a388e9",
+      "git_blob": "52eb215039a7a7d38d861badaa26c6f90db0b136",
+      "size": 36926
+    },
+    {
+      "upstream_path": "usr.bin/cvs/edit.c",
+      "local_path": "src/edit.c",
+      "sha256": "c977713a7408d1f0b25b9c9b7e7cfd935602ada24d8f30ed96c2037c736258d7",
+      "git_blob": "4c1399da8e0843a4a26c27e014376e97aac2b53d",
+      "size": 10693
+    },
+    {
+      "upstream_path": "usr.bin/cvs/entries.c",
+      "local_path": "src/entries.c",
+      "sha256": "7904da90d6e7e0cbcb9f42114dd52bc4bc61886e8af68f787556d88187b0dcbc",
+      "git_blob": "36ecef8e68073c99c1a810ee6949061c463e2041",
+      "size": 11925
+    },
+    {
+      "upstream_path": "usr.bin/cvs/fatal.c",
+      "local_path": "src/fatal.c",
+      "sha256": "460f3513036262db84e350960100edd9b49e1f131d3ad5c738921ce1cd9695d9",
+      "git_blob": "5bd13c142a636b4ccb38fdeddb7a4d67a28073be",
+      "size": 1960
+    },
+    {
+      "upstream_path": "usr.bin/cvs/file.c",
+      "local_path": "src/file.c",
+      "sha256": "baa3736fc822f0e1a30e72febd810652b7aa6c19f9fb30d73f5b160c055f63c6",
+      "git_blob": "1ab57a8bd461a56c59be0efd992058a0f2138744",
+      "size": 27298
+    },
+    {
+      "upstream_path": "usr.bin/cvs/file.h",
+      "local_path": "src/file.h",
+      "sha256": "299238b401b55c6e60ae29adf24b45c068fb487bf016d4eed40bc6fd83f56662",
+      "git_blob": "8c7e19972bf6588c997feef8730adc24c4aa3242",
+      "size": 3538
+    },
+    {
+      "upstream_path": "usr.bin/cvs/getlog.c",
+      "local_path": "src/getlog.c",
+      "sha256": "7de6e54076df63aeab76ca8e43b63011c6ff7cdf0a21399f3850f2fea0ea6447",
+      "git_blob": "1bc8249d2f097e4dd97fd560fb231295b810a38c",
+      "size": 12960
+    },
+    {
+      "upstream_path": "usr.bin/cvs/hash.c",
+      "local_path": "src/hash.c",
+      "sha256": "4a891c1d1d9bb38a310307e396a363343b4030fae998444c95cd68ef66c82ef4",
+      "git_blob": "0fe624be65b1a8457a629f6c7104d9f137fbd8da",
+      "size": 2294
+    },
+    {
+      "upstream_path": "usr.bin/cvs/hash.h",
+      "local_path": "src/hash.h",
+      "sha256": "1b94d9289ebda240e61dabe373572cea06b2533cb82b82b31497c01497b40233",
+      "git_blob": "012421d67d8dfbfe57b2e4b0fab382cdf0936295",
+      "size": 1644
+    },
+    {
+      "upstream_path": "usr.bin/cvs/hash_func.c",
+      "local_path": "src/hash_func.c",
+      "sha256": "296929e18910590ed2b2bfe63426598681ee0dd8326f3b1e81730de967f36247",
+      "git_blob": "adb4f2bded5eec30c99cd5ddc852ad978ed20225",
+      "size": 2311
+    },
+    {
+      "upstream_path": "usr.bin/cvs/history.c",
+      "local_path": "src/history.c",
+      "sha256": "3fcf4348ab455cc066ed2aa66c9d65b76a7052e87a565f31054a26f0fd478eb6",
+      "git_blob": "0e2e7049650e74b6e9b2ccd52abf685cff1fe7ca",
+      "size": 5701
+    },
+    {
+      "upstream_path": "usr.bin/cvs/import.c",
+      "local_path": "src/import.c",
+      "sha256": "20fe90063a6a0d02e6eb7b3e666fc79436866b38dbd41e0e5cbcc55c3488bb65",
+      "git_blob": "de66cb5af3b249ec5294b03143054e131a8541b2",
+      "size": 11884
+    },
+    {
+      "upstream_path": "usr.bin/cvs/init.c",
+      "local_path": "src/init.c",
+      "sha256": "962b2fa3e28cfaf17eadc133518c5069941d6887bd93c8575d98b98d8113b778",
+      "git_blob": "57110a862f220d3f77a913b21983fc6971da6528",
+      "size": 5148
+    },
+    {
+      "upstream_path": "usr.bin/cvs/init.h",
+      "local_path": "src/init.h",
+      "sha256": "4f6da76ef7ef9fa8751d468e8cadab46a7ad38004a8495f60ed84f063a6ff08e",
+      "git_blob": "683e83e1ef729320e99822f9573a77c9a4af8efe",
+      "size": 1163
+    },
+    {
+      "upstream_path": "usr.bin/cvs/log.c",
+      "local_path": "src/log.c",
+      "sha256": "2aba14b591531104789678c286b25f511ee08e5738a95804cb97474a5f7d044b",
+      "git_blob": "05c24acb36757bbe43b21caea7f68ebc136495f1",
+      "size": 3878
+    },
+    {
+      "upstream_path": "usr.bin/cvs/log.h",
+      "local_path": "src/log.h",
+      "sha256": "5f1306463c0080f0baa2dd464b85aa07647255177cb3ff5374ffedde609f8b42",
+      "git_blob": "4759b249610d9cd977540bc873321702356e36bf",
+      "size": 1963
+    },
+    {
+      "upstream_path": "usr.bin/cvs/logmsg.c",
+      "local_path": "src/logmsg.c",
+      "sha256": "c969f0080e3b8820b5149bf99a960f02ae1ae1bc520930723f871e004a7ba69d",
+      "git_blob": "1c0bcb6434d7a7aec6ca86a8675d95fe56197ae3",
+      "size": 8927
+    },
+    {
+      "upstream_path": "usr.bin/cvs/modules.c",
+      "local_path": "src/modules.c",
+      "sha256": "f0fa67fce77e5e67a72f55eb4745676a42d5ccddc9cc209509fc960ca81dfcab",
+      "git_blob": "65b9ba3eb7da615f006cb912f4667ed420a4cee1",
+      "size": 5145
+    },
+    {
+      "upstream_path": "usr.bin/cvs/rcs.c",
+      "local_path": "src/rcs.c",
+      "sha256": "f37556b51590aa739914f480219557ffa80e6b4c71938650e0200ad78297c625",
+      "git_blob": "56639ff1946a22464528f591e0f7a940eff9cd91",
+      "size": 61479
+    },
+    {
+      "upstream_path": "usr.bin/cvs/rcs.h",
+      "local_path": "src/rcs.h",
+      "sha256": "66cdb55b5b785c82bbd52767362492b1d76009d3af7c56f6c4fde0bcdeeace67",
+      "git_blob": "bfd7e1ec4f6a0abf08452406392a18ac3b4ec20f",
+      "size": 8175
+    },
+    {
+      "upstream_path": "usr.bin/cvs/rcsnum.c",
+      "local_path": "src/rcsnum.c",
+      "sha256": "7c91c3f2d292f90785bfdd1f4b23b0772b86d2b89d435129c62b235635c53f7a",
+      "git_blob": "36714f4725e65dfea12226b8a34962b8fba2c673",
+      "size": 9740
+    },
+    {
+      "upstream_path": "usr.bin/cvs/rcsparse.c",
+      "local_path": "src/rcsparse.c",
+      "sha256": "19d39f9410c13dfe6f37a6290326d99ecb08f85fa859cf16ed8c313cec877055",
+      "git_blob": "fb96436ff925ff652c0a6fd1f9d8c44cc89c7dea",
+      "size": 28191
+    },
+    {
+      "upstream_path": "usr.bin/cvs/rcsparse.h",
+      "local_path": "src/rcsparse.h",
+      "sha256": "1c95d6255971cd45de77b639aec579f704ab649f1aedf38666733ccde9edd44b",
+      "git_blob": "64c503a830413418b65edf47e4ab2d4c8294ce74",
+      "size": 1013
+    },
+    {
+      "upstream_path": "usr.bin/cvs/release.c",
+      "local_path": "src/release.c",
+      "sha256": "e680c159bf52322a893b590d7f17fc0f7cf05a62f7a4d27b9f09e8b80969bf30",
+      "git_blob": "e965ad66713db6e8f6f2e52ce008516c054832fb",
+      "size": 4363
+    },
+    {
+      "upstream_path": "usr.bin/cvs/remote.c",
+      "local_path": "src/remote.c",
+      "sha256": "1bac541355335ff5e0248d7ddc4d6a4d9ffdf7f8c3609d9e4c867f7d3cfceecc",
+      "git_blob": "8d3361e572385c1b2c9f4d86c0ea38f7168d1d90",
+      "size": 7043
+    },
+    {
+      "upstream_path": "usr.bin/cvs/remote.h",
+      "local_path": "src/remote.h",
+      "sha256": "5ba0daf1fd2570017891ab54267d62e0024820b4ed05128e832484b217926635",
+      "git_blob": "e4aae79aba93d89b9df766317c39f9d652bc5a0a",
+      "size": 4217
+    },
+    {
+      "upstream_path": "usr.bin/cvs/remove.c",
+      "local_path": "src/remove.c",
+      "sha256": "c5d287cfbd227d6c6d4442860309c9fc327caebac0a486cf1f861824f080c534",
+      "git_blob": "92d39adc41049b7990a78770be4cffe9d1301f5c",
+      "size": 5375
+    },
+    {
+      "upstream_path": "usr.bin/cvs/repository.c",
+      "local_path": "src/repository.c",
+      "sha256": "9002c635bcd0e097990e18345a0632a7b4a51b7152b8e488bed4176b0e39bdc8",
+      "git_blob": "a07a4ef4e0399d6919b0d186325bc1135d297b74",
+      "size": 4623
+    },
+    {
+      "upstream_path": "usr.bin/cvs/repository.h",
+      "local_path": "src/repository.h",
+      "sha256": "ce5027b700a57dd58ec09719ea86ad0253459885b2e7804c620c737effd9fda8",
+      "git_blob": "152ab07fbd0c5d7954a2dfbc35d8bf608dbf87e2",
+      "size": 1237
+    },
+    {
+      "upstream_path": "usr.bin/cvs/root.c",
+      "local_path": "src/root.c",
+      "sha256": "70606ba576e115c222bb5532b304be34915a77d6de1d2c270653718d11270c47",
+      "git_blob": "1f444a48981c825ced9b782019d39dfb8aa9914c",
+      "size": 5580
+    },
+    {
+      "upstream_path": "usr.bin/cvs/server.c",
+      "local_path": "src/server.c",
+      "sha256": "dd87b2f0810b671f807301dc57c7973799a22ac0f043fe26479c06f9de354b71",
+      "git_blob": "076132dd603955bde55d3f7c9357bbba6ebfc746",
+      "size": 18804
+    },
+    {
+      "upstream_path": "usr.bin/cvs/status.c",
+      "local_path": "src/status.c",
+      "sha256": "dd792ba3e47f66eab79669aca149e608ba9d3ec0c9c1ddd2e3f97942b266d57c",
+      "git_blob": "a366280179262638b471e1f8a7dd6f2d1370775c",
+      "size": 7410
+    },
+    {
+      "upstream_path": "usr.bin/cvs/tag.c",
+      "local_path": "src/tag.c",
+      "sha256": "a0a4f18dc197b33c8cf776bac74dfe933f7483bd154949886b01ba151f724649",
+      "git_blob": "21769dea7145534c17857533ce26785577500778",
+      "size": 10119
+    },
+    {
+      "upstream_path": "usr.bin/cvs/trigger.c",
+      "local_path": "src/trigger.c",
+      "sha256": "e0e9bdd13715a3614823dae79ad0e07fc511b2f89ee8654389a3679d3dc14bf0",
+      "git_blob": "9f85ef1e902b8b0593f15bde87b9c76117a2b53b",
+      "size": 11413
+    },
+    {
+      "upstream_path": "usr.bin/cvs/trigger.h",
+      "local_path": "src/trigger.h",
+      "sha256": "640e16724e8779066692b387af5c0997e48c10792d6e05fd19ddc93696b6c653",
+      "git_blob": "7b8b61c76e61754642d31a543ac65c5ea2f606fd",
+      "size": 1770
+    },
+    {
+      "upstream_path": "usr.bin/cvs/update.c",
+      "local_path": "src/update.c",
+      "sha256": "3caa108da658641b95c14e2eb597c984eacf8f1022d854616c2db65796fa2346",
+      "git_blob": "f5cd21c85fc2a26b523bd3e9f5afca24623140a3",
+      "size": 17789
+    },
+    {
+      "upstream_path": "usr.bin/cvs/util.c",
+      "local_path": "src/util.c",
+      "sha256": "cbed0a448032a78a4f9d69f40f830bff1da5ec2254ca19d5dd7ef4767fda2217",
+      "git_blob": "94cc40d3420b397a398af82ab6d3c00489754c1d",
+      "size": 20920
+    },
+    {
+      "upstream_path": "usr.bin/cvs/util.h",
+      "local_path": "src/util.h",
+      "sha256": "ccc53dd6477a167be77e4af747282daf6287bc86a1de37478e17451c48365692",
+      "git_blob": "b465ee61736dc279a97474c40c9e056d8d8a80a6",
+      "size": 2652
+    },
+    {
+      "upstream_path": "usr.bin/cvs/version.c",
+      "local_path": "src/version.c",
+      "sha256": "088c6e8cb4b729601c7ec53dd69fb8af62df9730f708c33166a1664e4d5b1c8c",
+      "git_blob": "11b3ba1f925f674fac8f2aed00ae027fbf1ce80b",
+      "size": 1591
+    },
+    {
+      "upstream_path": "usr.bin/cvs/watch.c",
+      "local_path": "src/watch.c",
+      "sha256": "775c0b739f42b1d44d024c35d78e71200405f78993dcc10e01c811a9fde38c8b",
+      "git_blob": "5cc28ac9a78a6f6c7d2aada292260d2b1e88bc4c",
+      "size": 5104
+    },
+    {
+      "upstream_path": "usr.bin/cvs/worklist.c",
+      "local_path": "src/worklist.c",
+      "sha256": "71ca2397a51a69c6cc00b12369f37ef6432b618cb648a387b8240ebb6f3d4490",
+      "git_blob": "f8fe501e15d3284e882b05d589db38a58d0297c2",
+      "size": 2664
+    },
+    {
+      "upstream_path": "usr.bin/cvs/worklist.h",
+      "local_path": "src/worklist.h",
+      "sha256": "a7834fb93b7447964f8a234fad276fb52190fca6df367f18726127748bece353",
+      "git_blob": "5a7125fceadd22ba3c391df7a4c2c551da8e0712",
+      "size": 1770
+    },
+    {
+      "upstream_path": "usr.bin/cvs/xmalloc.c",
+      "local_path": "src/xmalloc.c",
+      "sha256": "236b10d7ee08e722b1aa01327201be1e83b3b289d7f1b0f9d07ff1c14292de31",
+      "git_blob": "501072df32743bd23a51974dae36a626edbf57d2",
+      "size": 2298
+    },
+    {
+      "upstream_path": "usr.bin/cvs/xmalloc.h",
+      "local_path": "src/xmalloc.h",
+      "sha256": "8be3b34535e8bfcb9be3eb6d4602f11e2948f8aefa982970ebd8a047bd14a028",
+      "git_blob": "bf7f4a0027c5ec02eafa5e3115f928a4fc66326a",
+      "size": 1261
+    }
+  ]
+}
