@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: diff.h,v 1.23 2024/05/21 05:00:48 jsg Exp $	*/
 /*
  * Copyright (C) Caldera International Inc.  2001-2002.
@@ -103,7 +120,7 @@
 #define	D_SKIPPED2	9	/* path2 was a special file */
 
 void		cvs_merge_file(struct cvs_file *, int);
-void		diff_output(const char *, ...);
+void		diff_output(const char *, ...) PC_PRINTF(1, 2);
 int		diffreg(const char *, const char *, int, int, BUF *, int);
 int		ed_patch_lines(struct rcs_lines *, struct rcs_lines *);
 

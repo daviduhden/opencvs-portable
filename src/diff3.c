@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: diff3.c,v 1.65 2021/04/13 14:20:23 stsp Exp $	*/
 
 /*
@@ -153,6 +170,32 @@ RCSNUM *d3rev2 = NULL;
 
 static int fds[5];
 
+/* Text merge scripts cannot represent NUL bytes; reject before replacing data. */
+static void
+merge_check_text(int fd)
+{
+	unsigned char block[4096];
+	ssize_t count;
+	off_t position;
+
+	if ((position = lseek(fd, 0, SEEK_CUR)) == -1 ||
+	    lseek(fd, 0, SEEK_SET) == -1)
+		fatal("merge: seek: %s", strerror(errno));
+	for (;;) {
+		count = read(fd, block, sizeof(block));
+		if (count == -1 && errno == EINTR)
+			continue;
+		if (count == -1)
+			fatal("merge: read: %s", strerror(errno));
+		if (count == 0)
+			break;
+		if (memchr(block, '\0', (size_t)count) != NULL)
+			fatal("merge: binary files cannot be text-merged");
+	}
+	if (lseek(fd, position, SEEK_SET) == -1)
+		fatal("merge: restore position: %s", strerror(errno));
+}
+
 void
 cvs_merge_file(struct cvs_file *cf, int verbose)
 {
@@ -160,7 +203,8 @@ cvs_merge_file(struct cvs_file *cf, int verbose)
 	char *data, *patch;
 	char *argv[5], r1[CVS_REV_BUFSZ], r2[CVS_REV_BUFSZ];
 	char *dp13, *dp23, *path1, *path2, *path3;
-	BUF *b1, *d1, *d2, *diffb;
+	BUF *b1, *d1, *d2, *diffb, *merged;
+	struct stat original;
 	size_t dlen, plen;
 	struct rcs_line *lp;
 	struct rcs_lines *dlines, *plines;
@@ -171,6 +215,8 @@ cvs_merge_file(struct cvs_file *cf, int verbose)
 	rcsnum_tostr(d3rev1, r1, sizeof(r1));
 	rcsnum_tostr(d3rev2, r2, sizeof(r2));
 
+	if (fstat(cf->fd, &original) == -1)
+		fatal("merge: original metadata: %s", strerror(errno));
 	b1 = buf_load_fd(cf->fd);
 	d1 = buf_alloc(128);
 	d2 = buf_alloc(128);
@@ -187,6 +233,9 @@ cvs_merge_file(struct cvs_file *cf, int verbose)
 	if (verbose == 1)
 		cvs_printf("Retrieving revision %s\n", r2);
 	fds[4] = rcs_rev_write_stmp(cf->file_rcs, d3rev2, path3, 0);
+
+	for (i = 2; i < 5; i++)
+		merge_check_text(fds[i]);
 
 	diffreg(path1, path3, fds[2], fds[4], d1, D_FORCEASCII);
 	diffreg(path2, path3, fds[3], fds[4], d2, D_FORCEASCII);
@@ -227,8 +276,9 @@ cvs_merge_file(struct cvs_file *cf, int verbose)
 		cvs_printf("Merging differences between %s and %s into `%s'\n",
 		    r1, r2, cf->file_path);
 
-	dlines = cvs_splitlines(data, dlen);
-	plines = cvs_splitlines(patch, plen);
+	/* These owned buffers are byte arrays; line views retain that representation. */
+	dlines = cvs_splitlines((u_char *)data, dlen);
+	plines = cvs_splitlines((u_char *)patch, plen);
 
 	ed_patch_lines(dlines, plines);
 	cvs_freelines(plines);
@@ -239,21 +289,19 @@ cvs_merge_file(struct cvs_file *cf, int verbose)
 		    (diff3_conflicts > 1) ? "s" : "");
 	}
 
-	(void)close(cf->fd);
-	cf->fd = open(cf->file_path, O_CREAT | O_RDWR | O_TRUNC, 0644);
-	if (cf->fd == -1) {
-		fatal("cvs_merge_file: failed to reopen fd for writing: %s",
-		    strerror(errno));
-	}
-
+	merged = buf_alloc(128);
 	TAILQ_FOREACH(lp, &(dlines->l_lines), l_list) {
-		if (lp->l_line == NULL)
-			continue;
-
-		if (atomicio(vwrite, cf->fd, lp->l_line, lp->l_len) !=
-		    lp->l_len)
-			fatal("cvs_merge_file: %s", strerror(errno));
+		if (lp->l_line != NULL)
+			buf_append(merged, lp->l_line, lp->l_len);
 	}
+	/* Same-directory temporary write, checked sync and rename preserve failure data. */
+	if (buf_write(merged, cf->file_path, original.st_mode & 0777) == -1)
+		fatal("merge: replacement failed: %s", strerror(errno));
+	buf_free(merged);
+	if (close(cf->fd) == -1)
+		fatal("merge: close original: %s", strerror(errno));
+	if ((cf->fd = open(cf->file_path, O_RDONLY | O_NOFOLLOW)) == -1)
+		fatal("merge: reopen merged file: %s", strerror(errno));
 
 	cvs_freelines(dlines);
 
@@ -314,117 +362,111 @@ diff3_internal(int argc, char **argv, const char *fmark, const char *rmark)
 	return (merge(m, n));
 }
 
+/* Parse only within a line object: it is not necessarily NUL-terminated. */
+static int
+ed_number(const u_char **position, const u_char *limit)
+{
+	const u_char *p = *position;
+	int value = 0, digit;
+
+	if (p == limit || *p < '0' || *p > '9')
+		fatal("ed_patch_lines: missing decimal line number");
+	while (p != limit && *p >= '0' && *p <= '9') {
+		digit = *p++ - '0';
+		if (value > (INT_MAX - digit) / 10)
+			fatal("ed_patch_lines: line number overflow");
+		value = value * 10 + digit;
+	}
+	*position = p;
+	return value;
+}
+
 int
 ed_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines)
 {
-	char op, *ep;
+	const u_char *position, *limit;
+	char op;
 	struct rcs_line *sort, *lp, *dlp, *ndlp, *insert_after;
 	int start, end, i, lineno;
-	u_char tmp;
 
 	dlp = TAILQ_FIRST(&(dlines->l_lines));
 	lp = TAILQ_FIRST(&(plines->l_lines));
+	if (dlp == NULL || lp == NULL)
+		fatal("ed_patch_lines: missing line-list sentinel");
 
-	end = 0;
 	for (lp = TAILQ_NEXT(lp, l_list); lp != NULL;
 	    lp = TAILQ_NEXT(lp, l_list)) {
-		/* Skip blank lines */
-		if (lp->l_len < 2)
-			continue;
-
-		/* NUL-terminate line buffer for strtol() safety. */
-		tmp = lp->l_line[lp->l_len - 1];
-		lp->l_line[lp->l_len - 1] = '\0';
-
-		op = lp->l_line[strlen(lp->l_line) - 1];
-		start = (int)strtol(lp->l_line, &ep, 10);
-
-		/* Restore the last byte of the buffer */
-		lp->l_line[lp->l_len - 1] = tmp;
-
-		if (op == 'a') {
-			if (start > dlines->l_nblines ||
-			    start < 0 || *ep != 'a')
-				fatal("ed_patch_lines %d", start);
-		} else if (op == 'c') {
-			if (start > dlines->l_nblines ||
-			    start < 0 || (*ep != ',' && *ep != 'c'))
-				fatal("ed_patch_lines");
-
-			if (*ep == ',') {
-				ep++;
-				end = (int)strtol(ep, &ep, 10);
-				if (end < 0 || *ep != 'c')
-					fatal("ed_patch_lines");
-			} else {
-				end = start;
-			}
-		} else {
-			fatal("invalid op %c found while merging", op);
+		if (lp->l_len < 3 || lp->l_line[lp->l_len - 1] != '\n')
+			fatal("ed_patch_lines: truncated command");
+		position = lp->l_line;
+		limit = position + lp->l_len - 1;
+		start = ed_number(&position, limit);
+		end = start;
+		if (position != limit && *position == ',') {
+			position++;
+			end = ed_number(&position, limit);
 		}
+		if (position == limit)
+			fatal("ed_patch_lines: missing operation");
+		op = (char)*position++;
+		if (position != limit || (op != 'a' && op != 'c') ||
+		    start > dlines->l_nblines || end > dlines->l_nblines ||
+		    end < start || (op == 'a' && end != start) ||
+		    (op == 'c' && start == 0))
+			fatal("ed_patch_lines: invalid operation or range");
 
-
-		for (;;) {
-			if (dlp == NULL)
-				break;
-			if (dlp->l_lineno == start)
-				break;
-			if (dlp->l_lineno > start) {
+		while (dlp != NULL && dlp->l_lineno != start) {
+			if (dlp->l_lineno > start)
 				dlp = TAILQ_PREV(dlp, tqh, l_list);
-			} else if (dlp->l_lineno < start) {
-				ndlp = TAILQ_NEXT(dlp, l_list);
-				if (ndlp->l_lineno > start)
-					break;
-				dlp = ndlp;
-			}
+			else
+				dlp = TAILQ_NEXT(dlp, l_list);
 		}
-
 		if (dlp == NULL)
-			fatal("ed_patch_lines");
-
+			fatal("ed_patch_lines: line number not present");
 
 		if (op == 'c') {
 			insert_after = TAILQ_PREV(dlp, tqh, l_list);
-			for (i = 0; i <= (end - start); i++) {
+			if (insert_after == NULL)
+				fatal("ed_patch_lines: cannot replace sentinel");
+			for (i = start; ; i++) {
+				if (dlp == NULL)
+					fatal("ed_patch_lines: incomplete replacement range");
 				ndlp = TAILQ_NEXT(dlp, l_list);
 				TAILQ_REMOVE(&(dlines->l_lines), dlp, l_list);
+				if (dlp->l_needsfree)
+					free(dlp->l_line);
+				free(dlp);
 				dlp = ndlp;
+				if (i == end)
+					break;
 			}
 			dlp = insert_after;
 		}
 
-		if (op == 'a' || op == 'c') {
-			for (;;) {
-				ndlp = lp;
-				lp = TAILQ_NEXT(lp, l_list);
-				if (lp == NULL)
-					fatal("ed_patch_lines");
-
-				if (lp->l_len == 2 &&
-				    lp->l_line[0] == '.' &&
-				    lp->l_line[1] == '\n')
-					break;
-
-				TAILQ_REMOVE(&(plines->l_lines), lp, l_list);
-				TAILQ_INSERT_AFTER(&(dlines->l_lines), dlp,
-				    lp, l_list);
-				dlp = lp;
-
-				lp->l_lineno = start;
-				lp = ndlp;
-			}
+		for (;;) {
+			ndlp = lp;
+			lp = TAILQ_NEXT(lp, l_list);
+			if (lp == NULL)
+				fatal("ed_patch_lines: unterminated insertion");
+			if (lp->l_len == 2 && lp->l_line[0] == '.' &&
+			    lp->l_line[1] == '\n')
+				break;
+			TAILQ_REMOVE(&(plines->l_lines), lp, l_list);
+			TAILQ_INSERT_AFTER(&(dlines->l_lines), dlp, lp, l_list);
+			dlp = lp;
+			lp->l_lineno = start;
+			lp = ndlp;
 		}
 
-		/*
-		 * always resort lines as the markers might be put at the
-		 * same line as we first started editing.
-		 */
+		/* Keep coordinates consistent for following reverse-order edits. */
 		lineno = 0;
-		TAILQ_FOREACH(sort, &(dlines->l_lines), l_list)
+		TAILQ_FOREACH(sort, &(dlines->l_lines), l_list) {
+			if (lineno == INT_MAX)
+				fatal("ed_patch_lines: too many lines");
 			sort->l_lineno = lineno++;
+		}
 		dlines->l_nblines = lineno - 1;
 	}
-
 	return (0);
 }
 
@@ -453,12 +495,16 @@ readin(int fd, struct diff **dd)
 			p++;
 			b = number(&p);
 		}
+		if (*p != 'a' && *p != 'c' && *p != 'd')
+			fatal("readin: invalid diff operation");
 		kind = *p++;
 		c = d = number(&p);
 		if (*p==',') {
 			p++;
 			d = number(&p);
 		}
+		if (b < a || d < c || *p != '\n' || p[1] != '\0')
+			fatal("readin: invalid diff range");
 		if (kind == 'a')
 			a++;
 		if (kind == 'd')
@@ -484,11 +530,18 @@ readin(int fd, struct diff **dd)
 static int
 number(char **lc)
 {
-	int nn;
+	int nn, digit;
 
+	if (!isdigit((unsigned char)**lc))
+		fatal("number: missing diff line number");
 	nn = 0;
-	while (isdigit((unsigned char)(**lc)))
-		nn = nn*10 + *(*lc)++ - '0';
+	while (isdigit((unsigned char)**lc)) {
+		digit = *(*lc)++ - '0';
+		/* readin stores exclusive ends and increments each parsed number. */
+		if (nn > (INT_MAX - 1 - digit) / 10)
+			fatal("number: diff line number overflow");
+		nn = nn * 10 + digit;
+	}
 
 	return (nn);
 }
@@ -517,16 +570,15 @@ get_line(FILE *b, size_t *n)
 	if ((cp = fgetln(b, &len)) == NULL)
 		return (NULL);
 
-	if (cp[len - 1] != '\n')
-		len++;
-	if (len + 1 > bufsize) {
-		do {
-			bufsize += 1024;
-		} while (len + 1 > bufsize);
+	if (len == 0 || len > SIZE_MAX - 2)
+		fatal("get_line: invalid line length");
+	if (len + 2 > bufsize) {
+		bufsize = len + 2;
 		buf = xreallocarray(buf, 1, bufsize);
 	}
-	memcpy(buf, cp, len - 1);
-	buf[len - 1] = '\n';
+	memcpy(buf, cp, len);
+	if (cp[len - 1] != '\n')
+		buf[len++] = '\n';
 	buf[len] = '\0';
 	if (n != NULL)
 		*n = len;
@@ -715,7 +767,9 @@ skip(int i, int from, char *pr)
 
 	for (n = 0; cline[i] < from - 1; n += j) {
 		if ((line = get_line(fp[i], &j)) == NULL)
-			return (-1);
+			fatal("diff3: truncated input while seeking line");
+		if (j > INT_MAX || n > (size_t)INT_MAX - j)
+			fatal("diff3: input exceeds supported offset range");
 		if (pr != NULL)
 			diff_output("%s%s", pr, line);
 		cline[i]++;
@@ -773,16 +827,27 @@ repos(int nchar)
 static int
 edit(struct diff *diff, int fdup, int j)
 {
+	int skipped;
+
 	if (((fdup + 1) & eflag) == 0)
 		return (j);
+	if (j == INT_MAX)
+		fatal("diff3: too many edits");
 	j++;
+
 	overlap[j] = !fdup;
 	if (!fdup)
 		overlapcnt++;
 	de[j].old.from = diff->old.from;
 	de[j].old.to = diff->old.to;
-	de[j].new.from = de[j-1].new.to + skip(2, diff->new.from, NULL);
-	de[j].new.to = de[j].new.from + skip(2, diff->new.to, NULL);
+	skipped = skip(2, diff->new.from, NULL);
+	if (skipped < 0 || de[j-1].new.to > INT_MAX - skipped)
+		fatal("diff3: edit offset overflow");
+	de[j].new.from = de[j-1].new.to + skipped;
+	skipped = skip(2, diff->new.to, NULL);
+	if (skipped < 0 || de[j].new.from > INT_MAX - skipped)
+		fatal("diff3: edit offset overflow");
+	de[j].new.to = de[j].new.from + skipped;
 	return (j);
 }
 

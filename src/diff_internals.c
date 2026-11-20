@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: diff_internals.c,v 1.40 2019/06/28 13:35:00 deraadt Exp $	*/
 /*
  * Copyright (C) Caldera International Inc.  2001-2002.
@@ -649,14 +666,13 @@ unravel(int p)
 static void
 check(FILE *f1, FILE *f2, int flags)
 {
-	int i, j, jackpot, c, d;
+	int i, j, c, d;
 	long ctold, ctnew;
 
 	rewind(f1);
 	rewind(f2);
 	j = 1;
 	ixold[0] = ixnew[0] = 0;
-	jackpot = 0;
 	ctold = ctnew = 0;
 	for (i = 1; i <= len[0]; i++) {
 		if (J[i] == 0) {
@@ -705,8 +721,7 @@ check(FILE *f1, FILE *f2, int flags)
 					}
 				}
 				if (chrtran[c] != chrtran[d]) {
-					jackpot++;
-					J[i] = 0;
+							J[i] = 0;
 					if (c != '\n' && c != EOF)
 						ctold += skipline(f1);
 					if (d != '\n' && c != EOF)
@@ -1225,7 +1240,7 @@ asciifile(FILE *f)
 static char *
 match_function(const long *f, int pos, FILE *fp)
 {
-	unsigned char buf[FUNCTION_CONTEXT_SIZE];
+	char buf[FUNCTION_CONTEXT_SIZE];
 	size_t nc;
 	int last = lastline;
 	char *state = NULL;
@@ -1240,7 +1255,7 @@ match_function(const long *f, int pos, FILE *fp)
 		if (nc > 0) {
 			buf[nc] = '\0';
 			buf[strcspn(buf, "\n")] = '\0';
-			if (isalpha(buf[0]) || buf[0] == '_' || buf[0] == '$') {
+			if (isalpha((unsigned char)buf[0]) || buf[0] == '_' || buf[0] == '$') {
 				if (begins_with(buf, "private:")) {
 					if (!state)
 						state = " (private)";
