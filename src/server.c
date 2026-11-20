@@ -109,6 +109,7 @@ struct cvs_cmd cvs_cmd_server = {
 int
 cvs_server(int argc, char **argv)
 {
+	(void)argv;
 	char *cmd, *data;
 	struct cvs_req *req;
 
@@ -231,6 +232,7 @@ cvs_server_validresp(char *data)
 void
 cvs_server_validreq(char *data)
 {
+	(void)data;
 	BUF *bp;
 	char *d;
 	int i, first;
@@ -260,6 +262,7 @@ cvs_server_validreq(char *data)
 void
 cvs_server_static_directory(char *data)
 {
+	(void)data;
 	FILE *fp;
 	char fpath[PATH_MAX];
 
@@ -339,6 +342,7 @@ cvs_server_set(char *data)
 void
 cvs_server_directory(char *data)
 {
+	(void)data;
 	CVSENTRIES *entlist;
 	char *dir, *repo, *parent, *entry, *dirn, *p;
 	char parentbuf[PATH_MAX], dirnbuf[PATH_MAX];
@@ -460,6 +464,7 @@ cvs_server_modified(char *data)
 void
 cvs_server_useunchanged(char *data)
 {
+	(void)data;
 }
 
 void
@@ -522,7 +527,9 @@ cvs_server_argument(char *data)
 	if (data == NULL)
 		fatal("Missing argument for Argument");
 
-	server_argv = xreallocarray(server_argv, server_argc + 2,
+	if (server_argc > INT_MAX - 2)
+		fatal("too many protocol arguments");
+	server_argv = xreallocarray(server_argv, (size_t)server_argc + 2,
 	    sizeof(*server_argv));
 	server_argv[server_argc] = xstrdup(data);
 	server_argv[++server_argc] = NULL;
@@ -532,14 +539,20 @@ void
 cvs_server_argumentx(char *data)
 {
 	int idx;
-	size_t len;
+	size_t len, oldlen, extra;
 
+	if (data == NULL)
+		fatal("Missing argument for ArgumentX");
 	if (server_argc == 1)
 		fatal("Protocol Error: ArgumentX without previous argument");
 
 	idx = server_argc - 1;
 
-	len = strlen(server_argv[idx]) + strlen(data) + 2;
+	oldlen = strlen(server_argv[idx]);
+	extra = strlen(data);
+	if (oldlen > SIZE_MAX - 2 || extra > SIZE_MAX - oldlen - 2)
+		fatal("protocol argument size overflow");
+	len = oldlen + extra + 2;
 	server_argv[idx] = xreallocarray(server_argv[idx], len, sizeof(char));
 	strlcat(server_argv[idx], "\n", len);
 	strlcat(server_argv[idx], data, len);
@@ -548,6 +561,7 @@ cvs_server_argumentx(char *data)
 void
 cvs_server_update_patches(char *data)
 {
+	(void)data;
 	/*
 	 * This does not actually do anything.
 	 * It is used to tell that the server is able to
@@ -560,6 +574,7 @@ cvs_server_update_patches(char *data)
 void
 cvs_server_add(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_add: %s", strerror(errno));
 
@@ -572,6 +587,7 @@ cvs_server_add(char *data)
 void
 cvs_server_import(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_import: %s", strerror(errno));
 
@@ -584,6 +600,7 @@ cvs_server_import(char *data)
 void
 cvs_server_admin(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_admin: %s", strerror(errno));
 
@@ -596,6 +613,7 @@ cvs_server_admin(char *data)
 void
 cvs_server_annotate(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_annotate: %s", strerror(errno));
 
@@ -608,6 +626,7 @@ cvs_server_annotate(char *data)
 void
 cvs_server_rannotate(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_rannotate: %s", strerror(errno));
 
@@ -620,6 +639,7 @@ cvs_server_rannotate(char *data)
 void
 cvs_server_commit(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_commit: %s", strerror(errno));
 
@@ -632,6 +652,7 @@ cvs_server_commit(char *data)
 void
 cvs_server_checkout(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_checkout: %s", strerror(errno));
 
@@ -644,6 +665,7 @@ cvs_server_checkout(char *data)
 void
 cvs_server_diff(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_diff: %s", strerror(errno));
 
@@ -656,6 +678,7 @@ cvs_server_diff(char *data)
 void
 cvs_server_rdiff(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_rdiff: %s", strerror(errno));
 
@@ -668,6 +691,7 @@ cvs_server_rdiff(char *data)
 void
 cvs_server_export(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_export: %s", strerror(errno));
 
@@ -698,6 +722,7 @@ cvs_server_init(char *data)
 void
 cvs_server_release(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_release: %s", strerror(errno));
 
@@ -710,6 +735,7 @@ cvs_server_release(char *data)
 void
 cvs_server_remove(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_remove: %s", strerror(errno));
 
@@ -722,6 +748,7 @@ cvs_server_remove(char *data)
 void
 cvs_server_status(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_status: %s", strerror(errno));
 
@@ -734,6 +761,7 @@ cvs_server_status(char *data)
 void
 cvs_server_log(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_log: %s", strerror(errno));
 
@@ -746,6 +774,9 @@ cvs_server_log(char *data)
 void
 cvs_server_rlog(char *data)
 {
+	(void)data;
+	if (current_cvsroot == NULL)
+		fatal("Root must precede rlog");
 	if (chdir(current_cvsroot->cr_dir) == -1)
 		fatal("cvs_server_rlog: %s", strerror(errno));
 
@@ -758,6 +789,7 @@ cvs_server_rlog(char *data)
 void
 cvs_server_tag(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_tag: %s", strerror(errno));
 
@@ -770,6 +802,9 @@ cvs_server_tag(char *data)
 void
 cvs_server_rtag(char *data)
 {
+	(void)data;
+	if (current_cvsroot == NULL)
+		fatal("Root must precede rtag");
 	if (chdir(current_cvsroot->cr_dir) == -1)
 		fatal("cvs_server_rtag: %s", strerror(errno));
 
@@ -782,6 +817,7 @@ cvs_server_rtag(char *data)
 void
 cvs_server_update(char *data)
 {
+	(void)data;
 	if (chdir(server_currentdir) == -1)
 		fatal("cvs_server_update: %s", strerror(errno));
 
@@ -794,6 +830,7 @@ cvs_server_update(char *data)
 void
 cvs_server_version(char *data)
 {
+	(void)data;
 	cvs_cmdop = CVS_OP_VERSION;
 	cmdp->cmd_flags = cvs_cmd_version.cmd_flags;
 	cvs_version(server_argc, server_argv);
@@ -849,6 +886,7 @@ cvs_server_clear_sticky(char *dir)
 void
 cvs_server_exp_modules(char *module)
 {
+	(void)module;
 	struct module_checkout *mo;
 	struct cvs_filelist *fl;
 
