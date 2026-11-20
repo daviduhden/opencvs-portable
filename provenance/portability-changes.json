@@ -1,456 +1,483 @@
 {
-   "baseline_revision" : "4453305eb9b84bbd8b912a2794d5b2b12caa1b0f",
-   "derived_code_files" : [
-      {
-         "generator_record" : "generated/GENERATOR.txt",
-         "license" : "public-domain",
-         "path" : "generated/date.c",
-         "reason" : "Unmodified byacc output; not authored or relicensed as portability code.",
-         "sha256" : "75c6ecfe3246f40f4ef6b28cab55f4a898928c63542ea01ff4d30c45dc389b7c",
-         "source" : "src/date.y"
-      }
-   ],
-   "full_notice" : "LICENSES/ISC.txt",
-   "modified_imports" : [
-      "compat/imported/getopt.c",
-      "compat/include/sys/tree.h",
-      "src/add.c",
-      "src/admin.c",
-      "src/annotate.c",
-      "src/atomicio.c",
-      "src/atomicio.h",
-      "src/checkout.c",
-      "src/client.c",
-      "src/cmd.c",
-      "src/commit.c",
-      "src/config.c",
-      "src/cvs.c",
-      "src/cvs.h",
-      "src/edit.c",
-      "src/entries.c",
-      "src/file.c",
-      "src/file.h",
-      "src/import.c",
-      "src/logmsg.c",
-      "src/modules.c",
-      "src/remote.c",
-      "src/remote.h",
-      "src/repository.c",
-      "src/root.c",
-      "src/server.c",
-      "src/trigger.c",
-      "src/util.c",
-      "src/worklist.c",
-      "src/xmalloc.h"
-   ],
-   "new_code_files" : [
-      ".github/workflows/ci.yml",
-      ".github/workflows/release.yml",
-      "CMakeLists.txt",
-      "cmake/portable_config.h.in",
-      "compat/common.c",
-      "compat/include/pc_process.h",
-      "compat/include/portable.h",
-      "compat/linux/process.c",
-      "compat/windows/date_parse.c",
-      "compat/windows/errors.c",
-      "compat/windows/filesystem.c",
-      "compat/windows/include/dirent.h",
-      "compat/windows/include/err.h",
-      "compat/windows/include/libgen.h",
-      "compat/windows/include/paths.h",
-      "compat/windows/include/poll.h",
-      "compat/windows/include/pwd.h",
-      "compat/windows/include/sys/cdefs.h",
-      "compat/windows/include/sys/dirent.h",
-      "compat/windows/include/sys/resource.h",
-      "compat/windows/include/sys/time.h",
-      "compat/windows/include/sys/wait.h",
-      "compat/windows/include/unistd.h",
-      "compat/windows/include/windows_compat.h",
-      "compat/windows/path_parts.c",
-      "compat/windows/runtime.c",
-      "compat/windows/startup.c",
-      "platform/windows/opencvs.manifest",
-      "platform/windows/opencvs.manifest.rc",
-      "platform/windows/process.c",
-      "scripts/check-license-notices.pl",
-      "scripts/check-windows-imports.pl",
-      "scripts/publish-prerelease.pl",
-      "scripts/release-check.pl",
-      "scripts/upstream-stage.pl",
-      "scripts/validate-agent-knowledge.pl",
-      "tests/fs_probe.c",
-      "tests/integration.pl",
-      "tests/ssh_shim.c",
-      "tests/unit_compat.c"
-   ],
-   "new_code_license" : "ISC",
-   "original_notice_sha256" : {
-      "compat/imported/charclass.h" : [
-         "e3e75961042f5ae1788de480e363b4ad6d2afda3cfa0e709fc281e6997ca2a08",
-         "02f5b616f24f832dd364c26cdd6a77f2fad2de526850858b088b58de40e93293"
-      ],
-      "compat/imported/fnmatch.c" : [
-         "6698d6ee77e2be8050a9cf1587330e9403242cbd608739534d47b0421304315a",
-         "8aefa2d6de699dc5c1fb6500e05cbd3dc62df5deaaaf43c680299d2f247a23dd",
-         "69695bd23dfc9ddc28dda96c0436c96f429c740bc87f8c88d1f3fabf2ff4712d",
-         "a98625771b3a68de9a2c87605fb2ac6dd4a1095f1fa0ea069861857beca95c48"
-      ],
-      "compat/imported/getopt.c" : [
-         "68dd2e5fcc4bf54113126df268f561bcd9f75d66a45647dbd2d732195f6d8011",
-         "427b421d2242946f950a601675b1cd7fdc7dacdcbe0b511009c0938a8b1dbd54",
-         "9f52bb78dd6ebd0ae9651811bb653f5dd730c7b5835d42be946751b2c122e42d",
-         "7694762f81230488330904d2a48a9d4e27cf87d0004caf534794c87a74360627"
-      ],
-      "compat/imported/include/fnmatch.h" : [
-         "c785cfbc4977c80e2ad31c3f9b38f23357d43b936bc99e7a6a3298c1763494e4",
-         "fcfbdb53ac9d5f830716989b98981a2d107401993ce458b62d92fb1723e6c095",
-         "2e84cae36bb6b4f11a7ad84773740e0e9324fb6da5364cc379a9dd3afb824d8a"
-      ],
-      "compat/imported/include/getopt.h" : [
-         "6a215995bf9860e2250ae67b1c44687d05ad6712d557dd816f06250b30ef25bf",
-         "34e87d3f8362e29829ca63c5cc25f0f6dcba21e1dc6f8ec1f4ec8ee713f52938",
-         "7694762f81230488330904d2a48a9d4e27cf87d0004caf534794c87a74360627"
-      ],
-      "compat/imported/include/regex.h" : [
-         "19bf54739870779f51b405e80557b08f86ba86a4151178ba6a46b25e31d80b17",
-         "3a6acab484937f4245996746e0e1165b0333e956185a5a3aed45e0d4eb8a77e9",
-         "eb4e30c26b30acc556f0595ef5ce0a679e8b7655f79f6c5592c87624137e89cf"
-      ],
-      "compat/imported/reallocarray.c" : [
-         "6bc2ea95d6974916c66361ba1d4940ae8972fcfee16e055da44cf6c9d89881fe",
-         "b40d1c66ea7f0073f92bd78f34beb5535c1b8a3d1dadfb1b723d9751bcd22e45"
-      ],
-      "compat/imported/regex/COPYRIGHT" : [],
-      "compat/imported/regex/cclass.h" : [
-         "291af2b14505072e2a9301207ff787b7b11dfc3f73c908a57d6c26e1c29eb2b3",
-         "72b1248e5b4287aa1d2b5008f95206f41c35a61ec21c11d3c4400f9965fa78ab",
-         "d778388e6086b2f96aaa7a5a1d5f026a427b0333186e7a7c454236955161770c"
-      ],
-      "compat/imported/regex/cname.h" : [
-         "a2d565498f9f1b6316785628a15b9d2d84910dac7a0f92aa5b985259f07d0ffd",
-         "f5ac6ca7b04103529c91f8e66bb73ebffbe8ad3a0518f1d2135c436576d9b090",
-         "57db17aa3dbf4834e1bea8605fdd868ffb790e48f306ff2a24d34b48e5c4594d"
-      ],
-      "compat/imported/regex/engine.c" : [
-         "6ff70f47db90d018be737065f8d93b8883ef67d932e797ed1954ff169e7211fa",
-         "7293d4519b486e7dd29ea2b68817c2c0ce41c9958e64510a43ee1ca1e234ecf1",
-         "f19ef70f24039c274f2ced9b41137890622376818954b6327ded56d55118c536"
-      ],
-      "compat/imported/regex/regcomp.c" : [
-         "e2f67db4c83851f312cad5504e3c1d5814fde839e372e1df761c91559ed21553",
-         "c7e432fe9d1d7329251d4efed6d5f92e22628a5fb3d7fab52eee101fea4ad7ba"
-      ],
-      "compat/imported/regex/regerror.c" : [
-         "2dbc638034a4d04fcaa217a34d33401964fb62f8630e9ed219919fd4a834054c",
-         "d6ef9a08c52ebbbf7afa27211e265db7538e7ef22a5ed9d093089ddc0a0f728a"
-      ],
-      "compat/imported/regex/regex2.h" : [
-         "4627e8e25074d05c3bf482961afe907a1f1084d43491484ea82a51ec32af1083",
-         "8c3a64736a8475e0ec7bb538216a0ccbee1b06ed675b2f6f9e2fca2503a2dee0",
-         "66965298cd3629d8551cd3ef07517ff682ed0440f5fc76038e3fc9e88a62d7f4"
-      ],
-      "compat/imported/regex/regexec.c" : [
-         "03c133abbc81e2c09728f363994ba5719ac68b1f3567cc4ccefbe0e7ab7a9c83",
-         "c1c63229e9f94ae41ed6eae4a15998af239bbbc2d848f61bdf9b0a88c50f3d35",
-         "2234721c71d1578de9b8e99b7ca43b7d1eb4497399037d3144a092ddc4cc2ba6"
-      ],
-      "compat/imported/regex/regfree.c" : [
-         "da17b541519de6089fbd79bb14b57deb516988339de7eb86c1fa46aa21da6c61",
-         "841ce3a325f7b3fbeaababfa6883987c2744a77fec242d3de9211c5b1b0da4e3"
-      ],
-      "compat/imported/regex/utils.h" : [
-         "4991a61b58de561e552270b5d07b178a8cc91fd3c3e5efea1a62ff528312cbd2",
-         "f5bb75a9c1a732d4789901b57ed94893a1a2f0c771007e49c8852230a757bdda",
-         "191c22968c333b064db54bbe8aaa52890aaa5566d88cf8a2e22c345a5226d4bf"
-      ],
-      "compat/imported/strlcat.c" : [
-         "d25c9cbf51aa3d2499fd0f691a57e10750d320f3d875cd382a83871fb004af18",
-         "3ea90cb8593fd079d13dc0d51c8de5b49eed12aec6d5ce092fdb6318e3717071"
-      ],
-      "compat/imported/strlcpy.c" : [
-         "39e60d44b3336fcca83c37671cd87882d39d75609a4bd001a469585d30f8d571",
-         "3ea90cb8593fd079d13dc0d51c8de5b49eed12aec6d5ce092fdb6318e3717071"
-      ],
-      "compat/imported/strsep.c" : [
-         "b38c033924096b296f6dd0c90dc02462128ffcdfcfd7f943a5aac09a2cc7c01b",
-         "5de6d9e124a151891ad6c6bcfd02a2328a3c604ab7e5f388385fbe47c1948729"
-      ],
-      "compat/imported/strtonum.c" : [
-         "71f0ff5d7606849ba2047c8180904caba792f4619de85ca1b870a0f3af4e8ac3",
-         "d2a59060a20f96bd4eac052ea9fc50d7182441cfac8ae2a48146521a4bdca9c0"
-      ],
-      "compat/include/sys/_null.h" : [
-         "b1fdc7ac4f1c1971de5349df0f99ba9c961b5446554bc80d810e36bfa92e4dfd",
-         "c50bee272017095a5aa3b5f646369b70bb0a7d94ccbf53cc30a3dd57b128da71"
-      ],
-      "compat/include/sys/queue.h" : [
-         "b09301a52879bdbdfb35ca8dca8172c1ad7261287cb780a360cce35be97cc46a",
-         "907b2089134cb1571e8f63418cbba6f3e6f4755c0e45befecc58ca86973d2e6c",
-         "db418ef1507ae6735d1e25aa7418cf1be4b27059c0c57e79003d96b238c63dab"
-      ],
-      "compat/include/sys/tree.h" : [
-         "8db2be57620e13be5e5ad5bc02cede352488875e7aa1e6a95d876fdf0eed5a39",
-         "a815b82317708cdf2edbdfd0b7b4f17109de2802da255ea90444faed4c7d3a67"
-      ],
-      "src/Makefile" : [],
-      "src/README" : [],
-      "src/add.c" : [
-         "d00e530bbdbc0270389c66114a17c8aff5f265570862d2ad62c9fc37e56e2000",
-         "2c820a881294d1ebe4d5c5e4f197b8a09b5c83f3d8092fd2d68c1df5587dadf9"
-      ],
-      "src/admin.c" : [
-         "0204f7cc5170dc3c76717313492681a9afc318e641f4015ffca5ae021bee4dc1",
-         "33deb83bad2b38a56da005bcbf2a7ae28cc8433732f1e4a128d43cbe9dfeb25e"
-      ],
-      "src/annotate.c" : [
-         "45e8de0680989b0505e29faf10970b72a8f42523884bb738b58cdb9c30c579a2",
-         "68b2c3f6c9598f98e25473840be9ee2adcdcadc455e426cee3c40b7080d2517a"
-      ],
-      "src/atomicio.c" : [
-         "243ac69c97efb41cfc4c82ae63d44a24653f16e8d94cf537df67f5a380e56df4",
-         "92243b8f5b7e6d2639d7a5495f0803cdf281bbada0db6d153171622a0d07b9d1"
-      ],
-      "src/atomicio.h" : [
-         "224975ab261d39d3c17dc01103b484dbf02537dbe43be2d0b9386b847ce4aa96",
-         "bac7fb6baadf4f61eb09b1cced53f832f8dcadb1508212a281636b99344d7c74"
-      ],
-      "src/buf.c" : [
-         "acfc3e789097f2a0af09390bb7840c0cdef029d8712681f773a43af64e1211b9",
-         "2afea832f66f44cd5541b9db36177d8db9738ab9710273b9e63f70893a30f418"
-      ],
-      "src/buf.h" : [
-         "b0434e22e6373492d25f9f74bf17a64e083c9d0a040ada03391a305457f8534f",
-         "2afea832f66f44cd5541b9db36177d8db9738ab9710273b9e63f70893a30f418"
-      ],
-      "src/checkout.c" : [
-         "2d68fe572cd4e0f3a64a04788e7a593e155291e815c5ea1d5cf13439257c80ce",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/client.c" : [
-         "46a26e0b8155fc64220d60fac043b59d0c1414a81e3528b40c07ffca23d3410c",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/cmd.c" : [
-         "d05971dfac9a5294c23f295c6438f3e3d2f0fcd2627633e38a89d55a368db25c",
-         "614e95649888c65ff0c8c476d75f738a54ece471fb33a4871995ec49095f481c"
-      ],
-      "src/commit.c" : [
-         "11705119389843c4a97e29aed0a1653d394e3fc40de3105986b9d8ad8e84f651",
-         "aed75d221c9f5bc5bac03897e9e4e3dd1ad0b946f48e81d8f70617d0fbfc1e5e"
-      ],
-      "src/config.c" : [
-         "5789f601b062c663b42beedb70cb4428cac8a4c5670647638a3d590205ab744b",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/config.h" : [
-         "ec3d57cfd911c17b1f349d52eea1dcae0a142fac752f723ab2d11ecfdb9e4b2a",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/cvs.1" : [],
-      "src/cvs.5" : [],
-      "src/cvs.c" : [
-         "624f84c3569f3fc97d90c3731baa6f285e3dc89cb7a3f84d4ec603614c4e15c6",
-         "ffba66c07723c72b95f7c314873587cb7fd5085b752ef5951245f2cc60965def"
-      ],
-      "src/cvs.h" : [
-         "934c03d8c353feaf5d768282db0f840c9d66ea9b04115ef94fbb9e2b9a814e5b",
-         "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
-      ],
-      "src/cvsintro.7" : [],
-      "src/date.y" : [],
-      "src/diff.c" : [
-         "101d5bd9137a77d7120a1de436e85dcb72484d944477dfcf4f9e96f33d1946a7",
-         "36187cf773ef712dfbaf2abf067fa6d3e7ae267cb7452e95d97bc93efb95a0a6"
-      ],
-      "src/diff.h" : [
-         "785df66c8d5682b12595cf9a1e48e1f08f4331d14d5525be5b482f8b8b22d391",
-         "260c4b621df9ee313e224fef93987aabe459026c8faf42cfc1afd5f9bcf13a97",
-         "f0977778df8a9d05e151d4589032fb8bcf4722a71ca694d8dbbdd960867eaef2"
-      ],
-      "src/diff3.c" : [
-         "ff5f8c3f4c00df8e90fb681f4a614592da3d52f9c8a40f8f66dd2e4dddda03a6",
-         "260c4b621df9ee313e224fef93987aabe459026c8faf42cfc1afd5f9bcf13a97",
-         "e9d3bd83d21e6af2ffa4eb97373a0e5e23fcfc1a4315592150f1e23cc14468ae"
-      ],
-      "src/diff_internals.c" : [
-         "ffb7f1e0716849762a9e4410e56fcc01844c21d1a2048e19fa9a7bae0be1f02a",
-         "260c4b621df9ee313e224fef93987aabe459026c8faf42cfc1afd5f9bcf13a97",
-         "f0977778df8a9d05e151d4589032fb8bcf4722a71ca694d8dbbdd960867eaef2"
-      ],
-      "src/edit.c" : [
-         "1cf5dea4908cbb808768b34ce4a75271dd0178655a34d7f6514f9ef2e2bd9bfb",
-         "b84fd87c9db52a39412900f59034a5c24346173c352ba39f6db09773647bc09d"
-      ],
-      "src/entries.c" : [
-         "ae0f6d6925d2565aa3563df61bcdf9adc2b95b6dc2119de05aa453279527d394",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/fatal.c" : [
-         "06f70def05bab63cb2502fd4773ca917d95681c93df695c0a2d69dd71706998c",
-         "7b36c49376e7d951ef0a80b8ff89d5ec572df5263061ed3eb82009fa4916ba36"
-      ],
-      "src/file.c" : [
-         "dc885ccec1ccf95df2c3e5714f78abbc1c2b077fe09881b9b95304f26af80feb",
-         "ee06298a408aa4f80ce105c301907b0577b9a4b99ca05432c5d81ee8a16a322f"
-      ],
-      "src/file.h" : [
-         "77f35d2193e727ff3d826e3f80f048a9cfbe6cbb41e3d0d03044abd89f3816b9",
-         "ee06298a408aa4f80ce105c301907b0577b9a4b99ca05432c5d81ee8a16a322f"
-      ],
-      "src/getlog.c" : [
-         "33a31e78c1e3c0a3f571a1895a217392e407580e204cf64b0ed0b99215838564",
-         "7899475d3543e86e0bffd886931c6884a02bda46417199c24749beaebb737e2d"
-      ],
-      "src/hash.c" : [
-         "db5b90d976ef17dadcc8545a213c86a81d8cd79eb59cb3962a094c72563746e9",
-         "5ce2073c619a245c84d35c436262f7f4234d91fc4dd9c4b49397208e90133c04"
-      ],
-      "src/hash.h" : [
-         "48764185ae5c8a2cda9dd13c93998bf3e591fb8546d5f62bb974551d92fb1dab",
-         "5ce2073c619a245c84d35c436262f7f4234d91fc4dd9c4b49397208e90133c04",
-         "d4d9341b1b0884d35726b9abce1b6738cbcd47866a70f00802ea23e3053905f8"
-      ],
-      "src/hash_func.c" : [
-         "0074b0ab20d040500a114e2f39f979126d580476fb80330d396b22a6a5219bf5",
-         "28cfb479f8d9cb65741acac5abc9b8f4ad9105b905f89552f7ee490e85653f5b"
-      ],
-      "src/history.c" : [
-         "86b211aa4fedc714ae27b05994f657143934abbfb548dec0aa6a11c1f9c8779f",
-         "3fde0931df73373d48664740468b17e626617021c930665cdca7e8c169cda27c"
-      ],
-      "src/import.c" : [
-         "7d3e4d1710c6b07a38703b909ca3aff7300162f9db28e373f9ec0a39385548e1",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/init.c" : [
-         "9bed1fc7c28338766d64d85677167dc049b59e8193509c0f86db1d0d9f9677c3",
-         "86f5f0277dd8018729b30bd378584bc6f75d1b691013e88f27c6f30bfd985200"
-      ],
-      "src/init.h" : [
-         "18aede5ea15fbf292dea11cb22955a48d0df699b86b3501b05d7dbd507ce7431",
-         "12f9f4efb0c7d09fdbc5a72d479119c794893f50b89939fc9a07a0c463ed99eb"
-      ],
-      "src/log.c" : [
-         "8af3d070ae7e3edf8859bb618cabddcfd87b8aaec55c0916a24feab49c8d3152",
-         "ee06298a408aa4f80ce105c301907b0577b9a4b99ca05432c5d81ee8a16a322f"
-      ],
-      "src/log.h" : [
-         "1e10555eb648cde75aca4966aa2cf5add88ca74f24b324dc41a540ccd917a47b",
-         "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
-      ],
-      "src/logmsg.c" : [
-         "05168a9f52f5e9a1503f7755d1a27dadd4125d56f486638cbb9b8d994c43ab15",
-         "3fde0931df73373d48664740468b17e626617021c930665cdca7e8c169cda27c"
-      ],
-      "src/modules.c" : [
-         "1280c889e71f3f0b8267d784a3750b739ac27f75dc651c4047de72a08a0a24a5",
-         "5ce2073c619a245c84d35c436262f7f4234d91fc4dd9c4b49397208e90133c04"
-      ],
-      "src/rcs.c" : [
-         "345a090d805da4b1ab719bc8bb1f85ed1b7f6a48ba15ffa99d5b9aaca9014dac",
-         "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
-      ],
-      "src/rcs.h" : [
-         "ce592523d0455e1316b7e09f06ffb0d4f09bde55e03b886560335653de6ba69b",
-         "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
-      ],
-      "src/rcsnum.c" : [
-         "f28ec03a782cf270fc076a01e99fbee8a3d6caed5e705dba23b8ecaf327a94dc",
-         "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
-      ],
-      "src/rcsparse.c" : [
-         "ef7829105c5adcd7713138c7d1c5ffddec24aff0de47c7749d994571d50c0b75",
-         "7e292049294a0220260199cb850dfbc367631bc4d7267a3c0ff6c0a380874bd3"
-      ],
-      "src/rcsparse.h" : [
-         "d0d9b1ba893f1e1ceecd6182ac7f44ebc99cf035e7644d5581d04e116db8bc9e",
-         "7e292049294a0220260199cb850dfbc367631bc4d7267a3c0ff6c0a380874bd3"
-      ],
-      "src/release.c" : [
-         "97ad179c2b56205b1d9709e13f1f12abcd393a1fba32bb38265d81f50b4e7878",
-         "9c247d20ad62740fdfa295d82090a6e83391c1348464ac2d9ef4b5356e5a648f"
-      ],
-      "src/remote.c" : [
-         "2e6c881bbd45a73eaeb52db7a9f1b0ee2f913ebe17c2184c97fa3928275e5b9e",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/remote.h" : [
-         "36f6130ece7dd81a0f503b5d16ca48be97e5aca39198db6c67f3f9077eb5150a",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/remove.c" : [
-         "ba5176751b3a8fa90b1c62d8480ddd3d397fffd2e0db4e57a628a60e0aab3110",
-         "d127f866ec177d0acbdf69619e1c5c5862abeed82948113e1501ba0c719b18a4"
-      ],
-      "src/repository.c" : [
-         "daa577f1ae1339360e3c07ba8bb99e9a3a0d5d2518c9bcb033d17b30cd219b68",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/repository.h" : [
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/root.c" : [
-         "c6f481ac7e36a724ea9033a30e3176c0d43a94ecc72b7aad7f44342b03cbafe1",
-         "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
-      ],
-      "src/server.c" : [
-         "2129ee4e901ed1055c050901de5ff8ac51b0e61c8faac0f8f55f7de0909ad3ab",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/status.c" : [
-         "bf46d82ca6a8306841421bba177d109be8abf91192226fdd16631ae44788f780",
-         "dce3c14d46a9b839941450fcd4f65068c1489e28f5a30f01b8e8cef7c5337b71"
-      ],
-      "src/tag.c" : [
-         "aee37103696758f2015d88c98763d360aea5ef530258e0c27d9897852c4a0b2a",
-         "12f9f4efb0c7d09fdbc5a72d479119c794893f50b89939fc9a07a0c463ed99eb"
-      ],
-      "src/trigger.c" : [
-         "c49fe0f7eb51ee4aef205c0d3902af283daf274c30709a5f043694f8746e6b85",
-         "6de6af4790225dd5bc413d2f5f47954ecde1e78e5767f1d632493fcc4f764803"
-      ],
-      "src/trigger.h" : [
-         "3f6a20d391383902fea488da8d98bcdc95b3fb988a56dd7f7b4bac24d184b865",
-         "6de6af4790225dd5bc413d2f5f47954ecde1e78e5767f1d632493fcc4f764803"
-      ],
-      "src/update.c" : [
-         "222923f0c554c6a4c779d5a01e4eeb840f7da30f6618e5a69e765c783ccdf1e3",
-         "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
-      ],
-      "src/util.c" : [
-         "4455f792560da620f9dcd5a35f3f6c9832ff985b90a2b78dcc244cdd479d75b1",
-         "2cc6fbc45baf8cb3ec5766d4781d96ed1bbf98a0aba84962001e118a17b142bf"
-      ],
-      "src/util.h" : [
-         "90a5db0e3228c7c6aad2ce936b6a8673a80505aab7a5ea25129de5814cfb6dfa",
-         "854ed0786a83badeda44b8daaa3c2f77ecea51d545ea848ff0ec3388a7f79177"
-      ],
-      "src/version.c" : [
-         "ff82484f5aded1b512ad74c8d4c66dfeeb6758c13d5aae0223228211d9df050a",
-         "2d7695271913264b1e080c62596513e39cb14806f0456b50622ef703dbbd6d5b"
-      ],
-      "src/watch.c" : [
-         "d06e17389bdf90e28ff51a1541694bf402e84271ad447aac9b0fa77d9b4f2a78",
-         "d0dc7455475374157e164b32a143df5e0f7c2d18e04574ab332f1683398b01ef"
-      ],
-      "src/worklist.c" : [
-         "931a56399655ce6b3348d62ea2c02076c0a1bc96e69fe16df6eca7cf2bc16501",
-         "41b669a42b369de814dd604c48d3b0cf6089c6e5a31545f66d5867f42c2b4a10"
-      ],
-      "src/worklist.h" : [
-         "2e22b5ede270b1af9aa4a0a96afe986fe307822f28c7d5e0d999748bccf79d5f",
-         "41b669a42b369de814dd604c48d3b0cf6089c6e5a31545f66d5867f42c2b4a10"
-      ],
-      "src/xmalloc.c" : [
-         "35853f5fb3e4cf5a40f0802815ae724b1c479ecbc53d5759074c5d8dfe442d88",
-         "ebed15345607db6820678a46dba4663a75b819645ee6b7a0031a1a09c2a70466"
-      ],
-      "src/xmalloc.h" : [
-         "d91610470edd3941208ac179477b6df25b2bde34f14e7433146fbcbc8005721a",
-         "a7327d4d2a66ad934e46c4c416e0813528018460ce9fa74d00a0a10b85758987"
-      ]
-   },
-   "policy" : "Original notices retained; David Uhden Collado copyright covers only new portability changes."
+  "baseline_revision": "4453305eb9b84bbd8b912a2794d5b2b12caa1b0f",
+  "derived_code_files": [
+    {
+      "generator_record": "generated/GENERATOR.txt",
+      "license": "public-domain",
+      "path": "generated/date.c",
+      "reason": "Unmodified byacc output; not authored or relicensed as portability code.",
+      "sha256": "75c6ecfe3246f40f4ef6b28cab55f4a898928c63542ea01ff4d30c45dc389b7c",
+      "source": "src/date.y"
+    }
+  ],
+  "full_notice": "LICENSES/ISC.txt",
+  "modified_imports": [
+    "compat/imported/getopt.c",
+    "compat/imported/include/fnmatch.h",
+    "compat/imported/include/getopt.h",
+    "compat/imported/regex/engine.c",
+    "compat/imported/regex/regcomp.c",
+    "compat/imported/regex/regex2.h",
+    "compat/include/sys/tree.h",
+    "src/add.c",
+    "src/admin.c",
+    "src/annotate.c",
+    "src/atomicio.c",
+    "src/atomicio.h",
+    "src/buf.c",
+    "src/checkout.c",
+    "src/client.c",
+    "src/cmd.c",
+    "src/commit.c",
+    "src/config.c",
+    "src/cvs.c",
+    "src/cvs.h",
+    "src/date.y",
+    "src/diff.h",
+    "src/diff3.c",
+    "src/diff_internals.c",
+    "src/edit.c",
+    "src/entries.c",
+    "src/fatal.c",
+    "src/file.c",
+    "src/file.h",
+    "src/hash_func.c",
+    "src/history.c",
+    "src/import.c",
+    "src/init.c",
+    "src/log.c",
+    "src/log.h",
+    "src/logmsg.c",
+    "src/modules.c",
+    "src/rcs.c",
+    "src/rcsnum.c",
+    "src/rcsparse.c",
+    "src/remote.c",
+    "src/remote.h",
+    "src/remove.c",
+    "src/repository.c",
+    "src/root.c",
+    "src/server.c",
+    "src/status.c",
+    "src/tag.c",
+    "src/trigger.c",
+    "src/update.c",
+    "src/util.c",
+    "src/version.c",
+    "src/watch.c",
+    "src/worklist.c",
+    "src/worklist.h",
+    "src/xmalloc.h"
+  ],
+  "new_code_files": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/openbsd.yml",
+    ".github/workflows/release.yml",
+    "CMakeLists.txt",
+    "cmake/portable_config.h.in",
+    "compat/common.c",
+    "compat/include/pc_process.h",
+    "compat/include/portable.h",
+    "compat/linux/process.c",
+    "compat/windows/date_parse.c",
+    "compat/windows/errors.c",
+    "compat/windows/filesystem.c",
+    "compat/windows/include/dirent.h",
+    "compat/windows/include/err.h",
+    "compat/windows/include/libgen.h",
+    "compat/windows/include/paths.h",
+    "compat/windows/include/poll.h",
+    "compat/windows/include/pwd.h",
+    "compat/windows/include/sys/cdefs.h",
+    "compat/windows/include/sys/dirent.h",
+    "compat/windows/include/sys/resource.h",
+    "compat/windows/include/sys/time.h",
+    "compat/windows/include/sys/wait.h",
+    "compat/windows/include/unistd.h",
+    "compat/windows/include/windows_compat.h",
+    "compat/windows/path_parts.c",
+    "compat/windows/runtime.c",
+    "compat/windows/startup.c",
+    "platform/windows/opencvs.manifest",
+    "platform/windows/opencvs.manifest.rc",
+    "platform/windows/process.c",
+    "scripts/check-license-notices.pl",
+    "scripts/check-windows-imports.pl",
+    "scripts/publish-prerelease.pl",
+    "scripts/release-check.pl",
+    "scripts/upstream-stage.pl",
+    "scripts/validate-agent-knowledge.pl",
+    "tests/fs_probe.c",
+    "tests/integration.pl",
+    "tests/ssh_shim.c",
+    "tests/unit_compat.c"
+  ],
+  "new_code_license": "ISC",
+  "original_notice_sha256": {
+    "compat/imported/charclass.h": [
+      "e3e75961042f5ae1788de480e363b4ad6d2afda3cfa0e709fc281e6997ca2a08",
+      "02f5b616f24f832dd364c26cdd6a77f2fad2de526850858b088b58de40e93293"
+    ],
+    "compat/imported/fnmatch.c": [
+      "6698d6ee77e2be8050a9cf1587330e9403242cbd608739534d47b0421304315a",
+      "8aefa2d6de699dc5c1fb6500e05cbd3dc62df5deaaaf43c680299d2f247a23dd",
+      "69695bd23dfc9ddc28dda96c0436c96f429c740bc87f8c88d1f3fabf2ff4712d",
+      "a98625771b3a68de9a2c87605fb2ac6dd4a1095f1fa0ea069861857beca95c48"
+    ],
+    "compat/imported/getopt.c": [
+      "68dd2e5fcc4bf54113126df268f561bcd9f75d66a45647dbd2d732195f6d8011",
+      "427b421d2242946f950a601675b1cd7fdc7dacdcbe0b511009c0938a8b1dbd54",
+      "9f52bb78dd6ebd0ae9651811bb653f5dd730c7b5835d42be946751b2c122e42d",
+      "7694762f81230488330904d2a48a9d4e27cf87d0004caf534794c87a74360627"
+    ],
+    "compat/imported/include/fnmatch.h": [
+      "c785cfbc4977c80e2ad31c3f9b38f23357d43b936bc99e7a6a3298c1763494e4",
+      "fcfbdb53ac9d5f830716989b98981a2d107401993ce458b62d92fb1723e6c095",
+      "2e84cae36bb6b4f11a7ad84773740e0e9324fb6da5364cc379a9dd3afb824d8a"
+    ],
+    "compat/imported/include/getopt.h": [
+      "6a215995bf9860e2250ae67b1c44687d05ad6712d557dd816f06250b30ef25bf",
+      "34e87d3f8362e29829ca63c5cc25f0f6dcba21e1dc6f8ec1f4ec8ee713f52938",
+      "7694762f81230488330904d2a48a9d4e27cf87d0004caf534794c87a74360627"
+    ],
+    "compat/imported/include/regex.h": [
+      "19bf54739870779f51b405e80557b08f86ba86a4151178ba6a46b25e31d80b17",
+      "3a6acab484937f4245996746e0e1165b0333e956185a5a3aed45e0d4eb8a77e9",
+      "eb4e30c26b30acc556f0595ef5ce0a679e8b7655f79f6c5592c87624137e89cf"
+    ],
+    "compat/imported/reallocarray.c": [
+      "6bc2ea95d6974916c66361ba1d4940ae8972fcfee16e055da44cf6c9d89881fe",
+      "b40d1c66ea7f0073f92bd78f34beb5535c1b8a3d1dadfb1b723d9751bcd22e45"
+    ],
+    "compat/imported/regex/COPYRIGHT": [],
+    "compat/imported/regex/cclass.h": [
+      "291af2b14505072e2a9301207ff787b7b11dfc3f73c908a57d6c26e1c29eb2b3",
+      "72b1248e5b4287aa1d2b5008f95206f41c35a61ec21c11d3c4400f9965fa78ab",
+      "d778388e6086b2f96aaa7a5a1d5f026a427b0333186e7a7c454236955161770c"
+    ],
+    "compat/imported/regex/cname.h": [
+      "a2d565498f9f1b6316785628a15b9d2d84910dac7a0f92aa5b985259f07d0ffd",
+      "f5ac6ca7b04103529c91f8e66bb73ebffbe8ad3a0518f1d2135c436576d9b090",
+      "57db17aa3dbf4834e1bea8605fdd868ffb790e48f306ff2a24d34b48e5c4594d"
+    ],
+    "compat/imported/regex/engine.c": [
+      "6ff70f47db90d018be737065f8d93b8883ef67d932e797ed1954ff169e7211fa",
+      "7293d4519b486e7dd29ea2b68817c2c0ce41c9958e64510a43ee1ca1e234ecf1",
+      "f19ef70f24039c274f2ced9b41137890622376818954b6327ded56d55118c536"
+    ],
+    "compat/imported/regex/regcomp.c": [
+      "e2f67db4c83851f312cad5504e3c1d5814fde839e372e1df761c91559ed21553",
+      "c7e432fe9d1d7329251d4efed6d5f92e22628a5fb3d7fab52eee101fea4ad7ba"
+    ],
+    "compat/imported/regex/regerror.c": [
+      "2dbc638034a4d04fcaa217a34d33401964fb62f8630e9ed219919fd4a834054c",
+      "d6ef9a08c52ebbbf7afa27211e265db7538e7ef22a5ed9d093089ddc0a0f728a"
+    ],
+    "compat/imported/regex/regex2.h": [
+      "4627e8e25074d05c3bf482961afe907a1f1084d43491484ea82a51ec32af1083",
+      "8c3a64736a8475e0ec7bb538216a0ccbee1b06ed675b2f6f9e2fca2503a2dee0",
+      "66965298cd3629d8551cd3ef07517ff682ed0440f5fc76038e3fc9e88a62d7f4"
+    ],
+    "compat/imported/regex/regexec.c": [
+      "03c133abbc81e2c09728f363994ba5719ac68b1f3567cc4ccefbe0e7ab7a9c83",
+      "c1c63229e9f94ae41ed6eae4a15998af239bbbc2d848f61bdf9b0a88c50f3d35",
+      "2234721c71d1578de9b8e99b7ca43b7d1eb4497399037d3144a092ddc4cc2ba6"
+    ],
+    "compat/imported/regex/regfree.c": [
+      "da17b541519de6089fbd79bb14b57deb516988339de7eb86c1fa46aa21da6c61",
+      "841ce3a325f7b3fbeaababfa6883987c2744a77fec242d3de9211c5b1b0da4e3"
+    ],
+    "compat/imported/regex/utils.h": [
+      "4991a61b58de561e552270b5d07b178a8cc91fd3c3e5efea1a62ff528312cbd2",
+      "f5bb75a9c1a732d4789901b57ed94893a1a2f0c771007e49c8852230a757bdda",
+      "191c22968c333b064db54bbe8aaa52890aaa5566d88cf8a2e22c345a5226d4bf"
+    ],
+    "compat/imported/strlcat.c": [
+      "d25c9cbf51aa3d2499fd0f691a57e10750d320f3d875cd382a83871fb004af18",
+      "3ea90cb8593fd079d13dc0d51c8de5b49eed12aec6d5ce092fdb6318e3717071"
+    ],
+    "compat/imported/strlcpy.c": [
+      "39e60d44b3336fcca83c37671cd87882d39d75609a4bd001a469585d30f8d571",
+      "3ea90cb8593fd079d13dc0d51c8de5b49eed12aec6d5ce092fdb6318e3717071"
+    ],
+    "compat/imported/strsep.c": [
+      "b38c033924096b296f6dd0c90dc02462128ffcdfcfd7f943a5aac09a2cc7c01b",
+      "5de6d9e124a151891ad6c6bcfd02a2328a3c604ab7e5f388385fbe47c1948729"
+    ],
+    "compat/imported/strtonum.c": [
+      "71f0ff5d7606849ba2047c8180904caba792f4619de85ca1b870a0f3af4e8ac3",
+      "d2a59060a20f96bd4eac052ea9fc50d7182441cfac8ae2a48146521a4bdca9c0"
+    ],
+    "compat/include/sys/_null.h": [
+      "b1fdc7ac4f1c1971de5349df0f99ba9c961b5446554bc80d810e36bfa92e4dfd",
+      "c50bee272017095a5aa3b5f646369b70bb0a7d94ccbf53cc30a3dd57b128da71"
+    ],
+    "compat/include/sys/queue.h": [
+      "b09301a52879bdbdfb35ca8dca8172c1ad7261287cb780a360cce35be97cc46a",
+      "907b2089134cb1571e8f63418cbba6f3e6f4755c0e45befecc58ca86973d2e6c",
+      "db418ef1507ae6735d1e25aa7418cf1be4b27059c0c57e79003d96b238c63dab"
+    ],
+    "compat/include/sys/tree.h": [
+      "8db2be57620e13be5e5ad5bc02cede352488875e7aa1e6a95d876fdf0eed5a39",
+      "a815b82317708cdf2edbdfd0b7b4f17109de2802da255ea90444faed4c7d3a67"
+    ],
+    "src/Makefile": [],
+    "src/README": [],
+    "src/add.c": [
+      "d00e530bbdbc0270389c66114a17c8aff5f265570862d2ad62c9fc37e56e2000",
+      "2c820a881294d1ebe4d5c5e4f197b8a09b5c83f3d8092fd2d68c1df5587dadf9"
+    ],
+    "src/admin.c": [
+      "0204f7cc5170dc3c76717313492681a9afc318e641f4015ffca5ae021bee4dc1",
+      "33deb83bad2b38a56da005bcbf2a7ae28cc8433732f1e4a128d43cbe9dfeb25e"
+    ],
+    "src/annotate.c": [
+      "45e8de0680989b0505e29faf10970b72a8f42523884bb738b58cdb9c30c579a2",
+      "68b2c3f6c9598f98e25473840be9ee2adcdcadc455e426cee3c40b7080d2517a"
+    ],
+    "src/atomicio.c": [
+      "243ac69c97efb41cfc4c82ae63d44a24653f16e8d94cf537df67f5a380e56df4",
+      "92243b8f5b7e6d2639d7a5495f0803cdf281bbada0db6d153171622a0d07b9d1"
+    ],
+    "src/atomicio.h": [
+      "224975ab261d39d3c17dc01103b484dbf02537dbe43be2d0b9386b847ce4aa96",
+      "bac7fb6baadf4f61eb09b1cced53f832f8dcadb1508212a281636b99344d7c74"
+    ],
+    "src/buf.c": [
+      "acfc3e789097f2a0af09390bb7840c0cdef029d8712681f773a43af64e1211b9",
+      "2afea832f66f44cd5541b9db36177d8db9738ab9710273b9e63f70893a30f418"
+    ],
+    "src/buf.h": [
+      "b0434e22e6373492d25f9f74bf17a64e083c9d0a040ada03391a305457f8534f",
+      "2afea832f66f44cd5541b9db36177d8db9738ab9710273b9e63f70893a30f418"
+    ],
+    "src/checkout.c": [
+      "2d68fe572cd4e0f3a64a04788e7a593e155291e815c5ea1d5cf13439257c80ce",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/client.c": [
+      "46a26e0b8155fc64220d60fac043b59d0c1414a81e3528b40c07ffca23d3410c",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/cmd.c": [
+      "d05971dfac9a5294c23f295c6438f3e3d2f0fcd2627633e38a89d55a368db25c",
+      "614e95649888c65ff0c8c476d75f738a54ece471fb33a4871995ec49095f481c"
+    ],
+    "src/commit.c": [
+      "11705119389843c4a97e29aed0a1653d394e3fc40de3105986b9d8ad8e84f651",
+      "aed75d221c9f5bc5bac03897e9e4e3dd1ad0b946f48e81d8f70617d0fbfc1e5e"
+    ],
+    "src/config.c": [
+      "5789f601b062c663b42beedb70cb4428cac8a4c5670647638a3d590205ab744b",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/config.h": [
+      "ec3d57cfd911c17b1f349d52eea1dcae0a142fac752f723ab2d11ecfdb9e4b2a",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/cvs.1": [],
+    "src/cvs.5": [],
+    "src/cvs.c": [
+      "624f84c3569f3fc97d90c3731baa6f285e3dc89cb7a3f84d4ec603614c4e15c6",
+      "ffba66c07723c72b95f7c314873587cb7fd5085b752ef5951245f2cc60965def"
+    ],
+    "src/cvs.h": [
+      "934c03d8c353feaf5d768282db0f840c9d66ea9b04115ef94fbb9e2b9a814e5b",
+      "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
+    ],
+    "src/cvsintro.7": [],
+    "src/date.y": [],
+    "src/diff.c": [
+      "101d5bd9137a77d7120a1de436e85dcb72484d944477dfcf4f9e96f33d1946a7",
+      "36187cf773ef712dfbaf2abf067fa6d3e7ae267cb7452e95d97bc93efb95a0a6"
+    ],
+    "src/diff.h": [
+      "785df66c8d5682b12595cf9a1e48e1f08f4331d14d5525be5b482f8b8b22d391",
+      "260c4b621df9ee313e224fef93987aabe459026c8faf42cfc1afd5f9bcf13a97",
+      "f0977778df8a9d05e151d4589032fb8bcf4722a71ca694d8dbbdd960867eaef2"
+    ],
+    "src/diff3.c": [
+      "ff5f8c3f4c00df8e90fb681f4a614592da3d52f9c8a40f8f66dd2e4dddda03a6",
+      "260c4b621df9ee313e224fef93987aabe459026c8faf42cfc1afd5f9bcf13a97",
+      "e9d3bd83d21e6af2ffa4eb97373a0e5e23fcfc1a4315592150f1e23cc14468ae"
+    ],
+    "src/diff_internals.c": [
+      "ffb7f1e0716849762a9e4410e56fcc01844c21d1a2048e19fa9a7bae0be1f02a",
+      "260c4b621df9ee313e224fef93987aabe459026c8faf42cfc1afd5f9bcf13a97",
+      "f0977778df8a9d05e151d4589032fb8bcf4722a71ca694d8dbbdd960867eaef2"
+    ],
+    "src/edit.c": [
+      "1cf5dea4908cbb808768b34ce4a75271dd0178655a34d7f6514f9ef2e2bd9bfb",
+      "b84fd87c9db52a39412900f59034a5c24346173c352ba39f6db09773647bc09d"
+    ],
+    "src/entries.c": [
+      "ae0f6d6925d2565aa3563df61bcdf9adc2b95b6dc2119de05aa453279527d394",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/fatal.c": [
+      "06f70def05bab63cb2502fd4773ca917d95681c93df695c0a2d69dd71706998c",
+      "7b36c49376e7d951ef0a80b8ff89d5ec572df5263061ed3eb82009fa4916ba36"
+    ],
+    "src/file.c": [
+      "dc885ccec1ccf95df2c3e5714f78abbc1c2b077fe09881b9b95304f26af80feb",
+      "ee06298a408aa4f80ce105c301907b0577b9a4b99ca05432c5d81ee8a16a322f"
+    ],
+    "src/file.h": [
+      "77f35d2193e727ff3d826e3f80f048a9cfbe6cbb41e3d0d03044abd89f3816b9",
+      "ee06298a408aa4f80ce105c301907b0577b9a4b99ca05432c5d81ee8a16a322f"
+    ],
+    "src/getlog.c": [
+      "33a31e78c1e3c0a3f571a1895a217392e407580e204cf64b0ed0b99215838564",
+      "7899475d3543e86e0bffd886931c6884a02bda46417199c24749beaebb737e2d"
+    ],
+    "src/hash.c": [
+      "db5b90d976ef17dadcc8545a213c86a81d8cd79eb59cb3962a094c72563746e9",
+      "5ce2073c619a245c84d35c436262f7f4234d91fc4dd9c4b49397208e90133c04"
+    ],
+    "src/hash.h": [
+      "48764185ae5c8a2cda9dd13c93998bf3e591fb8546d5f62bb974551d92fb1dab",
+      "5ce2073c619a245c84d35c436262f7f4234d91fc4dd9c4b49397208e90133c04",
+      "d4d9341b1b0884d35726b9abce1b6738cbcd47866a70f00802ea23e3053905f8"
+    ],
+    "src/hash_func.c": [
+      "0074b0ab20d040500a114e2f39f979126d580476fb80330d396b22a6a5219bf5",
+      "28cfb479f8d9cb65741acac5abc9b8f4ad9105b905f89552f7ee490e85653f5b"
+    ],
+    "src/history.c": [
+      "86b211aa4fedc714ae27b05994f657143934abbfb548dec0aa6a11c1f9c8779f",
+      "3fde0931df73373d48664740468b17e626617021c930665cdca7e8c169cda27c"
+    ],
+    "src/import.c": [
+      "7d3e4d1710c6b07a38703b909ca3aff7300162f9db28e373f9ec0a39385548e1",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/init.c": [
+      "9bed1fc7c28338766d64d85677167dc049b59e8193509c0f86db1d0d9f9677c3",
+      "86f5f0277dd8018729b30bd378584bc6f75d1b691013e88f27c6f30bfd985200"
+    ],
+    "src/init.h": [
+      "18aede5ea15fbf292dea11cb22955a48d0df699b86b3501b05d7dbd507ce7431",
+      "12f9f4efb0c7d09fdbc5a72d479119c794893f50b89939fc9a07a0c463ed99eb"
+    ],
+    "src/log.c": [
+      "8af3d070ae7e3edf8859bb618cabddcfd87b8aaec55c0916a24feab49c8d3152",
+      "ee06298a408aa4f80ce105c301907b0577b9a4b99ca05432c5d81ee8a16a322f"
+    ],
+    "src/log.h": [
+      "1e10555eb648cde75aca4966aa2cf5add88ca74f24b324dc41a540ccd917a47b",
+      "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
+    ],
+    "src/logmsg.c": [
+      "05168a9f52f5e9a1503f7755d1a27dadd4125d56f486638cbb9b8d994c43ab15",
+      "3fde0931df73373d48664740468b17e626617021c930665cdca7e8c169cda27c"
+    ],
+    "src/modules.c": [
+      "1280c889e71f3f0b8267d784a3750b739ac27f75dc651c4047de72a08a0a24a5",
+      "5ce2073c619a245c84d35c436262f7f4234d91fc4dd9c4b49397208e90133c04"
+    ],
+    "src/rcs.c": [
+      "345a090d805da4b1ab719bc8bb1f85ed1b7f6a48ba15ffa99d5b9aaca9014dac",
+      "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
+    ],
+    "src/rcs.h": [
+      "ce592523d0455e1316b7e09f06ffb0d4f09bde55e03b886560335653de6ba69b",
+      "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
+    ],
+    "src/rcsnum.c": [
+      "f28ec03a782cf270fc076a01e99fbee8a3d6caed5e705dba23b8ecaf327a94dc",
+      "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
+    ],
+    "src/rcsparse.c": [
+      "ef7829105c5adcd7713138c7d1c5ffddec24aff0de47c7749d994571d50c0b75",
+      "7e292049294a0220260199cb850dfbc367631bc4d7267a3c0ff6c0a380874bd3"
+    ],
+    "src/rcsparse.h": [
+      "d0d9b1ba893f1e1ceecd6182ac7f44ebc99cf035e7644d5581d04e116db8bc9e",
+      "7e292049294a0220260199cb850dfbc367631bc4d7267a3c0ff6c0a380874bd3"
+    ],
+    "src/release.c": [
+      "97ad179c2b56205b1d9709e13f1f12abcd393a1fba32bb38265d81f50b4e7878",
+      "9c247d20ad62740fdfa295d82090a6e83391c1348464ac2d9ef4b5356e5a648f"
+    ],
+    "src/remote.c": [
+      "2e6c881bbd45a73eaeb52db7a9f1b0ee2f913ebe17c2184c97fa3928275e5b9e",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/remote.h": [
+      "36f6130ece7dd81a0f503b5d16ca48be97e5aca39198db6c67f3f9077eb5150a",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/remove.c": [
+      "ba5176751b3a8fa90b1c62d8480ddd3d397fffd2e0db4e57a628a60e0aab3110",
+      "d127f866ec177d0acbdf69619e1c5c5862abeed82948113e1501ba0c719b18a4"
+    ],
+    "src/repository.c": [
+      "daa577f1ae1339360e3c07ba8bb99e9a3a0d5d2518c9bcb033d17b30cd219b68",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/repository.h": [
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/root.c": [
+      "c6f481ac7e36a724ea9033a30e3176c0d43a94ecc72b7aad7f44342b03cbafe1",
+      "7d039833bdf0e567f5effe047fc3d8a2abd52f9daeafc40b1959e2c861e1bc3a"
+    ],
+    "src/server.c": [
+      "2129ee4e901ed1055c050901de5ff8ac51b0e61c8faac0f8f55f7de0909ad3ab",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/status.c": [
+      "bf46d82ca6a8306841421bba177d109be8abf91192226fdd16631ae44788f780",
+      "dce3c14d46a9b839941450fcd4f65068c1489e28f5a30f01b8e8cef7c5337b71"
+    ],
+    "src/tag.c": [
+      "aee37103696758f2015d88c98763d360aea5ef530258e0c27d9897852c4a0b2a",
+      "12f9f4efb0c7d09fdbc5a72d479119c794893f50b89939fc9a07a0c463ed99eb"
+    ],
+    "src/trigger.c": [
+      "c49fe0f7eb51ee4aef205c0d3902af283daf274c30709a5f043694f8746e6b85",
+      "6de6af4790225dd5bc413d2f5f47954ecde1e78e5767f1d632493fcc4f764803"
+    ],
+    "src/trigger.h": [
+      "3f6a20d391383902fea488da8d98bcdc95b3fb988a56dd7f7b4bac24d184b865",
+      "6de6af4790225dd5bc413d2f5f47954ecde1e78e5767f1d632493fcc4f764803"
+    ],
+    "src/update.c": [
+      "222923f0c554c6a4c779d5a01e4eeb840f7da30f6618e5a69e765c783ccdf1e3",
+      "c4bb4fbb459f84e27dbe5468d244dfc83e7be4e8f3ba570e5c933220d3ffc4cd"
+    ],
+    "src/util.c": [
+      "4455f792560da620f9dcd5a35f3f6c9832ff985b90a2b78dcc244cdd479d75b1",
+      "2cc6fbc45baf8cb3ec5766d4781d96ed1bbf98a0aba84962001e118a17b142bf"
+    ],
+    "src/util.h": [
+      "90a5db0e3228c7c6aad2ce936b6a8673a80505aab7a5ea25129de5814cfb6dfa",
+      "854ed0786a83badeda44b8daaa3c2f77ecea51d545ea848ff0ec3388a7f79177"
+    ],
+    "src/version.c": [
+      "ff82484f5aded1b512ad74c8d4c66dfeeb6758c13d5aae0223228211d9df050a",
+      "2d7695271913264b1e080c62596513e39cb14806f0456b50622ef703dbbd6d5b"
+    ],
+    "src/watch.c": [
+      "d06e17389bdf90e28ff51a1541694bf402e84271ad447aac9b0fa77d9b4f2a78",
+      "d0dc7455475374157e164b32a143df5e0f7c2d18e04574ab332f1683398b01ef"
+    ],
+    "src/worklist.c": [
+      "931a56399655ce6b3348d62ea2c02076c0a1bc96e69fe16df6eca7cf2bc16501",
+      "41b669a42b369de814dd604c48d3b0cf6089c6e5a31545f66d5867f42c2b4a10"
+    ],
+    "src/worklist.h": [
+      "2e22b5ede270b1af9aa4a0a96afe986fe307822f28c7d5e0d999748bccf79d5f",
+      "41b669a42b369de814dd604c48d3b0cf6089c6e5a31545f66d5867f42c2b4a10"
+    ],
+    "src/xmalloc.c": [
+      "35853f5fb3e4cf5a40f0802815ae724b1c479ecbc53d5759074c5d8dfe442d88",
+      "ebed15345607db6820678a46dba4663a75b819645ee6b7a0031a1a09c2a70466"
+    ],
+    "src/xmalloc.h": [
+      "d91610470edd3941208ac179477b6df25b2bde34f14e7433146fbcbc8005721a",
+      "a7327d4d2a66ad934e46c4c416e0813528018460ce9fa74d00a0a10b85758987"
+    ]
+  },
+  "policy": "Original notices retained; David Uhden Collado copyright covers only new portability changes."
 }

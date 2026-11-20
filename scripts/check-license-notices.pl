@@ -50,6 +50,7 @@ sub header {
     my ($text, $path) = @_;
     $text =~ s/\A\xEF\xBB\xBF//;
     $text =~ s/\r\n/\n/g;
+    $text =~ s/\A%\{[^\S\n]*\n// if $path =~ /\.y\z/;
     my $prefix = '';
     if ($path =~ /\.manifest\z/) {
         $text =~ s/\A\s*<\?xml[^>]*\?>\s*//;
