@@ -77,3 +77,15 @@ For updates, use `scripts/upstream-stage.pl` to obtain an isolated candidate;
 review the three-way differences against baseline and local changes. Never
 automatically overwrite source. Update both provenance manifests, licenses,
 parser output, relevant documentation and test evidence after a reviewed sync.
+
+## Diagnostic and regression policy
+
+For every compiler warning, build failure, crash, portability defect, test
+failure, sanitizer report, or data integrity problem, record the originating
+run and SHA (or mark the finding as static). Trace the root cause through
+declarations, implementations, callers, and similar patterns across OpenBSD,
+Linux, and Windows. Review the relevant inventories under `docs/ci/` before
+changing a subsystem. Add a focused regression for important fixes and keep
+upstream notices and provenance intact. A historical run provides evidence
+only for its own SHA. Use manual CI for behavioral validation. Publication
+requires permission when the task prohibits commits or push.

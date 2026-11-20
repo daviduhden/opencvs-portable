@@ -8,3 +8,8 @@ description: Configure and assess Portable OpenCVS manual hosted builds, native 
 Use [the build contract](../../../docs/building.md), [tests](../../../docs/testing.md), and [.github/workflows/ci.yml](../../../.github/workflows/ci.yml). Local product configuration, compilation, parser generation and execution are not authorized in the current project policy; do not run a local compiler or container as a workaround.
 
 Dispatch `gh workflow run ci.yml --repo daviduhden/opencvs-portable --ref BRANCH` only for an authorized pushed revision. The parser job supplies date.c; consumers do not need Yacc. Inspect exact job logs, `ctest --output-on-failure`, sanitizer results and native DLL inspection. Use `gh run view RUN_ID --log-failed` and artifact downloads for evidence. Check core/security/interop coverage and explicit skips, compiler/OS/libc/architecture, and package provenance. Do not claim Windows from MinGW compilation alone or publish a package from a failed critical test job.
+
+For a CI audit, retrieve paginated runs, job logs, and artifacts with `gh`.
+Record compiler, target, configuration, and exact SHA in `docs/ci/`. Group
+diagnostic cascades by root cause, then review equivalent call sites on every
+target. Record jobs blocked before tests separately from executed failures.
