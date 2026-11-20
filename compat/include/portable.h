@@ -42,12 +42,10 @@
 #define __dead __attribute__((noreturn))
 #endif
 #endif
-#ifndef __unused
 #if defined(_MSC_VER) && !defined(__clang__)
-#define __unused
+#define PC_UNUSED
 #else
-#define __unused __attribute__((unused))
-#endif
+#define PC_UNUSED __attribute__((unused))
 #endif
 #if defined(_MSC_VER) && !defined(__clang__)
 #define __attribute__(x)

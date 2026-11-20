@@ -100,7 +100,7 @@ struct ignore_head cvs_ign_pats;
 struct ignore_head dir_ign_pats;
 struct ignore_head checkout_ign_pats;
 
-RB_GENERATE(cvs_flisthead, cvs_filelist, flist, cvs_filelist_cmp);
+RB_GENERATE(cvs_flisthead, cvs_filelist, flist, cvs_filelist_cmp)
 
 void
 cvs_file_init(void)
