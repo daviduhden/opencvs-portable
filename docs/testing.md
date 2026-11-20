@@ -34,3 +34,8 @@ Record commit SHA, runner image, architecture, compiler, libc, configuration,
 passed/failed/skipped cases, and artifact links. Native Windows DLL inspection is
 an additional gate. Runtime and sanitizer evidence must refer to the exact
 artifact-producing revision; stale green badges do not certify a new commit.
+
+On Windows, `--fs-probe` selects the native C filesystem helper for UTF-8 and
+long-path reads, writes, and cleanup; this avoids treating Perl's ANSI filesystem
+interfaces as product behavior. Its guarded cleanup operation is restricted to
+private generated test sandboxes and must never target a real working copy.

@@ -2,7 +2,7 @@
 
 Portable OpenCVS derives from OpenBSD `usr.bin/cvs` at the revision in
 `UPSTREAM`. Original authors retain credit; this is an independent project.
-The existing import commit and `upstream/manifest.json` are the baseline.
+The existing import commit and `provenance/manifest.json` are the baseline.
 
 ## Architecture and ownership
 
@@ -40,6 +40,12 @@ Use C99 and OpenBSD style; MSVC may use its supported C11 mode. Preserve
 upstream algorithms unless an audited defect or platform contract requires a
 change. Detect missing libc features; do not duplicate available APIs. Keep
 Windows implementation details in its backend, not scattered source ifdefs.
+Every new code file and every modified imported code file must contain the
+complete notice from `LICENSES/ISC.txt`, including the exact 2026 David Uhden
+Collado copyright and email. A short SPDX identifier alone is insufficient.
+For imported files, scope this additional notice to Portable OpenCVS changes
+and preserve every original notice. Do not relabel unmodified imported or
+generated upstream code. Run `perl scripts/check-license-notices.pl` after edits.
 Never stub security or process functions to return success. No fake fork,
 pledge/unveil, sandbox, Unicode conversion, filesystem lock, or permission
 semantics. The `exec` and `error` pledge promises are forbidden. Document

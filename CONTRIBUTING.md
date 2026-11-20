@@ -31,3 +31,11 @@ a change alters their procedures; avoid cosmetic maintenance edits.
 
 Security reports follow [SECURITY.md](SECURITY.md). Upstream changes follow
 [the staging procedure](docs/upstream-sync.md), including a full license review.
+
+New code uses the ISC license in [LICENSES/ISC.txt](LICENSES/ISC.txt). Copy its
+complete copyright, permission, and warranty notice into every new code file
+and every imported code file you modify, using that file format’s comment syntax.
+For imported files, identify the additional notice as applying only to Portable
+OpenCVS changes; keep all original authors’ notices. SPDX-only headers do not
+satisfy this policy. Run `perl scripts/check-license-notices.pl` to audit the
+complete notices and provenance inventory.

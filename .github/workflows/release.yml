@@ -111,7 +111,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_SANITIZERS=${{ matrix.sanitizers }}
       - name: Compile
-        run: cmake --build build --parallel 2
+        run: cmake --build build --parallel 2 2>&1 | tee build/compile.log
       - name: Run unit, integration, security, and GNU CVS interoperability tests
         run: ctest --test-dir build --output-on-failure
       - name: Validate agent knowledge
@@ -143,6 +143,17 @@ jobs:
           path: dist-source/*.tar.gz
           if-no-files-found: error
 
+      - name: Preserve failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: diagnostics-linux-${{ matrix.compiler }}
+          if-no-files-found: warn
+          path: |
+            build/compile.log
+            build/CMakeFiles/CMakeConfigureLog.yaml
+            build/Testing/Temporary/*.log
+
   windows:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     needs: [parser, release-metadata]
@@ -153,9 +164,9 @@ jobs:
       matrix:
         include:
           - compiler: msvc
-            toolset: v143
+            cc: cl
           - compiler: clang-cl
-            toolset: ClangCL
+            cc: clang-cl
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -170,16 +181,34 @@ jobs:
         run: |
           if (-not (Test-Path C:/Strawberry/perl/bin/perl.exe)) { throw 'Native Strawberry Perl is required' }
           & C:/Strawberry/perl/bin/perl.exe -v
+      - name: Select the installed native Visual Studio SDK
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw 'Visual Studio discovery tool is missing' }
+          $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $installation) { throw 'No native x64 Visual C++ installation found' }
+          $devshell = Join-Path $installation 'Common7/Tools/Launch-VsDevShell.ps1'
+          & $devshell -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+          if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) { throw 'Visual C++ environment initialization failed' }
+          foreach ($name in @('INCLUDE', 'LIB', 'LIBPATH', 'VCINSTALLDIR', 'VCToolsInstallDir', 'VisualStudioVersion', 'WindowsSdkDir', 'WindowsSDKVersion', 'UniversalCRTSdkDir', 'UCRTVersion', 'VSCMD_ARG_TGT_ARCH', 'VSCMD_ARG_HOST_ARCH')) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ($value) { "$name=$value" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
+          }
+          $env:PATH.Split(';') | Where-Object { $_ } | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Output "Selected native Visual Studio: $installation"
       - name: Configure
         env:
-          TOOLSET: ${{ matrix.toolset }}
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T "$env:TOOLSET" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
+          NATIVE_CC: ${{ matrix.cc }}
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_C_COMPILER=$env:NATIVE_CC" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
       - name: Compile
-        run: cmake --build build --config Release --parallel 2
+        run: |
+          cmake --build build --parallel 2 2>&1 | Tee-Object -FilePath build/compile.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run native Windows tests
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Check native executable dependencies
-        run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool "C:/Program Files/LLVM/bin/llvm-readobj.exe" --exe build/Release/opencvs.exe
+        run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool "C:/Program Files/LLVM/bin/llvm-readobj.exe" --exe build/opencvs.exe
       - name: Create the Windows ZIP
         env:
           PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-windows-x86_64-${{ matrix.compiler }}
@@ -189,6 +218,17 @@ jobs:
           name: package-windows-${{ matrix.compiler }}
           path: dist/*
           if-no-files-found: error
+
+      - name: Preserve failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: diagnostics-windows-${{ matrix.compiler }}
+          if-no-files-found: warn
+          path: |
+            build/compile.log
+            build/CMakeFiles/CMakeConfigureLog.yaml
+            build/Testing/Temporary/*.log
 
   mingw:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -215,7 +255,7 @@ jobs:
       - name: Configure the native MinGW executable
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
       - name: Compile
-        run: cmake --build build --parallel 2
+        run: cmake --build build --parallel 2 2>&1 | tee build/compile.log
       - name: Run tests using native Windows Perl
         run: ctest --test-dir build --output-on-failure
       - name: Reject POSIX and compiler runtime dependencies
@@ -229,6 +269,17 @@ jobs:
           name: package-windows-mingw
           path: dist/*
           if-no-files-found: error
+
+      - name: Preserve failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: diagnostics-mingw
+          if-no-files-found: warn
+          path: |
+            build/compile.log
+            build/CMakeFiles/CMakeConfigureLog.yaml
+            build/Testing/Temporary/*.log
 
   musl:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -251,7 +302,8 @@ jobs:
           docker run --rm -e PACKAGE_NAME -v "$PWD:/source" -w /source alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 sh -ec '
             apk add --no-cache build-base cmake ninja perl cvs
             cmake -S . -B build-musl -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
-            cmake --build build-musl --parallel 2
+            cmake --build build-musl --parallel 2 > build-musl/compile.log 2>&1 || { status=$?; cat build-musl/compile.log; exit "$status"; }
+            cat build-musl/compile.log
             ctest --test-dir build-musl --output-on-failure
             cpack --config build-musl/CPackConfig.cmake -G TGZ -B dist-musl -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
           '
@@ -260,6 +312,17 @@ jobs:
           name: package-linux-musl
           path: dist-musl/*
           if-no-files-found: error
+
+      - name: Preserve failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: diagnostics-musl
+          if-no-files-found: warn
+          path: |
+            build-musl/compile.log
+            build-musl/CMakeFiles/CMakeConfigureLog.yaml
+            build-musl/Testing/Temporary/*.log
 
   audit:
     needs: release-metadata
@@ -274,6 +337,7 @@ jobs:
       - name: Validate the project knowledge and staging tools
         run: |
           perl scripts/validate-agent-knowledge.pl
+          perl scripts/check-license-notices.pl
           perl -c scripts/upstream-stage.pl
           perl -c scripts/check-windows-imports.pl
           perl -c scripts/release-check.pl

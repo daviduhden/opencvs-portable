@@ -28,8 +28,9 @@ supported GCC/Clang sanitizer runner. Do not globally suppress warnings to make 
 new compiler pass. Multi-configuration generators require `--config Release`
 for the build/install and `-C Release` for CTest/CPack.
 
-For Windows, the manual matrix uses Visual Studio 2022 x64 with the `v143` or
-`ClangCL` toolset and native Strawberry Perl. MinGW-w64 uses UCRT64 compiler tools
+For Windows, the manual matrix discovers the installed Visual Studio x64 SDK
+with `vswhere`, initializes its developer environment, and uses Ninja with
+`cl` or `clang-cl` and native Strawberry Perl. MinGW-w64 uses UCRT64 compiler tools
 with native Windows Perl; MSYS2 is a build environment only. See
 [Windows](windows.md) and [Linux](linux.md) for specific runtime boundaries.
 
