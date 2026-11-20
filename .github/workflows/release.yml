@@ -1,0 +1,319 @@
+# Portable OpenCVS.
+#
+# Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+name: Gated development prerelease
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing signed prerelease tag (for example v0.1.0-alpha.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prerelease-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  release-metadata:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    outputs:
+      sha: ${{ steps.metadata.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Resolve and verify the existing signed prerelease tag
+        id: metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: perl scripts/release-check.pl --tag "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --output "$RUNNER_TEMP/release-metadata.json"
+
+  parser:
+    needs: release-metadata
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    outputs:
+      artifact: generated-date-parser
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-metadata.outputs.sha }}
+      - name: Install the parser generator on the runner
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y byacc
+      - name: Generate the public-domain date parser
+        run: |
+          mkdir -p generated
+          byacc -l -o generated/date.c src/date.y
+          byacc -V > generated/GENERATOR.txt 2>&1
+          printf '\nCommand: byacc -l -o generated/date.c src/date.y\n' >> generated/GENERATOR.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: generated-date-parser
+          path: |
+            generated/date.c
+            generated/GENERATOR.txt
+          if-no-files-found: error
+
+  linux:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    needs: [parser, release-metadata]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cc: gcc
+            sanitizers: 'OFF'
+          - compiler: clang
+            cc: clang
+            sanitizers: 'OFF'
+          - compiler: clang-sanitizers
+            cc: clang
+            sanitizers: 'ON'
+    env:
+      CC: ${{ matrix.cc }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-metadata.outputs.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: generated-date-parser
+          path: generated
+      - name: Install native test dependencies
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y gcc clang cmake ninja-build perl cvs
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_SANITIZERS=${{ matrix.sanitizers }}
+      - name: Compile
+        run: cmake --build build --parallel 2
+      - name: Run unit, integration, security, and GNU CVS interoperability tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Validate agent knowledge
+        run: perl scripts/validate-agent-knowledge.pl
+      - name: Create the glibc distribution
+        if: matrix.sanitizers == 'OFF'
+        env:
+          PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-linux-x86_64-${{ matrix.compiler }}
+        run: |
+          cpack --config build/CPackConfig.cmake -G TGZ -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
+          ldd build/opencvs > "dist/$PACKAGE_NAME-runtime.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.sanitizers == 'OFF'
+        with:
+          name: package-linux-${{ matrix.compiler }}
+          path: dist/*
+          if-no-files-found: error
+
+
+      - name: Create a source distribution containing the generated parser
+        if: matrix.compiler == 'gcc'
+        env:
+          SOURCE_PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-source
+        run: cpack --config build/CPackSourceConfig.cmake -G TGZ -B dist-source -D "CPACK_PACKAGE_FILE_NAME=$SOURCE_PACKAGE_NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.compiler == 'gcc'
+        with:
+          name: package-source
+          path: dist-source/*.tar.gz
+          if-no-files-found: error
+
+  windows:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    needs: [parser, release-metadata]
+    runs-on: windows-2025
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: msvc
+            toolset: v143
+          - compiler: clang-cl
+            toolset: ClangCL
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-metadata.outputs.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: generated-date-parser
+          path: generated
+      - name: Check native Perl
+        shell: pwsh
+        run: |
+          if (-not (Test-Path C:/Strawberry/perl/bin/perl.exe)) { throw 'Native Strawberry Perl is required' }
+          & C:/Strawberry/perl/bin/perl.exe -v
+      - name: Configure
+        env:
+          TOOLSET: ${{ matrix.toolset }}
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T "$env:TOOLSET" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
+      - name: Compile
+        run: cmake --build build --config Release --parallel 2
+      - name: Run native Windows tests
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Check native executable dependencies
+        run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool "C:/Program Files/LLVM/bin/llvm-readobj.exe" --exe build/Release/opencvs.exe
+      - name: Create the Windows ZIP
+        env:
+          PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-windows-x86_64-${{ matrix.compiler }}
+        run: cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$env:PACKAGE_NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-windows-${{ matrix.compiler }}
+          path: dist/*
+          if-no-files-found: error
+
+  mingw:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    needs: [parser, release-metadata]
+    runs-on: windows-2025
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-metadata.outputs.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: generated-date-parser
+          path: generated
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
+      - name: Configure the native MinGW executable
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
+      - name: Compile
+        run: cmake --build build --parallel 2
+      - name: Run tests using native Windows Perl
+        run: ctest --test-dir build --output-on-failure
+      - name: Reject POSIX and compiler runtime dependencies
+        run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool objdump --exe build/opencvs.exe
+      - name: Create the native Windows ZIP
+        env:
+          PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-windows-x86_64-mingw
+        run: cpack --config build/CPackConfig.cmake -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-windows-mingw
+          path: dist/*
+          if-no-files-found: error
+
+  musl:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    needs: [parser, release-metadata]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-metadata.outputs.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: generated-date-parser
+          path: generated
+      - name: Compile and test against musl inside the hosted runner
+        env:
+          PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-linux-x86_64-musl
+        run: |
+          docker run --rm -e PACKAGE_NAME -v "$PWD:/source" -w /source alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 sh -ec '
+            apk add --no-cache build-base cmake ninja perl cvs
+            cmake -S . -B build-musl -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
+            cmake --build build-musl --parallel 2
+            ctest --test-dir build-musl --output-on-failure
+            cpack --config build-musl/CPackConfig.cmake -G TGZ -B dist-musl -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
+          '
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-linux-musl
+          path: dist-musl/*
+          if-no-files-found: error
+
+  audit:
+    needs: release-metadata
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-metadata.outputs.sha }}
+      - name: Validate the project knowledge and staging tools
+        run: |
+          perl scripts/validate-agent-knowledge.pl
+          perl -c scripts/upstream-stage.pl
+          perl -c scripts/check-windows-imports.pl
+          perl -c scripts/release-check.pl
+          perl -c scripts/publish-prerelease.pl
+      - name: Exercise non-destructive upstream staging against the pinned baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: perl scripts/upstream-stage.pl --output "$RUNNER_TEMP/opencvs-upstream-stage"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream-stage-report
+          path: ${{ runner.temp }}/opencvs-upstream-stage/report.json
+          if-no-files-found: error
+      - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        with:
+          version: v1.32.0
+          advanced-security: false
+          online-audits: true
+          inputs: .github/workflows
+
+  publish:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    needs: [release-metadata, parser, linux, windows, mingw, musl, audit]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-metadata.outputs.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: package-*
+          merge-multiple: true
+          path: release-assets
+      - name: Validate artifacts and publish the explicitly requested prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ needs.release-metadata.outputs.sha }}
+        run: perl scripts/publish-prerelease.pl --tag "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --expected-sha "$EXPECTED_SHA" --assets release-assets --publish
