@@ -1,3 +1,18 @@
+/* Portable OpenCVS modifications.
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: rcsparse.c,v 1.13 2016/10/13 20:51:25 fcambus Exp $	*/
 /*
  * Copyright (c) 2010 Tobias Stoeckmann <tobias@openbsd.org>
@@ -67,8 +82,8 @@
 #define RCS_TYPE_KEYWORD	(1 << 28)
 #define RCS_TYPE_COMMITID	(1 << 29)
 
-#define MANDATORY	0
-#define OPTIONAL	1
+#define RCS_MANDATORY	0
+#define RCS_OPTIONAL	1
 
 /* opaque parse data */
 struct rcs_pdata {
@@ -150,7 +165,7 @@ static int	rcsparse(RCSFILE *, struct rcs_section *);
 static void	rcsparse_growbuf(RCSFILE *);
 static int	rcsparse_string(RCSFILE *, int);
 static int	rcsparse_token(RCSFILE *, int);
-static void	rcsparse_warnx(RCSFILE *, char *, ...);
+static void	rcsparse_warnx(RCSFILE *, char *, ...) PC_PRINTF(2, 3);
 static int	valid_login(char *);
 static int	valid_commitid(char *);
 
@@ -165,14 +180,14 @@ static int	valid_commitid(char *);
  * [expand [@[...]@];]
  */
 static struct rcs_section sec_admin[] = {
-	{ RCS_TOK_HEAD, rcsparse_head, MANDATORY },
-	{ RCS_TOK_BRANCH, rcsparse_branch, OPTIONAL },
-	{ RCS_TOK_ACCESS, rcsparse_access, MANDATORY },
-	{ RCS_TOK_SYMBOLS, rcsparse_symbols, MANDATORY },
-	{ RCS_TOK_LOCKS, rcsparse_locks, MANDATORY },
-	{ RCS_TOK_STRICT, rcsparse_strict, OPTIONAL },
-	{ RCS_TOK_COMMENT, rcsparse_comment, OPTIONAL },
-	{ RCS_TOK_EXPAND, rcsparse_expand, OPTIONAL },
+	{ RCS_TOK_HEAD, rcsparse_head, RCS_MANDATORY },
+	{ RCS_TOK_BRANCH, rcsparse_branch, RCS_OPTIONAL },
+	{ RCS_TOK_ACCESS, rcsparse_access, RCS_MANDATORY },
+	{ RCS_TOK_SYMBOLS, rcsparse_symbols, RCS_MANDATORY },
+	{ RCS_TOK_LOCKS, rcsparse_locks, RCS_MANDATORY },
+	{ RCS_TOK_STRICT, rcsparse_strict, RCS_OPTIONAL },
+	{ RCS_TOK_COMMENT, rcsparse_comment, RCS_OPTIONAL },
+	{ RCS_TOK_EXPAND, rcsparse_expand, RCS_OPTIONAL },
 	{ 0, NULL, 0 }
 };
 
@@ -186,13 +201,13 @@ static struct rcs_section sec_admin[] = {
  * [commitid ID;]
  */
 static struct rcs_section sec_delta[] = {
-	{ RCS_TYPE_REVISION, rcsparse_deltarevision, MANDATORY },
-	{ RCS_TOK_DATE, rcsparse_date, MANDATORY },
-	{ RCS_TOK_AUTHOR, rcsparse_author, MANDATORY },
-	{ RCS_TOK_STATE, rcsparse_state, MANDATORY },
-	{ RCS_TOK_BRANCHES, rcsparse_branches, MANDATORY },
-	{ RCS_TOK_NEXT, rcsparse_next, MANDATORY },
-	{ RCS_TOK_COMMITID, rcsparse_commitid, OPTIONAL },
+	{ RCS_TYPE_REVISION, rcsparse_deltarevision, RCS_MANDATORY },
+	{ RCS_TOK_DATE, rcsparse_date, RCS_MANDATORY },
+	{ RCS_TOK_AUTHOR, rcsparse_author, RCS_MANDATORY },
+	{ RCS_TOK_STATE, rcsparse_state, RCS_MANDATORY },
+	{ RCS_TOK_BRANCHES, rcsparse_branches, RCS_MANDATORY },
+	{ RCS_TOK_NEXT, rcsparse_next, RCS_MANDATORY },
+	{ RCS_TOK_COMMITID, rcsparse_commitid, RCS_OPTIONAL },
 	{ 0, NULL, 0 }
 };
 
@@ -202,9 +217,9 @@ static struct rcs_section sec_delta[] = {
  * text @[...]@
  */
 static struct rcs_section sec_deltatext[] = {
-	{ RCS_TYPE_REVISION, rcsparse_textrevision, MANDATORY },
-	{ RCS_TOK_LOG, rcsparse_log, MANDATORY },
-	{ RCS_TOK_TEXT, rcsparse_text, MANDATORY },
+	{ RCS_TYPE_REVISION, rcsparse_textrevision, RCS_MANDATORY },
+	{ RCS_TOK_LOG, rcsparse_log, RCS_MANDATORY },
+	{ RCS_TOK_TEXT, rcsparse_text, RCS_MANDATORY },
 	{ 0, NULL, 0 }
 };
 
@@ -394,6 +409,7 @@ rcsparse_desc(RCSFILE *rfp)
 static int
 rcsparse_deltarevision(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
+	(void)rfp;
 	struct rcs_delta *rdp;
 
 	rdp = xcalloc(1, sizeof(*rdp));
@@ -603,7 +619,7 @@ rcsparse_text(RCSFILE *rfp, struct rcs_pdata *pdp)
 
 	pdp->rp_delta->rd_tlen = pdp->rp_tlen - 1;
 	if (pdp->rp_delta->rd_tlen == 0) {
-		pdp->rp_delta->rd_text = xstrdup("");
+		pdp->rp_delta->rd_text = (u_char *)xstrdup("");
 	} else {
 		pdp->rp_delta->rd_text = xmalloc(pdp->rp_delta->rd_tlen);
 		memcpy(pdp->rp_delta->rd_text, pdp->rp_buf,
@@ -766,6 +782,7 @@ rcsparse_locks(RCSFILE *rfp, struct rcs_pdata *pdp)
 static int
 rcsparse_strict(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
+	(void)pdp;
 	rfp->rf_flags |= RCS_SLOCK;
 
 	return (rcsparse_token(rfp, RCS_TOK_SCOLON) != RCS_TOK_SCOLON);
@@ -826,7 +843,7 @@ do { \
 		rcsparse_growbuf(rfp); \
 		bp = pdp->rp_buf + len; \
 	} \
-	*(bp++) = (ch); \
+	*(bp++) = (char)(unsigned char)(ch); \
 	pdp->rp_tlen++; \
 } while (0);
 
@@ -882,7 +899,7 @@ rcsparse_token(RCSFILE *rfp, int allowed)
 {
 	const struct rcs_keyword *p;
 	struct rcs_pdata *pdp;
-	int c, pre, ret, type;
+	int c, pre, ret, type, year, maximum_day;
 	char *bp;
 	size_t len;
 	RCSNUM *datenum;
@@ -1027,11 +1044,27 @@ rcsparse_token(RCSFILE *rfp, int allowed)
 			rcsparse_warnx(rfp, "invalid date \"%s\"", pdp->rp_buf);
 			return (0);
 		}
-		if (datenum->rn_len != 6) {
+		if (datenum->rn_len != 6 || datenum->rn_id[1] < 1 ||
+		    datenum->rn_id[1] > 12 || datenum->rn_id[2] < 1 ||
+		    datenum->rn_id[2] > 31 || datenum->rn_id[3] > 23 ||
+		    datenum->rn_id[4] > 59 || datenum->rn_id[5] > 60) {
 			free(datenum);
 			rcsparse_warnx(rfp, "invalid date \"%s\"", pdp->rp_buf);
 			return (0);
 		}
+		year = datenum->rn_id[0];
+		if (year < 1900) year += 1900;
+		maximum_day = 31;
+		if (datenum->rn_id[1] == 4 || datenum->rn_id[1] == 6 ||
+		    datenum->rn_id[1] == 9 || datenum->rn_id[1] == 11) maximum_day = 30;
+		else if (datenum->rn_id[1] == 2)
+			maximum_day = 28 + (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
+		if (datenum->rn_id[2] > maximum_day) {
+			free(datenum);
+			rcsparse_warnx(rfp, "invalid calendar date \"%s\"", pdp->rp_buf);
+			return (0);
+		}
+		memset(&pdp->rp_value.date, 0, sizeof(pdp->rp_value.date));
 		pdp->rp_value.date.tm_year = datenum->rn_id[0];
 		if (pdp->rp_value.date.tm_year >= 1900)
 			pdp->rp_value.date.tm_year -= 1900;
@@ -1201,6 +1234,8 @@ rcsparse_growbuf(RCSFILE *rfp)
 {
 	struct rcs_pdata *pdp = (struct rcs_pdata *)rfp->rf_pdata;
 	
+	if (pdp->rp_blen > SIZE_MAX - RCS_BUFEXTSIZE)
+		fatal("RCS parse buffer overflow");
 	pdp->rp_buf = xreallocarray(pdp->rp_buf, 1,
 		pdp->rp_blen + RCS_BUFEXTSIZE);
 	pdp->rp_blen += RCS_BUFEXTSIZE;
@@ -1220,14 +1255,15 @@ valid_login(char *login_name)
 	if (*login_name == '-')
 		return 0;
 
-	for (cp = login_name ; *cp ; cp++) {
+	for (cp = (unsigned char *)login_name ; *cp ; cp++) {
 		/* We allow '$' as the last character for samba */
 		if (!isalnum(*cp) && *cp != '.' && *cp != '_' && *cp != '-' &&
 		    !(*cp == '$' && *(cp + 1) == '\0')) {
 			return 0;
 		}
 	}
-	if ((char *)cp - login_name > _PW_NAME_LEN)
+	/* Preserve OpenBSD's historical RCS login limit, not host account policy. */
+	if ((char *)cp - login_name > 31)
 		return 0;
 	return 1;
 }
@@ -1238,7 +1274,7 @@ valid_commitid(char *commitid)
 	unsigned char *cp;
 
 	/* A-Za-z0-9 */
-	for (cp = commitid; *cp ; cp++) {
+	for (cp = (unsigned char *)commitid; *cp ; cp++) {
 		if (!isalnum(*cp))
 			return 0;
 	}

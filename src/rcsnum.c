@@ -1,3 +1,18 @@
+/* Portable OpenCVS modifications.
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: rcsnum.c,v 1.59 2017/08/28 19:33:20 otto Exp $	*/
 /*
  * Copyright (c) 2004 Jean-Francois Brousseau <jfb@openbsd.org>
@@ -104,12 +119,14 @@ rcsnum_tostr(const RCSNUM *nump, char *buf, size_t blen)
 	u_int i;
 	char tmp[8];
 
+	if (blen == 0)
+		return (buf);
 	if (nump == NULL || nump->rn_len == 0) {
 		buf[0] = '\0';
 		return (buf);
 	}
 
-	if (strlcpy(buf, rcsnum_itoa(nump->rn_id[0], buf, blen), blen) >= blen)
+	if (strlcpy(buf, rcsnum_itoa(nump->rn_id[0], tmp, sizeof(tmp)), blen) >= blen)
 		fatal("rcsnum_tostr: truncation");
 	for (i = 1; i < nump->rn_len; i++) {
 		const char *str;
@@ -135,7 +152,7 @@ rcsnum_itoa(u_int16_t num, char *buf, size_t len)
 	i = num;
 	bzero(buf, len);
 	while (i) {
-		*--p = '0' + (i % 10);
+		*--p = (char)('0' + (i % 10));
 		i  /= 10;
 	}
 	return (p);
@@ -223,13 +240,16 @@ rcsnum_aton(const char *str, const char **ep, RCSNUM *nump)
 
 	nump->rn_len = 0;
 	nump->rn_id[0] = 0;
+	if (str == NULL || !isdigit((unsigned char)*str))
+		goto rcsnum_aton_failed;
 
 	for (sp = str;; sp++) {
 		if (!isdigit((unsigned char)*sp) && (*sp != '.'))
 			break;
 
 		if (*sp == '.') {
-			if (nump->rn_len >= RCSNUM_MAXLEN - 1)
+			if (nump->rn_len >= RCSNUM_MAXLEN - 1 ||
+			    !isdigit((unsigned char)sp[1]))
 				goto rcsnum_aton_failed;
 
 			nump->rn_len++;
@@ -239,9 +259,9 @@ rcsnum_aton(const char *str, const char **ep, RCSNUM *nump)
 
 		val = (nump->rn_id[nump->rn_len] * 10) + (*sp - '0');
 		if (val > RCSNUM_MAXNUM)
-			fatal("RCSNUM overflow!");
+			goto rcsnum_aton_failed;
 
-		nump->rn_id[nump->rn_len] = val;
+		nump->rn_id[nump->rn_len] = (u_int16_t)val;
 	}
 
 	if (ep != NULL)

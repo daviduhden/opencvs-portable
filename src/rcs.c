@@ -1,3 +1,18 @@
+/* Portable OpenCVS modifications.
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: rcs.c,v 1.322 2024/05/30 10:25:58 jsg Exp $	*/
 /*
  * Copyright (c) 2004 Jean-Francois Brousseau <jfb@openbsd.org>
@@ -310,6 +325,7 @@ rcs_write(RCSFILE *rfp)
 
 	if ((fp = fdopen(fd, "w")) == NULL) {
 		saved_errno = errno;
+		(void)close(fd);
 		(void)unlink(fn);
 		fatal("fdopen %s: %s", fn, strerror(saved_errno));
 	}
@@ -416,13 +432,19 @@ rcs_write(RCSFILE *rfp)
 		fputs("@\n", fp);
 	}
 
-	if (fchmod(fd, rfp->rf_mode) == -1) {
-		saved_errno = errno;
+	/* Never replace the original archive until every buffered byte is durable. */
+	if (fflush(fp) == EOF || ferror(fp) || fchmod(fd, rfp->rf_mode) == -1 ||
+	    fsync(fd) == -1) {
+		saved_errno = errno != 0 ? errno : EIO;
+		(void)fclose(fp);
 		(void)unlink(fn);
-		fatal("fchmod %s: %s", fn, strerror(saved_errno));
+		fatal("write %s: %s", fn, strerror(saved_errno));
 	}
-
-	(void)fclose(fp);
+	if (fclose(fp) == EOF) {
+		saved_errno = errno != 0 ? errno : EIO;
+		(void)unlink(fn);
+		fatal("close %s: %s", fn, strerror(saved_errno));
+	}
 
 	if (rename(fn, rfp->rf_path) == -1) {
 		saved_errno = errno;
@@ -756,7 +778,7 @@ rcs_sym_check(const char *sym)
 	const unsigned char *cp;
 
 	ret = 1;
-	cp = sym;
+	cp = (const unsigned char *)sym;
 	if (!isalpha(*cp++))
 		return (0);
 
@@ -941,15 +963,42 @@ rcs_comment_set(RCSFILE *file, const char *comment)
 	file->rf_flags &= ~RCS_SYNCED;
 }
 
+/* Parse an entire diff -n command without reading beyond its line buffer. */
+static void
+rcs_patch_command(const struct rcs_line *line, u_char *op, int *at, int *count)
+{
+	size_t i = 1, end = line->l_len;
+	int field, values[2] = {0, 0};
+
+	if (end < 5 || line->l_line[end - 1] != '\n' ||
+	    (line->l_line[0] != 'a' && line->l_line[0] != 'd'))
+		fatal("invalid RCS patch command");
+	end--;
+	for (field = 0; field < 2; field++) {
+		size_t start = i;
+		while (i < end && line->l_line[i] >= '0' && line->l_line[i] <= '9') {
+			int digit = line->l_line[i++] - '0';
+			if (values[field] > (INT_MAX - digit) / 10)
+				fatal("RCS patch number overflow");
+			values[field] = values[field] * 10 + digit;
+		}
+		if (i == start || (field == 0 && (i == end || line->l_line[i++] != ' ')))
+			fatal("invalid RCS patch numbers");
+	}
+	if (i != end || values[1] == 0 || (line->l_line[0] == 'd' && values[0] == 0))
+		fatal("invalid RCS patch range");
+	*op = line->l_line[0];
+	*at = values[0];
+	*count = values[1];
+}
+
 int
 rcs_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines,
     struct rcs_line **alines, struct rcs_delta *rdp)
 {
 	u_char op;
-	char *ep;
 	struct rcs_line *lp, *dlp, *ndlp;
 	int i, lineno, nbln;
-	u_char tmp;
 
 	dlp = TAILQ_FIRST(&(dlines->l_lines));
 	lp = TAILQ_FIRST(&(plines->l_lines));
@@ -957,22 +1006,9 @@ rcs_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines,
 	/* skip first bogus line */
 	for (lp = TAILQ_NEXT(lp, l_list); lp != NULL;
 	    lp = TAILQ_NEXT(lp, l_list)) {
-		if (lp->l_len < 2)
-			fatal("line too short, RCS patch seems broken");
-		op = *(lp->l_line);
-		/* NUL-terminate line buffer for strtol() safety. */
-		tmp = lp->l_line[lp->l_len - 1];
-		lp->l_line[lp->l_len - 1] = '\0';
-		lineno = (int)strtol((char*)(lp->l_line + 1), &ep, 10);
-		if (lineno - 1 > dlines->l_nblines || lineno < 0) {
+		rcs_patch_command(lp, &op, &lineno, &nbln);
+		if (lineno > dlines->l_nblines || (op == 'd' && nbln > dlines->l_nblines - lineno + 1))
 			fatal("invalid line specification in RCS patch");
-		}
-		ep++;
-		nbln = (int)strtol(ep, &ep, 10);
-		/* Restore the last byte of the buffer */
-		lp->l_line[lp->l_len - 1] = tmp;
-		if (nbln < 0)
-			fatal("invalid line number specification in RCS patch");
 
 		/* find the appropriate line */
 		for (;;) {
@@ -1055,9 +1091,8 @@ rcs_delta_stats(struct rcs_delta *rdp, int *ladded, int *lremoved)
 {
 	struct rcs_lines *plines;
 	struct rcs_line *lp;
-	int added, i, nbln, removed;
-	char op, *ep;
-	u_char tmp;
+	int added, i, nbln, removed, lineno;
+	u_char op;
 
 	added = removed = 0;
 
@@ -1067,21 +1102,11 @@ rcs_delta_stats(struct rcs_delta *rdp, int *ladded, int *lremoved)
 	/* skip first bogus line */
 	for (lp = TAILQ_NEXT(lp, l_list); lp != NULL;
 	    lp = TAILQ_NEXT(lp, l_list)) {
-		if (lp->l_len < 2)
-			fatal("line too short, RCS patch seems broken");
-		op = *(lp->l_line);
-		/* NUL-terminate line buffer for strtol() safety. */
-		tmp = lp->l_line[lp->l_len - 1];
-		lp->l_line[lp->l_len - 1] = '\0';
-		(void)strtol((lp->l_line + 1), &ep, 10);
-		ep++;
-		nbln = (int)strtol(ep, &ep, 10);
-		/* Restore the last byte of the buffer */
-		lp->l_line[lp->l_len - 1] = tmp;
-		if (nbln < 0)
-			fatal("invalid line number specification in RCS patch");
+		rcs_patch_command(lp, &op, &lineno, &nbln);
 
 		if (op == 'a') {
+			if (nbln > INT_MAX - added)
+				fatal("RCS added line count overflow");
 			added += nbln;
 			for (i = 0; i < nbln; i++) {
 				lp = TAILQ_NEXT(lp, l_list);
@@ -1089,8 +1114,11 @@ rcs_delta_stats(struct rcs_delta *rdp, int *ladded, int *lremoved)
 					fatal("truncated RCS patch");
 			}
 		}
-		else if (op == 'd')
+		else if (op == 'd') {
+			if (nbln > INT_MAX - removed)
+				fatal("RCS removed line count overflow");
 			removed += nbln;
+		}
 		else
 			fatal("unknown RCS patch operation '%c'", op);
 	}
@@ -1148,7 +1176,11 @@ rcs_rev_add(RCSFILE *rf, RCSNUM *rev, const char *msg, time_t date,
 
 	rdp->rd_next = rcsnum_alloc();
 
-	if (!author && !(author = getlogin())) {
+#ifndef _WIN32
+	if (author == NULL)
+		author = getlogin();
+#endif
+	if (author == NULL) {
 		if (!(pw = getpwuid(getuid())))
 			fatal("getpwuid failed");
 		author = pw->pw_name;
@@ -2148,7 +2180,8 @@ rcs_rev_write_fd(RCSFILE *rfp, RCSNUM *rev, int _fd, int mode)
 	}
 
 	cvs_freelines(lines);
-	(void)fclose(fp);
+	if (fclose(fp) == EOF)
+		fatal("rcs_rev_write_fd: close: %s", strerror(errno));
 }
 
 /*
@@ -2433,7 +2466,7 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 				lp = xcalloc(1, sizeof(*lp));
 				xasprintf((char **)&(lp->l_line), "%s%s\n",
 				    prefix, linebuf);
-				lp->l_len = strlen(lp->l_line);
+				lp->l_len = strlen((const char *)lp->l_line);
 				TAILQ_INSERT_AFTER(&(lines->l_lines), cur, lp,
 				    l_list);
 				cur = lp;
@@ -2452,7 +2485,7 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 						    "%s%s\n", prefix, l_line);
 					}
 
-					lp->l_len = strlen(lp->l_line);
+					lp->l_len = strlen((const char *)lp->l_line);
 					TAILQ_INSERT_AFTER(&(lines->l_lines),
 					    cur, lp, l_list);
 					cur = lp;
@@ -2469,7 +2502,7 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 				lp = xcalloc(1, sizeof(*lp));
 				xasprintf((char **)&lp->l_line, "%s%s",
 				    sprefix, end);
-				lp->l_len = strlen(lp->l_line);
+				lp->l_len = strlen((const char *)lp->l_line);
 				TAILQ_INSERT_AFTER(&(lines->l_lines), cur, lp,
 				    l_list);
 				cur = lp;
