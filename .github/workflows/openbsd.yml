@@ -1,0 +1,71 @@
+# Portable OpenCVS.
+#
+# Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+
+name: OpenBSD upstream portability (experimental)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  openbsd:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # GitHub has no OpenBSD-hosted runner. This pinned third-party provider
+      # starts a real VM; no Linux compatibility environment is called OpenBSD.
+      - name: Start native OpenBSD VM
+        uses: vmactions/openbsd-vm@f1ca8bc8ecc5b6ef7218e5b914836e067e1546d3 # v1.4.9
+        with:
+          release: '8.0'
+          arch: x86_64
+          sync: rsync
+          prepare: pkg_add cmake ninja
+      - name: Configure and compile natively in the VM
+        shell: openbsd {0}
+        run: |
+          set -eu
+          mkdir -p build generated
+          yacc -l -o generated/date.c src/date.y
+          uname -a > build/platform.txt
+          cc --version >> build/platform.txt 2>&1
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_REQUIRE_GNU_CVS=OFF > build/configure.log 2>&1 || { status=$?; cat build/configure.log; exit "$status"; }
+          cat build/configure.log
+          cmake --build build --parallel 2 -- -k 0 > build/compile.log 2>&1 || { status=$?; cat build/compile.log; exit "$status"; }
+          cat build/compile.log
+      - name: Run native unit, integration, and security tests
+        shell: openbsd {0}
+        run: ctest --test-dir build --output-on-failure
+      - name: Preserve native VM evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: openbsd-${{ matrix.configuration }}-evidence
+          if-no-files-found: warn
+          path: |
+            build/platform.txt
+            build/configure.log
+            build/compile.log
+            build/CMakeFiles/CMakeConfigureLog.yaml
+            build/Testing/Temporary/*.log

@@ -56,21 +56,37 @@ jobs:
   linux:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     needs: parser
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
         include:
           - compiler: gcc
+            runner: ubuntu-24.04
+            configuration: Release
             cc: gcc
             sanitizers: 'OFF'
           - compiler: clang
+            runner: ubuntu-24.04
+            configuration: Release
             cc: clang
             sanitizers: 'OFF'
           - compiler: clang-sanitizers
+            runner: ubuntu-24.04
+            configuration: Release
             cc: clang
             sanitizers: 'ON'
+          - compiler: gcc-debug
+            runner: ubuntu-24.04
+            configuration: Debug
+            cc: gcc
+            sanitizers: 'OFF'
+          - compiler: gcc-arm64-debug
+            runner: ubuntu-24.04-arm
+            configuration: Debug
+            cc: gcc
+            sanitizers: 'OFF'
     env:
       CC: ${{ matrix.cc }}
     steps:
@@ -84,7 +100,7 @@ jobs:
       - name: Install native test dependencies
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y gcc clang cmake ninja-build perl cvs
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_SANITIZERS=${{ matrix.sanitizers }}
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_SANITIZERS=${{ matrix.sanitizers }} -DPC_REQUIRE_GNU_CVS=ON
       - name: Compile
         run: |
           set -o pipefail
@@ -94,14 +110,14 @@ jobs:
       - name: Validate agent knowledge
         run: perl scripts/validate-agent-knowledge.pl
       - name: Create the glibc distribution
-        if: matrix.sanitizers == 'OFF'
+        if: matrix.sanitizers == 'OFF' && matrix.configuration == 'Release'
         env:
           PACKAGE_NAME: opencvs-portable-${{ github.sha }}-linux-x86_64-${{ matrix.compiler }}
         run: |
           cpack --config build/CPackConfig.cmake -G TGZ -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
           ldd build/opencvs > "dist/$PACKAGE_NAME-runtime.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: matrix.sanitizers == 'OFF'
+        if: matrix.sanitizers == 'OFF' && matrix.configuration == 'Release'
         with:
           name: package-linux-${{ matrix.compiler }}
           path: dist/*
@@ -142,8 +158,16 @@ jobs:
         include:
           - compiler: msvc
             cc: cl
+            configuration: Release
           - compiler: clang-cl
             cc: clang-cl
+            configuration: Release
+          - compiler: msvc-debug
+            cc: cl
+            configuration: Debug
+          - compiler: clang-cl-debug
+            cc: clang-cl
+            configuration: Debug
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -176,20 +200,23 @@ jobs:
       - name: Configure
         env:
           NATIVE_CC: ${{ matrix.cc }}
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_C_COMPILER=$env:NATIVE_CC" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
+          BUILD_CONFIGURATION: ${{ matrix.configuration }}
+        run: cmake -S . -B build -G Ninja "-DCMAKE_BUILD_TYPE=$env:BUILD_CONFIGURATION" "-DCMAKE_C_COMPILER=$env:NATIVE_CC" -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
       - name: Compile
         run: |
           cmake --build build --parallel 2 -- -k 0 2>&1 | Tee-Object -FilePath build/compile.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run native Windows tests
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build --output-on-failure
       - name: Check native executable dependencies
         run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool "C:/Program Files/LLVM/bin/llvm-readobj.exe" --exe build/opencvs.exe
       - name: Create the Windows ZIP
+        if: matrix.configuration == 'Release'
         env:
           PACKAGE_NAME: opencvs-portable-${{ github.sha }}-windows-x86_64-${{ matrix.compiler }}
         run: cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$env:PACKAGE_NAME"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.configuration == 'Release'
         with:
           name: package-windows-${{ matrix.compiler }}
           path: dist/*
@@ -277,7 +304,7 @@ jobs:
         run: |
           docker run --rm -e PACKAGE_NAME -v "$PWD:/source" -w /source alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 sh -ec '
             apk add --no-cache build-base cmake ninja perl cvs
-            cmake -S . -B build-musl -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
+            cmake -S . -B build-musl -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_REQUIRE_GNU_CVS=ON
             cmake --build build-musl --parallel 2 -- -k 0 > build-musl/compile.log 2>&1 || { status=$?; cat build-musl/compile.log; exit "$status"; }
             cat build-musl/compile.log
             ctest --test-dir build-musl --output-on-failure
