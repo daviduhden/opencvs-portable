@@ -1,4 +1,21 @@
 %{
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: date.y,v 1.27 2023/03/08 04:43:10 guenther Exp $	*/
 
 /*
@@ -322,7 +339,7 @@ static TABLE const MonthDayTable[] = {
 	{ "thurs",	tDAY,	4 },
 	{ "friday",	tDAY,	5 },
 	{ "saturday",	tDAY,	6 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 /* Time units table. */
@@ -337,7 +354,7 @@ static TABLE const UnitsTable[] = {
 	{ "min",	tMINUTE_UNIT,	1 },
 	{ "second",	tSEC_UNIT,	1 },
 	{ "sec",	tSEC_UNIT,	1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 /* Assorted relative-time words. */
@@ -362,7 +379,7 @@ static TABLE const OtherTable[] = {
 	{ "eleventh",	tUNUMBER,	11 },
 	{ "twelfth",	tUNUMBER,	12 },
 	{ "ago",	tAGO,	1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 /* The timezone table. */
@@ -477,7 +494,7 @@ static TABLE const MilitaryTable[] = {
 	{ "x",	tZONE,	HOUR(-11) },
 	{ "y",	tZONE,	HOUR(-12) },
 	{ "z",	tZONE,	HOUR(  0) },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 

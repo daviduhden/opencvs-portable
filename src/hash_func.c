@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: hash_func.c,v 1.1 2008/06/21 15:39:15 joris Exp $	*/
 
 /*-
@@ -41,7 +58,8 @@
 u_int32_t
 hash4(const char *key, size_t len)
 {
-	u_int32_t h, loop;
+	u_int32_t h;
+	size_t loop;
 	const char *k;
 
 #define HASH4   h = (h << 5) + h + *k++;
@@ -49,24 +67,31 @@ hash4(const char *key, size_t len)
 	h = 0;
 	k = key;
 	if (len > 0) {
-		loop = (len + 8 - 1) >> 3;
+		loop = len / 8 + (len % 8 != 0);
 
 		switch (len & (8 - 1)) {
 		case 0:
 			do {	/* All fall throughs */
 				HASH4;
+				/* FALLTHROUGH */
 		case 7:
 				HASH4;
+				/* FALLTHROUGH */
 		case 6:
 				HASH4;
+				/* FALLTHROUGH */
 		case 5:
 				HASH4;
+				/* FALLTHROUGH */
 		case 4:
 				HASH4;
+				/* FALLTHROUGH */
 		case 3:
 				HASH4;
+				/* FALLTHROUGH */
 		case 2:
 				HASH4;
+				/* FALLTHROUGH */
 		case 1:
 				HASH4;
 			} while (--loop);

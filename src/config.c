@@ -54,6 +54,7 @@ cvs_parse_configfile(void)
 int
 config_parse_line(char *line, int lineno)
 {
+	(void)lineno;
 	struct rlimit rl;
 	const char *errstr;
 	char *val, *opt, *ep;

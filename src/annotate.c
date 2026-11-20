@@ -170,9 +170,10 @@ cvs_annotate(int argc, char **argv)
 void
 cvs_annotate_local(struct cvs_file *cf)
 {
-	int i;
+	int i, year;
+	size_t date_length;
 	u_char *p;
-	char date[10], rnum[13];
+	char date[32], rnum[13];
 	RCSNUM *bnum, *rev;
 	struct rcs_line *line;
 	struct rcs_line **alines;
@@ -242,8 +243,16 @@ cvs_annotate_local(struct cvs_file *cf)
 		line = alines[i];
 
 		rcsnum_tostr(line->l_delta->rd_num, rnum, sizeof(rnum));
-		strftime(date, sizeof(date), "%d-%b-%y",
+		/* CVS annotation deliberately uses a two-digit year, not a date parser. */
+		date_length = strftime(date, sizeof(date), "%d-%b-",
 		    &(line->l_delta->rd_date));
+		if (date_length == 0 || date_length > sizeof(date) - 3)
+			fatal("annotate: date representation is too long");
+		year = line->l_delta->rd_date.tm_year % 100;
+		if (year < 0)
+			year += 100;
+		(void)snprintf(date + date_length, sizeof(date) - date_length,
+		    "%02d", year);
 		if (line->l_len && line->l_line[line->l_len - 1] == '\n')
 			line->l_line[line->l_len - 1] = '\0';
 		else {

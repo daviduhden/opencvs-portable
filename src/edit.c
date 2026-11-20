@@ -336,6 +336,7 @@ cvs_edit_local(struct cvs_file *cf)
 static void
 cvs_editors_local(struct cvs_file *cf)
 {
+	(void)cf;
 }
 
 static void
