@@ -171,6 +171,164 @@ client_get_supported_responses(void)
 	return (d);
 }
 
+/* Server paths are protocol data, never native absolute working paths. */
+static void
+client_check_relative(const char *path)
+{
+	const char *component, *end;
+	size_t length;
+
+	if (path == NULL || *path == '\0' || pc_any_absolute(path) ||
+	    strchr(path, '\\') != NULL || strchr(path, ':') != NULL)
+		fatal("unsafe pathname received from server");
+	for (component = path; *component != '\0'; component = end + 1) {
+		end = strchr(component, '/');
+		length = end ? (size_t)(end - component) : strlen(component);
+		if (length == 0 || (length == 2 && !memcmp(component, "..", 2)))
+			fatal("unsafe pathname received from server");
+		if (end == NULL || end[1] == '\0')
+			break;
+	}
+}
+
+/* Reject already-present symlink prefixes before creating or removing files.
+ * This is not a claim of race-free containment against concurrent directory swaps.
+ */
+static void
+client_check_workdir(const char *path)
+{
+	char prefix[PATH_MAX], *end;
+	struct stat st;
+	int last;
+
+	client_check_relative(path);
+	if (strlcpy(prefix, path, sizeof(prefix)) >= sizeof(prefix))
+		fatal("server directory path is too long");
+	for (end = prefix;; end++) {
+		if (*end != '/' && *end != '\0')
+			continue;
+		last = (*end == '\0');
+		*end = '\0';
+		if (lstat(prefix, &st) == -1) {
+			if (errno != ENOENT)
+				fatal("server directory %s: %s", prefix, strerror(errno));
+		} else if (!S_ISDIR(st.st_mode)) {
+			fatal("server directory is not a real directory: %s", prefix);
+		}
+		if (last)
+			break;
+		*end = '/';
+	}
+	(void)xsnprintf(prefix, sizeof(prefix), "%s/%s", path, CVS_PATH_CVSDIR);
+	if (lstat(prefix, &st) == -1) {
+		if (errno != ENOENT)
+			fatal("server administrative directory: %s", strerror(errno));
+	} else if (!S_ISDIR(st.st_mode)) {
+		fatal("server administrative directory is not a real directory");
+	}
+}
+
+static const char *
+client_repository_relative(const char *path)
+{
+	size_t root_length, length;
+	const char *relative;
+
+	if (path == NULL || current_cvsroot == NULL ||
+	    current_cvsroot->cr_dir == NULL)
+		fatal("server response lacks a repository root");
+	root_length = strlen(current_cvsroot->cr_dir);
+	length = strlen(path);
+	if (root_length == 0 || length < root_length ||
+	    strncmp(path, current_cvsroot->cr_dir, root_length) != 0)
+		fatal("server repository path is outside the selected root");
+	relative = path + root_length;
+	if (*relative == '\0')
+		return relative;
+	if (current_cvsroot->cr_dir[root_length - 1] != '/') {
+		if (*relative != '/')
+			fatal("server repository path has a different root");
+		relative++;
+	}
+	client_check_relative(relative);
+	return relative;
+}
+
+static const char *
+client_repository_filename(const char *path)
+{
+	const char *relative = client_repository_relative(path);
+	const char *name = strrchr(relative, '/');
+
+	name = name ? name + 1 : relative;
+	if (*name == '\0' || !strcmp(name, ".") || !strcmp(name, ".."))
+		fatal("server response lacks a safe file name");
+	return name;
+}
+
+/* Publish only after the complete body and metadata reached stable storage. */
+static void
+client_receive_file(const char *path, size_t length, mode_t mode, time_t now)
+{
+	char *temporary;
+	struct timeval tv[2];
+	int fd, saved;
+
+	(void)xasprintf(&temporary, "%s.XXXXXXXX", path);
+	fd = mkstemp(temporary);
+	if (fd == -1)
+		fatal("client temporary file: %s", strerror(errno));
+	worklist_add(temporary, &temp_files);
+	cvs_remote_receive_file(fd, length);
+	tv[0].tv_sec = now;
+	tv[0].tv_usec = 0;
+	tv[1] = tv[0];
+	if (futimes(fd, tv) == -1 || fchmod(fd, mode) == -1 || fsync(fd) == -1) {
+		saved = errno;
+		(void)close(fd);
+		fatal("client staged file: %s", strerror(saved));
+	}
+	if (close(fd) == -1)
+		fatal("client staged close: %s", strerror(errno));
+	if (rename(temporary, path) == -1)
+		fatal("client staged rename: %s", strerror(errno));
+	worklist_remove(temporary, &temp_files);
+	free(temporary);
+}
+
+static void
+client_write_metadata(const char *path, const char *text)
+{
+	char *temporary;
+	int fd, saved;
+	FILE *stream;
+
+	(void)xasprintf(&temporary, "%s.XXXXXXXX", path);
+	fd = mkstemp(temporary);
+	if (fd == -1)
+		fatal("client administrative temporary file: %s", strerror(errno));
+	worklist_add(temporary, &temp_files);
+	stream = fdopen(fd, "w");
+	if (stream == NULL) {
+		saved = errno;
+		(void)close(fd);
+		fatal("client administrative stream: %s", strerror(saved));
+	}
+	if ((text != NULL && (fputs(text, stream) == EOF ||
+	    fputc('\n', stream) == EOF)) || fflush(stream) == EOF ||
+	    fsync(fd) == -1) {
+		saved = errno;
+		(void)fclose(stream);
+		fatal("client administrative write: %s", strerror(saved));
+	}
+	if (fclose(stream) == EOF)
+		fatal("client administrative close: %s", strerror(errno));
+	if (rename(temporary, path) == -1)
+		fatal("client administrative rename: %s", strerror(errno));
+	worklist_remove(temporary, &temp_files);
+	free(temporary);
+}
+
 static void
 client_check_directory(char *data, char *repository)
 {
@@ -179,11 +337,13 @@ client_check_directory(char *data, char *repository)
 	char basebuf[PATH_MAX], parentbuf[PATH_MAX];
 
 	STRIP_SLASH(data);
+	client_check_workdir(data);
+	(void)client_repository_relative(repository);
 
 	/* first directory we get is our module root */
 	if (module_repo_root == NULL && checkout_target_dir != NULL) {
-		p = repository + strlen(current_cvsroot->cr_dir) + 1;
-		module_repo_root = xstrdup(p);
+		p = xstrdup(client_repository_relative(repository));
+		module_repo_root = p;
 		p = strrchr(module_repo_root, '/');
 		if (p != NULL)
 			*p = '\0';
@@ -553,7 +713,7 @@ cvs_client_sendfile(struct cvs_file *cf)
 		cf->file_status = FILE_MODIFIED;
 
 	switch (cf->file_status) {
-	case FILE_UNKNOWN:
+	case CVS_FILE_UNKNOWN:
 		if (cf->file_flags & FILE_ON_DISK)
 			cvs_client_send_request("Questionable %s",
 			    cf->file_name);
@@ -596,6 +756,7 @@ cvs_client_send_files(char **argv, int argc)
 void
 cvs_client_ok(char *data)
 {
+	(void)data;
 	end_of_response = 1;
 	server_response = SERVER_OK;
 }
@@ -603,6 +764,7 @@ cvs_client_ok(char *data)
 void
 cvs_client_error(char *data)
 {
+	(void)data;
 	end_of_response = 1;
 	server_response = SERVER_ERROR;
 }
@@ -672,10 +834,13 @@ cvs_client_checkedin(char *data)
 
 	dir = cvs_remote_input();
 	e = cvs_remote_input();
+	client_check_workdir(data);
+	newent = cvs_ent_parse(e);
+	if (strcmp(newent->ce_name, client_repository_filename(dir)))
+		fatal("Checked-in file and Entries names disagree");
 	free(dir);
 
 	entlist = cvs_ent_open(data);
-	newent = cvs_ent_parse(e);
 	ent = cvs_ent_get(entlist, newent->ce_name);
 	free(e);
 
@@ -726,18 +891,16 @@ cvs_client_checkedin(char *data)
 void
 cvs_client_updated(char *data)
 {
-	int fd;
 	time_t now;
 	mode_t fmode;
 	size_t flen;
 	CVSENTRIES *ent;
 	struct cvs_ent *e;
-	const char *errstr;
+	const char *errstr, *p;
 	struct tm datetm;
-	struct timeval tv[2];
-	char repo[PATH_MAX], *entry;
+	char *entry;
 	char timebuf[CVS_TIME_BUFSZ], revbuf[CVS_REV_BUFSZ];
-	char *en, *mode, *len, *rpath, *p;
+	char *en, *mode, *len, *rpath;
 	char sticky[CVS_ENT_MAXLINELEN], fpath[PATH_MAX];
 
 	if (data == NULL)
@@ -749,17 +912,7 @@ cvs_client_updated(char *data)
 	len = cvs_remote_input();
 
 	client_check_directory(data, rpath);
-	cvs_get_repository_path(".", repo, PATH_MAX);
-
-	STRIP_SLASH(repo);
-
-	if (strlen(repo) + 1 > strlen(rpath))
-		fatal("received a repository path that is too short");
-
-	p = strrchr(rpath, '/');
-	if (p == NULL)
-		fatal("malicious repository path from server");
-
+	p = client_repository_filename(rpath);
 	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s", data, p);
 
 	flen = strtonum(len, 0, INT_MAX, &errstr);
@@ -777,6 +930,8 @@ cvs_client_updated(char *data)
 	timebuf[strcspn(timebuf, "\n")] = '\0';
 
 	e = cvs_ent_parse(en);
+	if (strcmp(e->ce_name, p))
+		fatal("Updated file and Entries names disagree");
 	free(en);
 
 	sticky[0] = '\0';
@@ -797,31 +952,12 @@ cvs_client_updated(char *data)
 
 	cvs_ent_free(e);
 
+	client_receive_file(fpath, flen, fmode, now);
 	if (cvs_cmdop != CVS_OP_EXPORT) {
 		ent = cvs_ent_open(data);
 		cvs_ent_add(ent, entry);
 	}
-
 	free(entry);
-
-	(void)unlink(fpath);
-	if ((fd = open(fpath, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW, 0600)) == -1)
-		fatal("cvs_client_updated: open: %s: %s",
-		    fpath, strerror(errno));
-
-	cvs_remote_receive_file(fd, flen);
-
-	tv[0].tv_sec = now;
-	tv[0].tv_usec = 0;
-	tv[1] = tv[0];
-
-	if (futimes(fd, tv) == -1)
-		fatal("cvs_client_updated: futimes: %s", strerror(errno));
-
-	if (fchmod(fd, fmode) == -1)
-		fatal("cvs_client_updated: fchmod: %s", strerror(errno));
-
-	(void)close(fd);
 
 	free(rpath);
 }
@@ -829,16 +965,13 @@ cvs_client_updated(char *data)
 void
 cvs_client_merged(char *data)
 {
-	int fd;
 	time_t now;
 	mode_t fmode;
 	size_t flen;
 	CVSENTRIES *ent;
-	const char *errstr;
-	struct timeval tv[2];
-	struct tm datetm;
-	char timebuf[CVS_TIME_BUFSZ], *repo, *rpath, *entry, *mode;
-	char *len, *fpath, *wdir, wdirbuf[PATH_MAX];
+	struct cvs_ent *parsed;
+	const char *errstr, *name;
+	char *rpath, *entry, *mode, *len, fpath[PATH_MAX];
 
 	if (data == NULL)
 		fatal("Missing argument for Merged");
@@ -850,20 +983,12 @@ cvs_client_merged(char *data)
 
 	client_check_directory(data, rpath);
 
-	repo = xmalloc(PATH_MAX);
-	cvs_get_repository_path(".", repo, PATH_MAX);
-
-	STRIP_SLASH(repo);
-
-	if (strlen(repo) + 1 > strlen(rpath))
-		fatal("received a repository path that is too short");
-
-	fpath = rpath + strlen(repo) + 1;
-	if (strlcpy(wdirbuf, fpath, sizeof(wdirbuf)) >= sizeof(wdirbuf))
-		fatal("cvs_client_merged: truncation");
-	if ((wdir = dirname(wdirbuf)) == NULL)
-		fatal("cvs_client_merged: dirname: %s", strerror(errno));
-	free(repo);
+	name = client_repository_filename(rpath);
+	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s", data, name);
+	parsed = cvs_ent_parse(entry);
+	if (strcmp(parsed->ce_name, name))
+		fatal("Merged file and Entries names disagree");
+	cvs_ent_free(parsed);
 
 	flen = strtonum(len, 0, INT_MAX, &errstr);
 	if (errstr != NULL)
@@ -875,32 +1000,10 @@ cvs_client_merged(char *data)
 	fmode &= ~cvs_umask;
 
 	time(&now);
-	gmtime_r(&now, &datetm);
-	asctime_r(&datetm, timebuf);
-	timebuf[strcspn(timebuf, "\n")] = '\0';
-
-	ent = cvs_ent_open(wdir);
+	client_receive_file(fpath, flen, fmode, now);
+	ent = cvs_ent_open(data);
 	cvs_ent_add(ent, entry);
 	free(entry);
-
-	(void)unlink(fpath);
-	if ((fd = open(fpath, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW, 0600)) == -1)
-		fatal("cvs_client_merged: open: %s: %s",
-		    fpath, strerror(errno));
-
-	cvs_remote_receive_file(fd, flen);
-
-	tv[0].tv_sec = now;
-	tv[0].tv_usec = 0;
-	tv[1] = tv[0];
-
-	if (futimes(fd, tv) == -1)
-		fatal("cvs_client_merged: futimes: %s", strerror(errno));
-
-	if (fchmod(fd, fmode) == -1)
-		fatal("cvs_client_merged: fchmod: %s", strerror(errno));
-
-	(void)close(fd);
 
 	free(rpath);
 }
@@ -909,21 +1012,21 @@ void
 cvs_client_removed(char *data)
 {
 	CVSENTRIES *entlist;
-	char *rpath, *filename, fpath[PATH_MAX];
+	char *rpath, fpath[PATH_MAX];
+	const char *filename;
 
 	if (data == NULL)
 		fatal("Missing argument for Removed");
 
 	rpath = cvs_remote_input();
-	if ((filename = strrchr(rpath, '/')) == NULL)
-		fatal("bad rpath in cvs_client_removed: %s", rpath);
-	filename++;
+	client_check_workdir(data);
+	filename = client_repository_filename(rpath);
 
 	entlist = cvs_ent_open(data);
-	cvs_ent_remove(entlist, filename);
-
 	(void)xsnprintf(fpath, PATH_MAX, "%s/%s", data, filename);
-	(void)unlink(fpath);
+	if (unlink(fpath) == -1 && errno != ENOENT)
+		fatal("Removed: %s: %s", fpath, strerror(errno));
+	cvs_ent_remove(entlist, filename);
 
 	free(rpath);
 }
@@ -932,15 +1035,15 @@ void
 cvs_client_remove_entry(char *data)
 {
 	CVSENTRIES *entlist;
-	char *filename, *rpath;
+	char *rpath;
+	const char *filename;
 
 	if (data == NULL)
 		fatal("Missing argument for Remove-entry");
 
 	rpath = cvs_remote_input();
-	if ((filename = strrchr(rpath, '/')) == NULL)
-		fatal("bad rpath in cvs_client_remove_entry: %s", rpath);
-	filename++;
+	client_check_workdir(data);
+	filename = client_repository_filename(rpath);
 
 	entlist = cvs_ent_open(data);
 	cvs_ent_remove(entlist, filename);
@@ -951,7 +1054,6 @@ cvs_client_remove_entry(char *data)
 void
 cvs_client_set_static_directory(char *data)
 {
-	FILE *fp;
 	char *dir, fpath[PATH_MAX];
 
 	if (data == NULL)
@@ -960,6 +1062,8 @@ cvs_client_set_static_directory(char *data)
 	STRIP_SLASH(data);
 
 	dir = cvs_remote_input();
+	client_check_workdir(data);
+	(void)client_repository_relative(dir);
 	free(dir);
 
 	if (cvs_cmdop == CVS_OP_EXPORT)
@@ -968,11 +1072,7 @@ cvs_client_set_static_directory(char *data)
 	(void)xsnprintf(fpath, PATH_MAX, "%s/%s",
 	    data, CVS_PATH_STATICENTRIES);
 
-	if ((fp = fopen(fpath, "w+")) == NULL) {
-		cvs_log(LP_ERRNO, "%s", fpath);
-		return;
-	}
-	(void)fclose(fp);
+	client_write_metadata(fpath, NULL);
 }
 
 void
@@ -986,6 +1086,8 @@ cvs_client_clear_static_directory(char *data)
 	STRIP_SLASH(data);
 
 	dir = cvs_remote_input();
+	client_check_workdir(data);
+	(void)client_repository_relative(dir);
 	free(dir);
 
 	if (cvs_cmdop == CVS_OP_EXPORT)
@@ -1000,7 +1102,6 @@ cvs_client_clear_static_directory(char *data)
 void
 cvs_client_set_sticky(char *data)
 {
-	FILE *fp;
 	char *dir, *tag, tagpath[PATH_MAX];
 
 	if (data == NULL)
@@ -1018,13 +1119,7 @@ cvs_client_set_sticky(char *data)
 
 	(void)xsnprintf(tagpath, PATH_MAX, "%s/%s", data, CVS_PATH_TAG);
 
-	if ((fp = fopen(tagpath, "w+")) == NULL) {
-		cvs_log(LP_ERRNO, "%s", tagpath);
-		goto out;
-	}
-
-	(void)fprintf(fp, "%s\n", tag);
-	(void)fclose(fp);
+	client_write_metadata(tagpath, tag);
 out:
 	free(tag);
 	free(dir);
@@ -1070,7 +1165,6 @@ cvs_client_initlog(void)
 	u_int i;
 	char *env, *envdup, buf[PATH_MAX], fpath[PATH_MAX];
 	char rpath[PATH_MAX], timebuf[CVS_TIME_BUFSZ], *s;
-	struct stat st;
 	time_t now;
 	struct passwd *pwd;
 
@@ -1138,42 +1232,23 @@ cvs_client_initlog(void)
 		}
 	}
 
-	for (i = 0; i < UINT_MAX; i++) {
-		(void)xsnprintf(fpath, sizeof(fpath), "%s-%d.in", rpath, i);
-
-		if (stat(fpath, &st) != -1)
-			continue;
-
-		if (errno != ENOENT)
-			fatal("cvs_client_initlog() stat failed '%s'",
-			    strerror(errno));
-
-		break;
+	for (i = 0;; i++) {
+		(void)xsnprintf(fpath, sizeof(fpath), "%s-%u.in", rpath, i);
+		cvs_client_inlog_fd = open(fpath,
+		    O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+		if (cvs_client_inlog_fd != -1)
+			break;
+		if (errno != EEXIST || i == UINT_MAX)
+			fatal("cvs_client_initlog: %s: %s", fpath, strerror(errno));
 	}
-
-	if ((cvs_client_inlog_fd = open(fpath,
-	    O_RDWR | O_CREAT | O_TRUNC, 0644)) == -1) {
-		fatal("cvs_client_initlog: open `%s': %s",
-		    fpath, strerror(errno));
-	}
-
-	for (i = 0; i < UINT_MAX; i++) {
-		(void)xsnprintf(fpath, sizeof(fpath), "%s-%d.out", rpath, i);
-
-		if (stat(fpath, &st) != -1)
-			continue;
-
-		if (errno != ENOENT)
-			fatal("cvs_client_initlog() stat failed '%s'",
-			    strerror(errno));
-
-		break;
-	}
-
-	if ((cvs_client_outlog_fd = open(fpath,
-	    O_RDWR | O_CREAT | O_TRUNC, 0644)) == -1) {
-		fatal("cvs_client_initlog: open `%s': %s",
-		    fpath, strerror(errno));
+	for (i = 0;; i++) {
+		(void)xsnprintf(fpath, sizeof(fpath), "%s-%u.out", rpath, i);
+		cvs_client_outlog_fd = open(fpath,
+		    O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+		if (cvs_client_outlog_fd != -1)
+			break;
+		if (errno != EEXIST || i == UINT_MAX)
+			fatal("cvs_client_initlog: %s: %s", fpath, strerror(errno));
 	}
 
 	cvs_client_logon = 1;
