@@ -3,14 +3,14 @@
 The imported CVS engine remains in `src/`: command dispatch, working-copy entries,
 RCS parsing/storage, diff/merge algorithms, and stdin/stdout CVS framing. The
 initial import is traceable through [UPSTREAM](../UPSTREAM) and
-[the source manifest](../upstream/manifest.json). Keep semantic changes separate
+[the source manifest](../provenance/manifest.json). Keep semantic changes separate
 from platform adaptation so selected OpenBSD changes remain reviewable.
 
 [portable.h](../compat/include/portable.h) is the common declaration boundary.
 CMake generates `portable_config.h` from detected features; it is not the engine's
 unrelated `src/config.h`. Shared missing libc behavior belongs in
 [common.c](../compat/common.c). Exact BSD helper and container imports retain their
-own metadata in [the compatibility manifest](../upstream/compat-manifest.json).
+own metadata in [the compatibility manifest](../provenance/compat-manifest.json).
 
 [pc_process.h](../compat/include/pc_process.h) defines `pc_spawn`, `pc_wait`,
 `pc_pipe`, `pc_run`, and explicit command-to-argv parsing. POSIX and Win32

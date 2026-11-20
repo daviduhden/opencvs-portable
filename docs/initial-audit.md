@@ -127,7 +127,7 @@ and other notices. Include required notices in binary distributions and retain
 the acknowledgment in project-facing documentation. An aggregate LICENSE must
 explain the collection rather than incorrectly label every imported file ISC or
 BSD-2-Clause. Auxiliary BSD libc, regex, and container imports require their own
-provenance and notices as recorded in `upstream/compat-manifest.json`. The regex
+provenance and notices as recorded in `provenance/compat-manifest.json`. The regex
 COPYRIGHT also requires Henry Spencer origin/alteration credits in documentation;
 its initial plain-text license block must not be lost by a C-comment-only notice
 collector.

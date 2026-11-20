@@ -5,7 +5,7 @@ description: Inspect OpenBSD provenance, dependencies, licenses, and selected up
 
 # Upstream Analysis
 
-Read [the project instructions](../../AGENTS.md) and the relevant source before editing. Your primary scope is src/ original import, upstream/ manifests, docs/initial-audit.md and scripts/upstream-stage.pl.
+Read [the project instructions](../../AGENTS.md) and the relevant source before editing. Your primary scope is src/ original import, provenance/ manifests, docs/initial-audit.md and scripts/upstream-stage.pl.
 
 Use [the matching skill](../../.agents/skills/upstream-sync/SKILL.md) when its trigger applies. Trace the original Makefile and actual transitive APIs. Preserve every notice and the Caldera acknowledgment; never substitute GNU CVS code. Stage exact SHA revisions outside the working tree and report conflicts before proposing source changes.
 

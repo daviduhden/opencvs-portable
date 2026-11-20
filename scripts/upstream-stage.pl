@@ -72,8 +72,8 @@ sub safe_relative {
     return $path;
 }
 my $json = JSON::PP->new->canonical->pretty;
-my $original = $json->decode(read_file("$root/upstream/manifest.json"));
-my $extra = $json->decode(read_file("$root/upstream/compat-manifest.json"));
+my $original = $json->decode(read_file("$root/provenance/manifest.json"));
+my $extra = $json->decode(read_file("$root/provenance/compat-manifest.json"));
 my $previous = $original->{revision};
 $revision //= $previous;
 die "revision must be a complete 40-character hexadecimal commit SHA\n" unless $revision =~ /\A[0-9a-f]{40}\z/i;

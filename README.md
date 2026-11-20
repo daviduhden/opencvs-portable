@@ -16,7 +16,7 @@ repositories. Preserve recoverable repository and working-copy backups.
 
 The upstream baseline is OpenBSD `src` revision
 `4453305eb9b84bbd8b912a2794d5b2b12caa1b0f`, directory `usr.bin/cvs`.
-[UPSTREAM](UPSTREAM) and the [source manifest](upstream/manifest.json) record
+[UPSTREAM](UPSTREAM) and the [source manifest](provenance/manifest.json) record
 provenance. The [initial audit](docs/initial-audit.md) separates inherited issues
 from portability changes and identifies limitations already present upstream.
 

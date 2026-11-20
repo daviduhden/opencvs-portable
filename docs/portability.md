@@ -16,7 +16,7 @@ not silent lossy conversions. Keep binary bytes and CVS/RCS framing independent
 of host text-mode defaults.
 
 BSD container and libc sources are recorded in
-[the compatibility manifest](../upstream/compat-manifest.json). Avoid replacing
+[the compatibility manifest](../provenance/compat-manifest.json). Avoid replacing
 system regex headers while linking a different regex ABI. Only the relevant
 fallback build should use the imported regex/fnmatch declarations. The BSD getopt
 implementation is namespaced on every platform so resets have one meaning.

@@ -3,11 +3,18 @@ Repository: https://github.com/openbsd/src
 Path: usr.bin/cvs/
 Revision: 4453305eb9b84bbd8b912a2794d5b2b12caa1b0f
 Import date (UTC): 2026-11-20
-Imported files: 68; exact paths and SHA256 in upstream/manifest.json
-Additional dependencies: pending completed audit; recorded separately in upstream/compat-manifest.json
+Imported files: 68; exact paths and SHA256 in provenance/manifest.json
+Additional dependencies: 24 narrowly selected BSD helper/header files; exact paths,
+revisions and hashes in provenance/compat-manifest.json. See LICENSES for notices.
 Modifications at import: none in src/. Portable changes follow in separate commits.
 Update procedure: compare pinned tree against selected upstream revision; stage changes
 in an isolated directory, verify hashes/licenses, apply as a reviewed three-way change
 against the import commit, preserve local portability patches, run all tests, then
 update both this record and the manifests. Never overwrite a working tree automatically.
 Historical reference: https://chl.be/opencvs/ (reference only; no code copied).
+
+Portable modifications: provenance/portability-changes.json lists changed imported
+files and new code. Original notices remain in force; new code and portability
+changes use the complete David Uhden Collado ISC notice in LICENSES/ISC.txt.
+Generated date parser: Berkeley byacc 2.0 20221106, GitHub Actions run 44752958590;
+see generated/README.md and generated/GENERATOR.txt for reproducible provenance.

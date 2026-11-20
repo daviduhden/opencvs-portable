@@ -1,8 +1,8 @@
 # Updating the OpenBSD baseline
 
 The baseline is a pinned full SHA, not a moving branch. Imported source paths and
-SHA-256 values live in [the source manifest](../upstream/manifest.json) and
-[compatibility manifest](../upstream/compat-manifest.json). Preserve the original
+SHA-256 values live in [the source manifest](../provenance/manifest.json) and
+[compatibility manifest](../provenance/compat-manifest.json). Preserve the original
 notices and `$OpenBSD$` identifiers, including Caldera's separate conditions.
 
 1. Read [UPSTREAM](../UPSTREAM), the manifests, portability changes, and relevant
