@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: root.c,v 1.49 2017/06/01 08:08:24 joris Exp $	*/
 /*
  * Copyright (c) 2004 Jean-Francois Brousseau <jfb@openbsd.org>
@@ -91,23 +108,23 @@ cvsroot_parse(const char *str)
 			fatal("cvsroot_parse: unknown method `%s'", sp);
 	}
 
-	/* find the start of the actual path */
-	if ((sp = strchr(cp, '/')) == NULL)
-		fatal("no path specification in CVSROOT");
-
-	root->cr_dir = sp;
-	STRIP_SLASH(root->cr_dir);
-	if (sp == cp) {
-		if (root->cr_method == CVS_METHOD_NONE)
-			root->cr_method = CVS_METHOD_LOCAL;
-		/* stop here, it's just a path */
-		return (root);
+	if (strpbrk(cp, "\r\n") != NULL)
+		fatal("line break in CVSROOT");
+	if (pc_native_absolute(cp) &&
+	    (root->cr_method == CVS_METHOD_NONE || root->cr_method == CVS_METHOD_LOCAL)) {
+		root->cr_method = CVS_METHOD_LOCAL;
+		root->cr_dir = cp;
+		STRIP_SLASH(root->cr_dir);
+		return root;
 	}
-
-	if (*(sp - 1) != ':')
-		fatal("missing host/path delimiter in CVSROOT");
-
-	*(sp - 1) = '\0';
+	for (sp = cp; *sp != '\0'; sp++)
+		if (*sp == ':' && pc_any_absolute(sp + 1))
+			break;
+	if (*sp != ':')
+		fatal("no absolute path specification in CVSROOT");
+	root->cr_dir = sp + 1;
+	*sp = '\0';
+	STRIP_SLASH(root->cr_dir);
 
 	/*
 	 * looks like we have more than just a directory path, so
@@ -128,13 +145,27 @@ cvsroot_parse(const char *str)
 	} else
 		sp = cp;
 
-	pp = strchr(sp, ':');
+	if (*sp == '[') {
+		pp = strchr(sp, ']');
+		if (pp == NULL)
+			fatal("unterminated IPv6 address in CVSROOT");
+		*pp++ = '\0';
+		sp++;
+		if (*pp != '\0' && *pp != ':')
+			fatal("invalid IPv6 host delimiter");
+		if (*pp == ':')
+			pp++;
+		else
+			pp = NULL;
+	} else {
+		pp = strchr(sp, ':');
+		if (pp != NULL)
+			*pp++ = '\0';
+	}
 	if (pp != NULL) {
-		*(pp++) = '\0';
 		root->cr_port = strtonum(pp, 1, 65535, &errstr);
 		if (errstr != NULL)
 			fatal("port specification in CVSROOT is %s", errstr);
-
 	}
 
 	root->cr_host = sp;
@@ -163,7 +194,7 @@ cvsroot_parse(const char *str)
 struct cvsroot *
 cvsroot_get(const char *dir)
 {
-	char rootpath[PATH_MAX], *rootstr, line[128];
+	char rootpath[PATH_MAX], *rootstr, line[PATH_MAX + 2];
 	FILE *fp;
 
 	if (cvs_rootstr != NULL)
@@ -193,7 +224,7 @@ cvsroot_get(const char *dir)
 		}
 	}
 
-	if (fgets(line, (int)sizeof(line), fp) == NULL)
+	if (pc_metadata_fgets(line, (int)sizeof(line), fp) == NULL)
 		fatal("cvsroot_get: fgets: `%s'", CVS_PATH_ROOTSPEC);
 
 	(void)fclose(fp);

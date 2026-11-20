@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: entries.c,v 1.107 2016/10/13 20:51:25 fcambus Exp $	*/
 /*
  * Copyright (c) 2006 Joris Vink <joris@openbsd.org>
@@ -67,7 +84,7 @@ cvs_ent_open(const char *dir)
 	TAILQ_INIT(&(ep->cef_ent));
 
 	if ((fp = fopen(ep->cef_path, "r")) != NULL) {
-		while (fgets(buf, sizeof(buf), fp)) {
+		while (pc_metadata_fgets(buf, sizeof(buf), fp)) {
 			buf[strcspn(buf, "\n")] = '\0';
 
 			if (buf[0] == 'D' && buf[1] == '\0')
@@ -82,7 +99,7 @@ cvs_ent_open(const char *dir)
 	}
 
 	if ((fp = fopen(ep->cef_lpath, "r")) != NULL) {
-		while (fgets(buf, sizeof(buf), fp)) {
+		while (pc_metadata_fgets(buf, sizeof(buf), fp)) {
 			buf[strcspn(buf, "\n")] = '\0';
 
 			if (strlen(buf) < 2)
@@ -194,10 +211,8 @@ cvs_ent_parse(const char *entry)
 			/* Date field can be a '+=' with remote to indicate
 			 * conflict.  In this case do nothing. */
 			if (strptime(p, "%a %b %d %T %Y", &t) != NULL) {
-				t.tm_isdst = -1;	/* Figure out DST. */
-				t.tm_gmtoff = 0;
-				ent->ce_mtime = mktime(&t);
-				ent->ce_mtime += t.tm_gmtoff;
+				t.tm_isdst = 0;
+				ent->ce_mtime = timegm(&t);
 			}
 		}
 	}
@@ -452,7 +467,7 @@ cvs_parse_tagfile(char *dir, char **tagp, char **datep, int *nbp)
 
 	linenum = 0;
 
-	while (fgets(linebuf, (int)sizeof(linebuf), fp) != NULL) {
+	while (pc_metadata_fgets(linebuf, (int)sizeof(linebuf), fp) != NULL) {
 		linenum++;
 		if ((len = strlen(linebuf)) == 0)
 			continue;

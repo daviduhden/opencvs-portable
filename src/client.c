@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: client.c,v 1.129 2020/10/19 19:51:20 naddy Exp $	*/
 /*
  * Copyright (c) 2006 Joris Vink <joris@openbsd.org>
@@ -16,7 +33,7 @@
  */
 
 #include <sys/types.h>
-#include <sys/dirent.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
@@ -31,6 +48,8 @@
 #include <unistd.h>
 
 #include "cvs.h"
+#include "pc_process.h"
+#include <ctype.h>
 #include "remote.h"
 
 struct cvs_req cvs_requests[] = {
@@ -198,12 +217,33 @@ client_check_directory(char *data, char *repository)
 	free(entry);
 }
 
+static pc_process cvs_client_process;
+
+void
+cvs_client_disconnect(void)
+{
+	int status;
+	if (cvs_client_process.handle == 0)
+		return;
+	if (current_cvsroot->cr_srvin != NULL) {
+		(void)fclose(current_cvsroot->cr_srvin);
+		current_cvsroot->cr_srvin = NULL;
+	}
+	if (current_cvsroot->cr_srvout != NULL) {
+		(void)fclose(current_cvsroot->cr_srvout);
+		current_cvsroot->cr_srvout = NULL;
+	}
+	if (pc_wait(&cvs_client_process, &status) == -1)
+		cvs_log(LP_ERR, "unable to wait for SSH transport: %s", strerror(errno));
+}
+
 void
 cvs_client_connect_to_server(void)
 {
 	struct cvs_var *vp;
-	char *cmd, *argv[10], *resp;
-	int ifd[2], ofd[2], argc;
+	char *cmd, *argv[64], *resp, **rsh;
+	char port[6];
+	int ifd[2], ofd[2], argc, index;
 
 	if (cvs_server_active == 1)
 		fatal("cvs_client_connect: I was already connected to server");
@@ -218,48 +258,45 @@ cvs_client_connect_to_server(void)
 		break;
 	}
 
-	if (pipe(ifd) == -1)
+	if (pc_pipe(ifd) == -1)
 		fatal("cvs_client_connect: %s", strerror(errno));
-	if (pipe(ofd) == -1)
+	if (pc_pipe(ofd) == -1)
 		fatal("cvs_client_connect: %s", strerror(errno));
 
-	switch (fork()) {
-	case -1:
-		fatal("cvs_client_connect: fork failed: %s", strerror(errno));
-	case 0:
-		if (dup2(ifd[0], STDIN_FILENO) == -1)
-			fatal("cvs_client_connect: %s", strerror(errno));
-		if (dup2(ofd[1], STDOUT_FILENO) == -1)
-			fatal("cvs_client_connect: %s", strerror(errno));
-
-		close(ifd[1]);
-		close(ofd[0]);
-
-		if ((cmd = getenv("CVS_SERVER")) == NULL)
-			cmd = CVS_SERVER_DEFAULT;
-
-		argc = 0;
-		argv[argc++] = cvs_rsh;
-
-		if (current_cvsroot->cr_user != NULL) {
-			argv[argc++] = "-l";
-			argv[argc++] = current_cvsroot->cr_user;
-		}
-
-		argv[argc++] = "--";
-		argv[argc++] = current_cvsroot->cr_host;
-		argv[argc++] = cmd;
-		argv[argc++] = "server";
-		argv[argc] = NULL;
-
-		cvs_log(LP_TRACE, "connecting to server %s",
-		    current_cvsroot->cr_host);
-
-		execvp(argv[0], argv);
-		fatal("cvs_client_connect: failed to execute cvs server");
-	default:
-		break;
+	if ((cmd = getenv("CVS_SERVER")) == NULL)
+		cmd = CVS_SERVER_DEFAULT;
+	/* SSH joins remote command arguments through the remote login shell. */
+	if (*cmd == '\0' || strspn(cmd,
+	    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./:-")
+	    != strlen(cmd))
+		fatal("CVS_SERVER must be a bare executable or a safe absolute path");
+	rsh = pc_command_argv(cvs_rsh, NULL);
+	if (rsh == NULL)
+		fatal("invalid CVS_RSH command");
+	argc = 0;
+	for (index = 0; rsh[index] != NULL; index++) {
+		if (argc >= 54)
+			fatal("too many CVS_RSH arguments");
+		argv[argc++] = rsh[index];
 	}
+	if (current_cvsroot->cr_user != NULL) {
+		argv[argc++] = "-l";
+		argv[argc++] = current_cvsroot->cr_user;
+	}
+	if (current_cvsroot->cr_port != 0) {
+		(void)xsnprintf(port, sizeof(port), "%u", current_cvsroot->cr_port);
+		argv[argc++] = "-p";
+		argv[argc++] = port;
+	}
+	argv[argc++] = "--";
+	argv[argc++] = current_cvsroot->cr_host;
+	argv[argc++] = cmd;
+	argv[argc++] = "server";
+	argv[argc] = NULL;
+	if (pc_spawn(&cvs_client_process, (const char *const *)argv,
+	    ifd[0], ofd[1], -1) == -1)
+		fatal("cvs_client_connect: spawn: %s", strerror(errno));
+	pc_free_argv(rsh);
 
 	close(ifd[0]);
 	close(ofd[1]);
@@ -768,7 +805,7 @@ cvs_client_updated(char *data)
 	free(entry);
 
 	(void)unlink(fpath);
-	if ((fd = open(fpath, O_CREAT | O_WRONLY | O_TRUNC)) == -1)
+	if ((fd = open(fpath, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW, 0600)) == -1)
 		fatal("cvs_client_updated: open: %s: %s",
 		    fpath, strerror(errno));
 
@@ -847,7 +884,7 @@ cvs_client_merged(char *data)
 	free(entry);
 
 	(void)unlink(fpath);
-	if ((fd = open(fpath, O_CREAT | O_WRONLY | O_TRUNC)) == -1)
+	if ((fd = open(fpath, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW, 0600)) == -1)
 		fatal("cvs_client_merged: open: %s: %s",
 		    fpath, strerror(errno));
 

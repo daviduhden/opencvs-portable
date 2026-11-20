@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: util.c,v 1.162 2019/06/28 13:35:00 deraadt Exp $	*/
 /*
  * Copyright (c) 2004 Jean-Francois Brousseau <jfb@openbsd.org>
@@ -39,6 +56,7 @@
 #include <unistd.h>
 
 #include "cvs.h"
+#include "pc_process.h"
 #include "remote.h"
 #include "hash.h"
 
@@ -484,7 +502,7 @@ cvs_get_repository_name(const char *dir, char *dst, size_t len)
 		(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
 		    dir, CVS_PATH_REPOSITORY);
 		if ((fp = fopen(fpath, "r")) != NULL) {
-			if ((fgets(dst, len, fp)) == NULL)
+			if ((pc_metadata_fgets(dst, len, fp)) == NULL)
 				fatal("%s: bad repository file", fpath);
 			dst[strcspn(dst, "\n")] = '\0';
 			(void)fclose(fp);
@@ -589,7 +607,7 @@ cvs_mkpath(const char *path, char *tag)
 
 	if ((cvs_cmdop != CVS_OP_CHECKOUT) && (cvs_cmdop != CVS_OP_EXPORT)) {
 		if ((fp = fopen(CVS_PATH_REPOSITORY, "r")) != NULL) {
-			if ((fgets(repo, sizeof(repo), fp)) == NULL)
+			if ((pc_metadata_fgets(repo, sizeof(repo), fp)) == NULL)
 				fatal("cvs_mkpath: bad repository file");
 			repo[strcspn(repo, "\n")] = '\0';
 			(void)fclose(fp);
@@ -883,48 +901,53 @@ cvs_yesno(void)
 int
 cvs_exec(char *prog, char *in, int needwait)
 {
-	pid_t pid;
+	pc_process child;
+	char **arguments;
+	char *oldroot;
+	int fds[2] = {-1, -1}, result, saved;
 	size_t size;
-	int fds[2], st;
-	char *argp[4] = { "sh", "-c", prog, NULL };
 
-	if (in != NULL && pipe(fds) == -1) {
-		cvs_log(LP_ERR, "cvs_exec: pipe failed");
-		return (-1);
-	}
-
-	if ((pid = fork()) == -1) {
-		cvs_log(LP_ERR, "cvs_exec: fork failed");
-		return (-1);
-	} else if (pid == 0) {
-		if (in != NULL) {
-			close(fds[1]);
-			dup2(fds[0], STDIN_FILENO);
-		}
-
-		setenv("CVSROOT", current_cvsroot->cr_dir, 1);
-		execv(_PATH_BSHELL, argp);
-		cvs_log(LP_ERR, "cvs_exec: failed to run '%s'", prog);
-		_exit(127);
-	}
-
+	arguments = pc_command_argv(prog, NULL);
+	if (arguments == NULL)
+		return -1;
+	oldroot = getenv("CVSROOT");
+	oldroot = oldroot ? xstrdup(oldroot) : NULL;
+	if (setenv("CVSROOT", current_cvsroot->cr_dir, 1) == -1)
+		goto fail;
+	if (in != NULL && pc_pipe(fds) == -1)
+		goto fail;
+	result = pc_spawn(&child, (const char *const *)arguments,
+	    fds[0], -1, -1);
+	saved = errno;
+	if (oldroot != NULL)
+		(void)setenv("CVSROOT", oldroot, 1);
+	else
+		(void)unsetenv("CVSROOT");
+	errno = saved;
+	if (result == -1)
+		goto fail;
+	pc_free_argv(arguments);
+	free(oldroot);
 	if (in != NULL) {
-		close(fds[0]);
+		(void)close(fds[0]);
 		size = strlen(in);
-		if (atomicio(vwrite, fds[1], in, size) != size)
-			cvs_log(LP_ERR, "cvs_exec: failed to write on STDIN");
-		close(fds[1]);
+		result = atomicio(vwrite, fds[1], in, size) == size ? 0 : -1;
+		(void)close(fds[1]);
+	} else
+		result = 0;
+	if (!needwait) {
+		pc_detach(&child);
+		return result;
 	}
-
-	if (needwait == 1) {
-		while (waitpid(pid, &st, 0) == -1)
-			;
-		if (!WIFEXITED(st)) {
-			errno = EINTR;
-			return (-1);
-		}
-		return (WEXITSTATUS(st));
-	}
-
-	return (0);
+	if (pc_wait(&child, &saved) == -1)
+		return -1;
+	return result == -1 ? -1 : saved;
+fail:
+	saved = errno;
+	if (fds[0] != -1) (void)close(fds[0]);
+	if (fds[1] != -1) (void)close(fds[1]);
+	pc_free_argv(arguments);
+	free(oldroot);
+	errno = saved;
+	return -1;
 }

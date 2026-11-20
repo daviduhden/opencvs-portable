@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: worklist.c,v 1.8 2015/11/05 09:48:21 nicm Exp $	*/
 /*
  * Copyright (c) 2006 Joris Vink <joris@openbsd.org>
@@ -38,7 +55,6 @@ worklist_add(const char *path, struct wklhead *worklist)
 {
 	size_t len;
 	struct worklist *wkl;
-	sigset_t old, new;
 
 	wkl = xcalloc(1, sizeof(*wkl));
 
@@ -46,24 +62,19 @@ worklist_add(const char *path, struct wklhead *worklist)
 	if (len >= sizeof(wkl->wkl_path))
 		fatal("path truncation in worklist_add");
 
-	sigfillset(&new);
-	sigprocmask(SIG_BLOCK, &new, &old);
 	SLIST_INSERT_HEAD(worklist, wkl, wkl_list);
-	sigprocmask(SIG_SETMASK, &old, NULL);
 }
 
 /*
  * run over the given worklist, calling cb for each element.
- * this is just like worklist_clean(), except we block signals first.
+ * Signal handlers only set atomic flags; list mutations and cleanup run
+ * on the main thread. No POSIX signal-mask emulation is needed.
  */
 void
 worklist_run(struct wklhead *list, void (*cb)(struct worklist *))
 {
-	sigset_t old, new;
 	struct worklist *wkl;
 
-	sigfillset(&new);
-	sigprocmask(SIG_BLOCK, &new, &old);
 
 	worklist_clean(list, cb);
 
@@ -72,7 +83,6 @@ worklist_run(struct wklhead *list, void (*cb)(struct worklist *))
 		free(wkl);
 	}
 
-	sigprocmask(SIG_SETMASK, &old, NULL);
 }
 
 /*

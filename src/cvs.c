@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: cvs.c,v 1.160 2021/01/27 07:18:16 deraadt Exp $	*/
 /*
  * Copyright (c) 2006, 2007 Joris Vink <joris@openbsd.org>
@@ -94,7 +111,9 @@ sighandler(int sig)
 	switch (sig) {
 	case SIGINT:
 	case SIGTERM:
+#ifdef SIGPIPE
 	case SIGPIPE:
+#endif
 		cvs_quit = 1;
 		break;
 	default:
@@ -105,6 +124,7 @@ sighandler(int sig)
 void
 cvs_cleanup(void)
 {
+	cvs_client_disconnect();
 	cvs_log(LP_TRACE, "cvs_cleanup: removing locks");
 	worklist_run(&repo_locks, worklist_unlink);
 
@@ -189,8 +209,8 @@ main(int argc, char **argv)
 	struct stat st;
 	char fpath[PATH_MAX];
 
-	if (pledge("stdio rpath wpath cpath fattr getpw proc exec", NULL) == -1)
-		err(1, "pledge");
+	pc_platform_startup(&argc, &argv);
+	cvs_tmpdir = pc_default_tmpdir();
 
 	tzset();
 
@@ -270,10 +290,16 @@ main(int argc, char **argv)
 	/* setup signal handlers */
 	signal(SIGTERM, sighandler);
 	signal(SIGINT, sighandler);
+#ifdef SIGHUP
 	signal(SIGHUP, sighandler);
+#endif
 	signal(SIGABRT, sighandler);
+#ifdef SIGALRM
 	signal(SIGALRM, sighandler);
+#endif
+#ifdef SIGPIPE
 	signal(SIGPIPE, sighandler);
+#endif
 
 	cvs_cmdop = cmdp->cmd_op;
 
@@ -282,9 +308,9 @@ main(int argc, char **argv)
 	cvs_file_init();
 
 	if (cvs_cmdop == CVS_OP_SERVER) {
-		cmdp->cmd(cmd_argc, cmd_argv);
+		ret = cmdp->cmd(cmd_argc, cmd_argv);
 		cvs_cleanup();
-		return (0);
+		return (ret);
 	}
 
 	cvs_umask = umask(0);
@@ -297,15 +323,17 @@ main(int argc, char **argv)
 	}
 
 	if (cvsroot_is_remote()) {
-		cmdp->cmd(cmd_argc, cmd_argv);
+		ret = cmdp->cmd(cmd_argc, cmd_argv);
 		cvs_cleanup();
-		return (0);
+		return (ret);
 	}
 
 	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
 	    current_cvsroot->cr_dir, CVS_PATH_ROOT);
 
-	if (stat(fpath, &st) == -1 && cvs_cmdop != CVS_OP_INIT) {
+	if (stat(fpath, &st) == -1) {
+		if (cvs_cmdop == CVS_OP_INIT && errno == ENOENT)
+			goto repository_checked;
 		if (errno == ENOENT)
 			fatal("repository '%s' does not exist",
 			    current_cvsroot->cr_dir);
@@ -318,15 +346,16 @@ main(int argc, char **argv)
 			    current_cvsroot->cr_dir);
 	}
 
+repository_checked:
 	if (cvs_cmdop != CVS_OP_INIT) {
 		cvs_parse_configfile();
 		cvs_parse_modules();
 	}
 
-	cmdp->cmd(cmd_argc, cmd_argv);
+	ret = cmdp->cmd(cmd_argc, cmd_argv);
 	cvs_cleanup();
 
-	return (0);
+	return (ret);
 }
 
 int
@@ -456,7 +485,7 @@ cvs_read_rcfile(void)
 
 	cmd_parsed = cvs_parsed = 0;
 	lbuf = NULL;
-	while ((buf = fgetln(fp, &len)) != NULL) {
+	while ((buf = pc_metadata_getln(fp, &len)) != NULL) {
 		if (buf[len - 1] == '\n') {
 			buf[len - 1] = '\0';
 		} else {

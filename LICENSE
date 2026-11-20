@@ -1,11 +1,26 @@
-Portable OpenCVS contains code from the OpenBSD project. The original
-copyright holders retain their rights. Each imported file retains its full
-license and copyright notice; those notices control its use. A collected
-copy is provided in LICENSES/Upstream-notices.txt. This distribution is not
-covered by a single replacement license.
+Portable OpenCVS: newly written code and portability modifications
+
+Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+
+Permission to use, copy, modify, and distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Imported code retains its original copyrights and licenses. The notice
+above applies only to new Portable OpenCVS code and modifications, not to
+the intellectual authorship of the imported OpenBSD implementation.
+
+See LICENSES/Upstream-notices.txt, LICENSES/Compatibility-notices.txt, and
+LICENSES/Regex-COPYRIGHT.txt for the full original notices. Individual
+source notices control each imported component. The date grammar and
+Berkeley yacc skeleton are public domain.
 
 This product includes software developed or owned by Caldera International, Inc.
-
-The date grammar is public domain. Any newly written compatibility code
-uses the license stated in that file. Imported compatibility dependencies
-retain their individual notices and are recorded in upstream/compat-manifest.json.

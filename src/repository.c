@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: repository.c,v 1.26 2019/06/28 13:35:00 deraadt Exp $	*/
 /*
  * Copyright (c) 2006 Joris Vink <joris@openbsd.org>
@@ -30,68 +47,58 @@ struct wklhead repo_locks;
 void
 cvs_repository_unlock(const char *repo)
 {
-	char fpath[PATH_MAX];
-
-	cvs_log(LP_TRACE, "cvs_repository_unlock(%s)", repo);
-
-	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s", repo, CVS_LOCK);
-
-	if (unlink(fpath) == -1 && errno != ENOENT)
-		cvs_log(LP_ERR, "warning: failed to unlink %s", fpath);
+	struct worklist *lock;
+	char path[PATH_MAX];
+	(void)xsnprintf(path, sizeof(path), "%s/%s", repo, CVS_LOCK);
+	SLIST_FOREACH(lock, &repo_locks, wkl_list) {
+		if (strcmp(lock->wkl_path, path) != 0)
+			continue;
+		SLIST_REMOVE(&repo_locks, lock, worklist, wkl_list);
+		if (unlink(path) == -1 && errno != ENOENT)
+			cvs_log(LP_ERR, "cannot remove owned repository lock: %s", path);
+		free(lock);
+		break;
+	}
 }
 
 void
 cvs_repository_lock(const char *repo, int wantlock)
 {
-	int i;
-	uid_t myuid;
+	struct worklist *owned;
 	struct stat st;
-	char fpath[PATH_MAX];
-	struct passwd *pw;
+	char path[PATH_MAX];
+	int attempt, fd;
 
-	if (cvs_noexec == 1 || cvs_readonlyfs == 1)
+	if (cvs_noexec || cvs_readonlyfs)
 		return;
-
-	cvs_log(LP_TRACE, "cvs_repository_lock(%s, %d)", repo, wantlock);
-
-	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s", repo, CVS_LOCK);
-
-	myuid = getuid();
-
-	for (i = 0; i < CVS_LOCK_TRIES; i++) {
+	(void)xsnprintf(path, sizeof(path), "%s/%s", repo, CVS_LOCK);
+	SLIST_FOREACH(owned, &repo_locks, wkl_list)
+		if (strcmp(owned->wkl_path, path) == 0)
+			return;
+	for (attempt = 0; attempt < CVS_LOCK_TRIES; attempt++) {
 		if (cvs_quit)
 			fatal("received signal %d", sig_received);
-
-		if (stat(fpath, &st) == -1)
-			break;
-
-		if (st.st_uid == myuid)
-			return;
-
-		if ((pw = getpwuid(st.st_uid)) == NULL)
-			fatal("cvs_repository_lock: %s", strerror(errno));
-
-		cvs_log(LP_NOTICE, "waiting for %s's lock in '%s'",
-		    pw->pw_name, repo);
-		sleep(CVS_LOCK_SLEEP);
+		if (wantlock) {
+			fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+			if (fd != -1) {
+				worklist_add(path, &repo_locks);
+				if (close(fd) == -1)
+					fatal("cannot close repository lock: %s", strerror(errno));
+				return;
+			}
+			if (errno != EEXIST)
+				fatal("cannot acquire repository lock %s: %s", path, strerror(errno));
+		} else {
+			if (lstat(path, &st) == -1) {
+				if (errno == ENOENT)
+					return;
+				fatal("cannot inspect repository lock %s: %s", path, strerror(errno));
+			}
+		}
+		cvs_log(LP_NOTICE, "waiting for repository lock in '%s'", repo);
+		(void)sleep(CVS_LOCK_SLEEP);
 	}
-
-	if (i == CVS_LOCK_TRIES)
-		fatal("maximum wait time for lock inside '%s' reached", repo);
-
-	if (wantlock == 0)
-		return;
-
-	if ((i = open(fpath, O_WRONLY|O_CREAT|O_TRUNC, 0755)) == -1) {
-		if (errno == EEXIST)
-			fatal("cvs_repository_lock: somebody beat us");
-		else
-			fatal("cvs_repository_lock: %s: %s",
-			    fpath, strerror(errno));
-	}
-
-	(void)close(i);
-	worklist_add(fpath, &repo_locks);
+	fatal("maximum wait time for repository lock in '%s' reached", repo);
 }
 
 void

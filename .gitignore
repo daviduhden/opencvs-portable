@@ -1,0 +1,8 @@
+/build*/
+/dist*/
+/out/
+/artifacts/
+*.user
+*.suo
+*.pyc
+__pycache__/

@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: logmsg.c,v 1.61 2020/10/19 19:51:20 naddy Exp $	*/
 /*
  * Copyright (c) 2007 Joris Vink <joris@openbsd.org>
@@ -30,6 +47,7 @@
 #include <unistd.h>
 
 #include "cvs.h"
+#include "pc_process.h"
 
 #define CVS_LOGMSG_PREFIX		"CVS:"
 #define CVS_LOGMSG_LINE		\
@@ -64,7 +82,7 @@ cvs_logmsg_read(const char *path)
 
 	lbuf = NULL;
 	bp = buf_alloc(st.st_size);
-	while ((buf = fgetln(fp, &len))) {
+	while ((buf = pc_metadata_getln(fp, &len))) {
 		if (buf[len - 1] == '\n') {
 			buf[len - 1] = '\0';
 			--len;
@@ -274,51 +292,23 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 
 /*
  * Execute an editor on the specified pathname, which is interpreted
- * from the shell.  This means flags may be included.
+ * using an argv parser. Flags and quoted arguments may be included.
+ * The generated pathname is appended separately; no shell is invoked.
  *
  * Returns -1 on error, or the exit value on success.
  */
 int
 cvs_logmsg_edit(const char *pathname)
 {
-	char *argp[] = {"sh", "-c", NULL, NULL}, *p;
-	sig_t sighup, sigint, sigquit;
-	pid_t pid;
-	int saved_errno, st;
+	char **arguments;
+	int result;
 
-	(void)xasprintf(&p, "%s %s", cvs_editor, pathname);
-	argp[2] = p;
-
-	sighup = signal(SIGHUP, SIG_IGN);
-	sigint = signal(SIGINT, SIG_IGN);
-	sigquit = signal(SIGQUIT, SIG_IGN);
-	if ((pid = fork()) == -1)
-		goto fail;
-	if (pid == 0) {
-		execv(_PATH_BSHELL, argp);
-		_exit(127);
-	}
-	while (waitpid(pid, &st, 0) == -1)
-		if (errno != EINTR)
-			goto fail;
-	free(p);
-	(void)signal(SIGHUP, sighup);
-	(void)signal(SIGINT, sigint);
-	(void)signal(SIGQUIT, sigquit);
-	if (!WIFEXITED(st)) {
-		errno = EINTR;
-		return (-1);
-	}
-	return (WEXITSTATUS(st));
-
- fail:
-	saved_errno = errno;
-	(void)signal(SIGHUP, sighup);
-	(void)signal(SIGINT, sigint);
-	(void)signal(SIGQUIT, sigquit);
-	free(p);
-	errno = saved_errno;
-	return (-1);
+	arguments = pc_command_argv(cvs_editor, pathname);
+	if (arguments == NULL)
+		return -1;
+	result = pc_run((const char *const *)arguments);
+	pc_free_argv(arguments);
+	return result;
 }
 
 int

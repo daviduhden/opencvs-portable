@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: file.c,v 1.276 2023/08/11 04:48:14 guenther Exp $	*/
 /*
  * Copyright (c) 2006 Joris Vink <joris@openbsd.org>
@@ -26,7 +43,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
@@ -113,7 +129,7 @@ cvs_file_init(void)
 			cvs_log(LP_ERRNO,
 			    "failed to open user's cvsignore file `%s'", path);
 	} else {
-		while (fgets(buf, MAXNAMLEN, ifp) != NULL) {
+		while (pc_metadata_fgets(buf, MAXNAMLEN, ifp) != NULL) {
 			buf[strcspn(buf, "\n")] = '\0';
 			if (buf[0] == '\0')
 				continue;
@@ -452,7 +468,7 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 	(void)xsnprintf(fpath, PATH_MAX, "%s/.cvsignore", cf->file_path);
 
 	if ((fp = fopen(fpath, "r")) != NULL) {
-		while (fgets(fpath, PATH_MAX, fp) != NULL) {
+		while (pc_metadata_fgets(fpath, PATH_MAX, fp) != NULL) {
 			fpath[strcspn(fpath, "\n")] = '\0';
 			if (fpath[0] == '\0')
 				continue;
@@ -1005,132 +1021,98 @@ cvs_file_cmpname(const char *name1, const char *name2)
 int
 cvs_file_cmp(const char *file1, const char *file2)
 {
-	struct stat stb1, stb2;
-	int fd1, fd2, ret;
+	struct stat a, b;
+	unsigned char left[65536], right[65536];
+	int first, second, result = 0;
+	ssize_t na, nb;
 
-	ret = 0;
-
-	if ((fd1 = open(file1, O_RDONLY|O_NOFOLLOW)) == -1)
-		fatal("cvs_file_cmp: open: `%s': %s", file1, strerror(errno));
-	if ((fd2 = open(file2, O_RDONLY|O_NOFOLLOW)) == -1)
-		fatal("cvs_file_cmp: open: `%s': %s", file2, strerror(errno));
-
-	if (fstat(fd1, &stb1) == -1)
-		fatal("cvs_file_cmp: `%s': %s", file1, strerror(errno));
-	if (fstat(fd2, &stb2) == -1)
-		fatal("cvs_file_cmp: `%s': %s", file2, strerror(errno));
-
-	if (stb1.st_size != stb2.st_size ||
-	    (stb1.st_mode & S_IFMT) != (stb2.st_mode & S_IFMT)) {
-		ret = 1;
+	if ((first = open(file1, O_RDONLY | O_NOFOLLOW)) == -1)
+		fatal("cvs_file_cmp: %s: %s", file1, strerror(errno));
+	if ((second = open(file2, O_RDONLY | O_NOFOLLOW)) == -1)
+		fatal("cvs_file_cmp: %s: %s", file2, strerror(errno));
+	if (fstat(first, &a) == -1 || fstat(second, &b) == -1)
+		fatal("cvs_file_cmp: fstat: %s", strerror(errno));
+	if (a.st_size != b.st_size ||
+	    (a.st_mode & S_IFMT) != (b.st_mode & S_IFMT)) {
+		result = 1;
 		goto out;
 	}
-
-	if (S_ISBLK(stb1.st_mode) || S_ISCHR(stb1.st_mode)) {
-		if (stb1.st_rdev != stb2.st_rdev)
-			ret = 1;
+	if (!S_ISREG(a.st_mode)) {
+		result = a.st_rdev != b.st_rdev;
 		goto out;
 	}
-
-	if (S_ISREG(stb1.st_mode)) {
-		void *p1, *p2;
-
-		if ((uintmax_t)stb1.st_size > SIZE_MAX) {
-			ret = 1;
-			goto out;
+	for (;;) {
+		do { na = read(first, left, sizeof(left)); }
+		while (na < 0 && errno == EINTR);
+		if (na < 0)
+			fatal("cvs_file_cmp: read: %s", strerror(errno));
+		nb = 0;
+		while (nb < na) {
+			ssize_t n = read(second, right + nb, (size_t)(na - nb));
+			if (n < 0 && errno == EINTR)
+				continue;
+			if (n < 0)
+				fatal("cvs_file_cmp: read: %s", strerror(errno));
+			if (n == 0)
+				break;
+			nb += n;
 		}
-
-		if ((p1 = mmap(NULL, stb1.st_size, PROT_READ,
-		    MAP_FILE, fd1, (off_t)0)) == MAP_FAILED)
-			fatal("cvs_file_cmp: mmap failed");
-
-		if ((p2 = mmap(NULL, stb1.st_size, PROT_READ,
-		    MAP_FILE, fd2, (off_t)0)) == MAP_FAILED)
-			fatal("cvs_file_cmp: mmap failed");
-
-		madvise(p1, stb1.st_size, MADV_SEQUENTIAL);
-		madvise(p2, stb1.st_size, MADV_SEQUENTIAL);
-
-		ret = memcmp(p1, p2, stb1.st_size);
-
-		(void)munmap(p1, stb1.st_size);
-		(void)munmap(p2, stb1.st_size);
+		if (na != nb || memcmp(left, right, (size_t)na) != 0) {
+			result = 1;
+			break;
+		}
+		if (na == 0) {
+			do { nb = read(second, right, 1); }
+			while (nb < 0 && errno == EINTR);
+			if (nb < 0)
+				fatal("cvs_file_cmp: read: %s", strerror(errno));
+			result = nb != 0;
+			break;
+		}
 	}
-
 out:
-	(void)close(fd1);
-	(void)close(fd2);
-
-	return (ret);
+	(void)close(first);
+	(void)close(second);
+	return result;
 }
 
 int
 cvs_file_copy(const char *from, const char *to)
 {
 	struct stat st;
-	struct timespec ts[2];
-	int src, dst, ret;
+	struct timespec times[2];
+	unsigned char data[65536];
+	ssize_t count;
+	int src, dst, error;
 
-	ret = 0;
-
-	cvs_log(LP_TRACE, "cvs_file_copy(%s,%s)", from, to);
-
-	if (cvs_noexec == 1)
-		return (0);
-
-	if ((src = open(from, O_RDONLY)) == -1)
-		fatal("cvs_file_copy: open: `%s': %s", from, strerror(errno));
-
-	if (fstat(src, &st) == -1)
-		fatal("cvs_file_copy: `%s': %s", from, strerror(errno));
-
-	if (S_ISREG(st.st_mode)) {
-		char *p;
-		int saved_errno;
-
-		if ((uintmax_t)st.st_size > SIZE_MAX) {
-			ret = -1;
-			goto out;
-		}
-
-		if ((dst = open(to, O_CREAT|O_TRUNC|O_WRONLY,
-		    st.st_mode & (S_IRWXU|S_IRWXG|S_IRWXO))) == -1)
-			fatal("cvs_file_copy: open `%s': %s",
-			    to, strerror(errno));
-
-		if ((p = mmap(NULL, st.st_size, PROT_READ,
-		    MAP_FILE, src, (off_t)0)) == MAP_FAILED) {
-			saved_errno = errno;
+	if (cvs_noexec)
+		return 0;
+	if ((src = open(from, O_RDONLY | O_NOFOLLOW)) == -1)
+		fatal("cvs_file_copy: %s: %s", from, strerror(errno));
+	if (fstat(src, &st) == -1 || !S_ISREG(st.st_mode))
+		fatal("cvs_file_copy: source must be a regular file");
+	if ((dst = open(to, O_CREAT | O_TRUNC | O_WRONLY | O_NOFOLLOW,
+	    st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO))) == -1)
+		fatal("cvs_file_copy: %s: %s", to, strerror(errno));
+	for (;;) {
+		do { count = read(src, data, sizeof(data)); }
+		while (count < 0 && errno == EINTR);
+		if (count < 0 || (count > 0 &&
+		    atomicio(vwrite, dst, data, (size_t)count) != (size_t)count)) {
+			error = errno;
+			(void)close(dst);
 			(void)unlink(to);
-			fatal("cvs_file_copy: mmap: %s", strerror(saved_errno));
+			fatal("cvs_file_copy: %s", strerror(error));
 		}
-
-		madvise(p, st.st_size, MADV_SEQUENTIAL);
-
-		if (atomicio(vwrite, dst, p, st.st_size) != (size_t)st.st_size) {
-			saved_errno = errno;
-			(void)unlink(to);
-			fatal("cvs_file_copy: `%s': %s", from,
-			    strerror(saved_errno));
-		}
-
-		(void)munmap(p, st.st_size);
-
-		ts[0] = st.st_atim;
-		ts[1] = st.st_mtim;
-
-		if (futimens(dst, ts) == -1) {
-			saved_errno = errno;
-			(void)unlink(to);
-			fatal("cvs_file_copy: futimes: %s",
-			    strerror(saved_errno));
-		}
-		(void)close(dst);
+		if (count == 0)
+			break;
 	}
-out:
+	times[0] = st.st_atim;
+	times[1] = st.st_mtim;
+	if (futimens(dst, times) == -1 || close(dst) == -1)
+		fatal("cvs_file_copy: finalize: %s", strerror(errno));
 	(void)close(src);
-
-	return (ret);
+	return 0;
 }
 
 int

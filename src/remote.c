@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: remote.c,v 1.34 2021/11/28 19:28:42 deraadt Exp $	*/
 /*
  * Copyright (c) 2006 Joris Vink <joris@openbsd.org>
@@ -93,7 +110,7 @@ cvs_remote_input(void)
 	else
 		in = current_cvsroot->cr_srvout;
 
-	data = fgetln(in, &len);
+	data = pc_metadata_getln(in, &len);
 	if (data == NULL) {
 		if (sig_received != 0)
 			fatal("received signal %d", sig_received);
@@ -106,6 +123,8 @@ cvs_remote_input(void)
 		fatal("the connection has been closed by the server");
 	}
 
+	if (memchr(data, '\0', len) != NULL)
+		fatal("NUL byte in protocol text line");
 	if (data[len - 1] == '\n') {
 		data[len - 1] = '\0';
 		ldata = xstrdup(data);
@@ -299,10 +318,13 @@ cvs_validate_directory(const char *path)
 {
 	char *dir, *sp, *dp;
 
+	if (path == NULL || *path == '\0' ||
+	    strpbrk(path, "\r\n") != NULL)
+		fatal("invalid relative CVS path");
 	dir = xstrdup(path);
 
 	for (sp = dir; sp != NULL; sp = dp) {
-		dp = strchr(sp, '/');
+		dp = strpbrk(sp, "/\\");
 		if (dp != NULL)
 			*(dp++) = '\0';
 

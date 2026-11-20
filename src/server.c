@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: server.c,v 1.106 2020/10/19 19:51:20 naddy Exp $	*/
 /*
  * Copyright (c) 2006 Joris Vink <joris@openbsd.org>
@@ -171,7 +188,7 @@ cvs_server_root(char *data)
 	if (current_cvsroot != NULL)
 		return;
 
-	if (data[0] != '/' || (current_cvsroot = cvsroot_get(data)) == NULL)
+	if (!pc_native_absolute(data) || (current_cvsroot = cvsroot_get(data)) == NULL)
 		fatal("Invalid Root specified!");
 
 	cvs_parse_configfile();
@@ -332,7 +349,11 @@ cvs_server_directory(char *data)
 	dir = cvs_remote_input();
 	STRIP_SLASH(dir);
 
-	if (strlen(dir) < strlen(current_cvsroot->cr_dir))
+	if (strlen(dir) < strlen(current_cvsroot->cr_dir) ||
+	    strncmp(dir, current_cvsroot->cr_dir, strlen(current_cvsroot->cr_dir)) != 0 ||
+	    (current_cvsroot->cr_dir[strlen(current_cvsroot->cr_dir) - 1] != '/' &&
+	    dir[strlen(current_cvsroot->cr_dir)] != '\0' &&
+	    dir[strlen(current_cvsroot->cr_dir)] != '/'))
 		fatal("cvs_server_directory: bad Directory request");
 
 	repo = dir + strlen(current_cvsroot->cr_dir);
@@ -347,8 +368,11 @@ cvs_server_directory(char *data)
 	if (repo[0] == '\0')
 		p = xstrdup(".");
 	else
-		p = xstrdup(repo + 1);
+		p = xstrdup(*repo == '/' ? repo + 1 : repo);
 
+	if (pc_any_absolute(p))
+		fatal("absolute path in Directory request");
+	cvs_validate_directory(p);
 	cvs_mkpath(p, NULL);
 
 	if (strlcpy(dirnbuf, p, sizeof(dirnbuf)) >= sizeof(dirnbuf))
@@ -400,6 +424,11 @@ cvs_server_modified(char *data)
 
 	if (data == NULL)
 		fatal("Missing argument for Modified");
+	if (*data == '\0' || !strcmp(data, ".") || !strcmp(data, "..") ||
+	    strpbrk(data, "/\\:\r\n") != NULL)
+		fatal("invalid filename in Modified request");
+	if (server_currentdir == NULL)
+		fatal("Directory must precede Modified");
 
 	/* sorry, we have to use TMP_DIR */
 	disable_fast_checkout = 1;
@@ -417,12 +446,12 @@ cvs_server_modified(char *data)
 
 	(void)xsnprintf(fpath, PATH_MAX, "%s/%s", server_currentdir, data);
 
-	if ((fd = open(fpath, O_WRONLY | O_CREAT | O_TRUNC)) == -1)
+	if ((fd = open(fpath, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600)) == -1)
 		fatal("cvs_server_modified: %s: %s", fpath, strerror(errno));
 
 	cvs_remote_receive_file(fd, flen);
 
-	if (fchmod(fd, 0600) == -1)
+	if (fchmod(fd, fmode & (S_IRWXU | S_IRWXG | S_IRWXO)) == -1)
 		fatal("cvs_server_modified: failed to set file mode");
 
 	(void)close(fd);
