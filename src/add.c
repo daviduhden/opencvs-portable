@@ -484,7 +484,7 @@ add_file(struct cvs_file *cf)
 			stop = 1;
 		}
 		break;
-	case FILE_UNKNOWN:
+	case CVS_FILE_UNKNOWN:
 		if (cf->file_rcs != NULL && cf->file_rcs->rf_dead == 1) {
 			cvs_log(LP_NOTICE, "re-adding file %s "
 			    "(instead of dead revision %s)",

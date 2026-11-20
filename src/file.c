@@ -415,8 +415,7 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 {
 	int l, type;
 	FILE *fp;
-	int nbytes;
-	size_t bufsize;
+	DIR *directory;
 	struct stat st;
 	struct dirent *dp;
 	struct cvs_ent *ent;
@@ -424,7 +423,7 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 	struct cvs_ent_line *line;
 	struct cvs_flisthead fl, dl;
 	CVSENTRIES *entlist;
-	char *buf, *ebuf, *cp, repo[PATH_MAX], fpath[PATH_MAX];
+	char repo[PATH_MAX], fpath[PATH_MAX];
 
 	cvs_log(LP_TRACE, "cvs_file_walkdir(%s)", cf->file_path);
 
@@ -479,111 +478,92 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 		(void)fclose(fp);
 	}
 
-	if (fstat(cf->fd, &st) == -1)
-		fatal("cvs_file_walkdir: %s %s", cf->file_path,
-		    strerror(errno));
-
-	if ((uintmax_t)st.st_size > SIZE_MAX)
-		fatal("cvs_file_walkdir: %s: file size too big", cf->file_name);
-
-	bufsize = (st.st_size > st.st_blksize) ? st.st_size : st.st_blksize;
-
-	buf = xmalloc(bufsize);
 	RB_INIT(&fl);
 	RB_INIT(&dl);
+	if ((directory = pc_directory_open(cf->fd, cf->file_path)) == NULL)
+		fatal("cvs_file_walkdir: %s: %s", cf->file_path, strerror(errno));
+	for (;;) {
+		errno = 0;
+		dp = readdir(directory);
+		if (dp == NULL) {
+			if (errno != 0)
+				fatal("cvs_file_walkdir: %s: %s", cf->file_path, strerror(errno));
+			break;
+		}
+		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..") ||
+		    !strcmp(dp->d_name, CVS_PATH_CVSDIR))
+			continue;
 
-	while ((nbytes = getdents(cf->fd, buf, bufsize)) > 0) {
-		ebuf = buf + nbytes;
-		cp = buf;
+		(void)xsnprintf(fpath, PATH_MAX, "%s/%s",
+		    cf->file_path, dp->d_name);
 
-		while (cp < ebuf) {
-			dp = (struct dirent *)cp;
-			if (!strcmp(dp->d_name, ".") ||
-			    !strcmp(dp->d_name, "..") ||
-			    !strcmp(dp->d_name, CVS_PATH_CVSDIR) ||
-			    dp->d_fileno == 0) {
-				cp += dp->d_reclen;
-				continue;
-			}
+		if (cvs_file_chkign(dp->d_name) &&
+		    cvs_cmdop != CVS_OP_RLOG &&
+		    cvs_cmdop != CVS_OP_RTAG) {
+			if (cvs_cmdop == CVS_OP_IMPORT)
+				cvs_import_ignored(fpath);
+			continue;
+		}
 
-			(void)xsnprintf(fpath, PATH_MAX, "%s/%s",
-			    cf->file_path, dp->d_name);
+		/*
+		 * nfs and afs will show d_type as DT_UNKNOWN
+		 * for files and/or directories so when we encounter
+		 * this we call lstat() on the path to be sure.
+		 */
+		if (dp->d_type == DT_UNKNOWN) {
+			if (lstat(fpath, &st) == -1)
+				fatal("'%s': %s", fpath,
+				    strerror(errno));
 
-			if (cvs_file_chkign(dp->d_name) &&
-			    cvs_cmdop != CVS_OP_RLOG &&
-			    cvs_cmdop != CVS_OP_RTAG) {
-				if (cvs_cmdop == CVS_OP_IMPORT)
-					cvs_import_ignored(fpath);
-				cp += dp->d_reclen;
-				continue;
-			}
-
-			/*
-			 * nfs and afs will show d_type as DT_UNKNOWN
-			 * for files and/or directories so when we encounter
-			 * this we call lstat() on the path to be sure.
-			 */
-			if (dp->d_type == DT_UNKNOWN) {
-				if (lstat(fpath, &st) == -1)
-					fatal("'%s': %s", fpath,
-					    strerror(errno));
-
-				switch (st.st_mode & S_IFMT) {
-				case S_IFDIR:
-					type = CVS_DIR;
-					break;
-				case S_IFREG:
-					type = CVS_FILE;
-					break;
-				default:
-					type = FILE_SKIP;
-					break;
-				}
-			} else {
-				switch (dp->d_type) {
-				case DT_DIR:
-					type = CVS_DIR;
-					break;
-				case DT_REG:
-					type = CVS_FILE;
-					break;
-				default:
-					type = FILE_SKIP;
-					break;
-				}
-			}
-
-			if (type == FILE_SKIP) {
-				if (verbosity > 1) {
-					cvs_log(LP_NOTICE, "ignoring `%s'",
-					    dp->d_name);
-				}
-				cp += dp->d_reclen;
-				continue;
-			}
-
-			switch (type) {
-			case CVS_DIR:
-				if (cr->flags & CR_RECURSE_DIRS)
-					cvs_file_get(fpath, 0, &dl, CVS_DIR);
+			switch (st.st_mode & S_IFMT) {
+			case S_IFDIR:
+				type = CVS_DIR;
 				break;
-			case CVS_FILE:
-				cvs_file_get(fpath, 0, &fl, CVS_FILE);
+			case S_IFREG:
+				type = CVS_FILE;
 				break;
 			default:
-				fatal("type %d unknown, shouldn't happen",
-				    type);
+				type = FILE_SKIP;
+				break;
 			}
-
-			cp += dp->d_reclen;
+		} else {
+			switch (dp->d_type) {
+			case DT_DIR:
+				type = CVS_DIR;
+				break;
+			case DT_REG:
+				type = CVS_FILE;
+				break;
+			default:
+				type = FILE_SKIP;
+				break;
+			}
 		}
+
+		if (type == FILE_SKIP) {
+			if (verbosity > 1) {
+				cvs_log(LP_NOTICE, "ignoring `%s'",
+				    dp->d_name);
+			}
+			continue;
+		}
+
+		switch (type) {
+		case CVS_DIR:
+			if (cr->flags & CR_RECURSE_DIRS)
+				cvs_file_get(fpath, 0, &dl, CVS_DIR);
+			break;
+		case CVS_FILE:
+			cvs_file_get(fpath, 0, &fl, CVS_FILE);
+			break;
+		default:
+			fatal("type %d unknown, shouldn't happen",
+			    type);
+		}
+
 	}
-
-	if (nbytes == -1)
-		fatal("cvs_file_walkdir: %s %s", cf->file_path,
-		    strerror(errno));
-
-	free(buf);
+	if (closedir(directory) == -1)
+		fatal("cvs_file_walkdir: closedir: %s", strerror(errno));
 
 	while ((ip = TAILQ_FIRST(&dir_ign_pats)) != NULL) {
 		TAILQ_REMOVE(&dir_ign_pats, ip, ip_list);
@@ -741,7 +721,7 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 		    cvs_cmdop == CVS_OP_RTAG)
 			cf->file_status = FILE_UPTODATE;
 		else
-			cf->file_status = FILE_UNKNOWN;
+			cf->file_status = CVS_FILE_UNKNOWN;
 
 		return;
 	}
@@ -870,12 +850,12 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 				    cf->file_path);
 			}
 
-			cf->file_status = FILE_UNKNOWN;
+			cf->file_status = CVS_FILE_UNKNOWN;
 		} else if (rcsdead == 1 || !(cf->file_flags & FILE_HAS_TAG)) {
 			if (!(cf->file_flags & FILE_ON_DISK)) {
 				cf->file_status = FILE_UPTODATE;
 			} else if (cvs_cmdop != CVS_OP_ADD) {
-				cf->file_status = FILE_UNKNOWN;
+				cf->file_status = CVS_FILE_UNKNOWN;
 			}
 		} else if (notag == 0 && cf->file_rcsrev != NULL) {
 			cf->file_status = FILE_CHECKOUT;
@@ -985,7 +965,7 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 	case CVS_ENT_UNKNOWN:
 		if (cvs_server_active != 1)
 			fatal("server-side questionable in local mode?");
-		cf->file_status = FILE_UNKNOWN;
+		cf->file_status = CVS_FILE_UNKNOWN;
 		break;
 	default:
 		break;

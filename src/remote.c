@@ -86,8 +86,8 @@ cvs_remote_output(char *data)
 	else
 		out = current_cvsroot->cr_srvin;
 
-	fputs(data, out);
-	fputs("\n", out);
+	if (fputs(data, out) == EOF || fputs("\n", out) == EOF)
+		fatal("failed to write protocol text line");
 
 	if (cvs_server_active == 0 && cvs_client_inlog_fd != -1) {
 		len = strlen(data);
@@ -112,6 +112,8 @@ cvs_remote_input(void)
 
 	data = pc_metadata_getln(in, &len);
 	if (data == NULL) {
+		if (ferror(in))
+			fatal("error reading protocol text line");
 		if (sig_received != 0)
 			fatal("received signal %d", sig_received);
 
@@ -125,14 +127,13 @@ cvs_remote_input(void)
 
 	if (memchr(data, '\0', len) != NULL)
 		fatal("NUL byte in protocol text line");
+	if (len == 0)
+		fatal("empty protocol input buffer");
 	if (data[len - 1] == '\n') {
 		data[len - 1] = '\0';
 		ldata = xstrdup(data);
-	} else {
-		ldata = xmalloc(len + 1);
-		memcpy(ldata, data, len);
-		ldata[len] = '\0';
-	}
+	} else
+		fatal("unterminated protocol text line");
 
 	if (cvs_server_active == 0 && cvs_client_outlog_fd != -1) {
 		len = strlen(data);
@@ -185,7 +186,7 @@ cvs_remote_send_file(const char *path, int _fd)
 	size_t ret, rw;
 	off_t total;
 	struct stat st;
-	char buf[18], data[_MAXBSIZE];
+	char buf[32], data[_MAXBSIZE];
 
 	if (cvs_server_active)
 		out = stdout;
@@ -204,10 +205,12 @@ cvs_remote_send_file(const char *path, int _fd)
 		fatal("cvs_remote_send_file: %s: fstat: %s", path,
 		    strerror(errno));
 
+	if (st.st_size < 0)
+		fatal("negative file size");
 	cvs_modetostr(st.st_mode, buf, sizeof(buf));
 	cvs_remote_output(buf);
 
-	(void)xsnprintf(buf, sizeof(buf), "%lld", st.st_size);
+	(void)xsnprintf(buf, sizeof(buf), "%jd", (intmax_t)st.st_size);
 	cvs_remote_output(buf);
 
 	if ((in = fdopen(fd, "r")) == NULL)
@@ -215,6 +218,8 @@ cvs_remote_send_file(const char *path, int _fd)
 
 	total = 0;
 	while ((ret = fread(data, sizeof(char), sizeof data, in)) != 0) {
+		if ((uintmax_t)ret > (uintmax_t)st.st_size - (uintmax_t)total)
+			fatal("file grew while being sent");
 		rw = fwrite(data, sizeof(char), ret, out);
 		if (rw != ret)
 			fatal("failed to write %zu bytes", ret);
@@ -223,11 +228,13 @@ cvs_remote_send_file(const char *path, int _fd)
 		    atomicio(vwrite, cvs_client_inlog_fd, data, ret) != ret)
 			fatal("failed to write to log file");
 
-		total += ret;
+		total += (off_t)ret;
 	}
 
+	if (ferror(in))
+		fatal("read error while sending %s", path);
 	if (total != st.st_size)
-		fatal("length mismatch, %lld vs %lld", total, st.st_size);
+		fatal("length mismatch, %jd vs %jd", (intmax_t)total, (intmax_t)st.st_size);
 
 	(void)fclose(in);
 }
@@ -235,7 +242,7 @@ cvs_remote_send_file(const char *path, int _fd)
 void
 cvs_remote_send_file_buf(char *file, BUF *bp, mode_t mode)
 {
-	char buf[18];
+	char buf[32];
 	u_char *data;
 	size_t len, ret;
 
@@ -248,7 +255,7 @@ cvs_remote_send_file_buf(char *file, BUF *bp, mode_t mode)
 	cvs_modetostr(mode, buf, sizeof(buf));
 	cvs_remote_output(buf);
 
-	(void)xsnprintf(buf, sizeof(buf), "%ld", len);
+	(void)xsnprintf(buf, sizeof(buf), "%zu", len);
 	cvs_remote_output(buf);
 
 	ret = fwrite(data, sizeof(char), len, stdout);
@@ -276,7 +283,7 @@ cvs_remote_classify_file(struct cvs_file *cf)
 			if (cf->fd != -1)
 				cf->file_status = FILE_ADDED;
 			else
-				cf->file_status = FILE_UNKNOWN;
+				cf->file_status = CVS_FILE_UNKNOWN;
 		} else {
 			cf->file_status = FILE_REMOVED;
 		}
@@ -305,7 +312,7 @@ cvs_remote_classify_file(struct cvs_file *cf)
 		else
 			cf->file_status = FILE_UPTODATE;
 	} else if (!(cf->file_flags & FILE_ON_DISK)) {
-		cf->file_status = FILE_UNKNOWN;
+		cf->file_status = CVS_FILE_UNKNOWN;
 	}
 
 	if (cvs_cmdop == CVS_OP_IMPORT && cf->file_type == CVS_FILE)

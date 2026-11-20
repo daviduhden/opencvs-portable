@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: update.c,v 1.176 2017/06/01 08:08:24 joris Exp $	*/
 /*
  * Copyright (c) 2006 Joris Vink <joris@openbsd.org>
@@ -221,7 +238,7 @@ cvs_update_enterdir(struct cvs_file *cf)
 			free(entry);
 		}
 	} else if ((cf->file_status == DIR_CREATE && build_dirs == 0) ||
-		    cf->file_status == FILE_UNKNOWN) {
+		    cf->file_status == CVS_FILE_UNKNOWN) {
 		cf->file_status = FILE_SKIP;
 	} else if (reset_tag) {
 		(void)xsnprintf(fpath, PATH_MAX, "%s/%s",
@@ -237,12 +254,9 @@ cvs_update_enterdir(struct cvs_file *cf)
 void
 cvs_update_leavedir(struct cvs_file *cf)
 {
-	int nbytes;
 	int isempty;
-	size_t bufsize;
-	struct stat st;
+	DIR *directory;
 	struct dirent *dp;
-	char *buf, *ebuf, *cp;
 	CVSENTRIES *entlist;
 
 	cvs_log(LP_TRACE, "cvs_update_leavedir(%s)", cf->file_path);
@@ -256,48 +270,25 @@ cvs_update_leavedir(struct cvs_file *cf)
 		goto prune_it;
 	}
 
-	if (fstat(cf->fd, &st) == -1)
-		fatal("cvs_update_leavedir: %s", strerror(errno));
-
-	if ((uintmax_t)st.st_size > SIZE_MAX)
-		fatal("cvs_update_leavedir: %s: file size too big",
-		    cf->file_name);
-
-	bufsize = (st.st_size > st.st_blksize) ? st.st_size : st.st_blksize;
-
 	isempty = 1;
-	buf = xmalloc(bufsize);
-
-	if (lseek(cf->fd, 0, SEEK_SET) == -1)
+	if ((directory = pc_directory_open(cf->fd, cf->file_path)) == NULL)
 		fatal("cvs_update_leavedir: %s", strerror(errno));
-
-	while ((nbytes = getdents(cf->fd, buf, bufsize)) > 0) {
-		ebuf = buf + nbytes;
-		cp = buf;
-
-		while (cp < ebuf) {
-			dp = (struct dirent *)cp;
-			if (!strcmp(dp->d_name, ".") ||
-			    !strcmp(dp->d_name, "..") ||
-			    dp->d_fileno == 0) {
-				cp += dp->d_reclen;
-				continue;
-			}
-
-			if (strcmp(dp->d_name, CVS_PATH_CVSDIR)) 
-				isempty = 0;
-
-			if (isempty == 0)
-				break;
-
-			cp += dp->d_reclen;
+	for (;;) {
+		errno = 0;
+		dp = readdir(directory);
+		if (dp == NULL) {
+			if (errno != 0)
+				fatal("cvs_update_leavedir: %s", strerror(errno));
+			break;
+		}
+		if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, "..") &&
+		    strcmp(dp->d_name, CVS_PATH_CVSDIR)) {
+			isempty = 0;
+			break;
 		}
 	}
-
-	if (nbytes == -1)
-		fatal("cvs_update_leavedir: %s", strerror(errno));
-
-	free(buf);
+	if (closedir(directory) == -1)
+		fatal("cvs_update_leavedir: closedir: %s", strerror(errno));
 
 prune_it:
 	if ((isempty == 1 && prune_dirs == 1) ||
@@ -328,7 +319,7 @@ cvs_update_local(struct cvs_file *cf)
 			return;
 		}
 
-		if (cf->file_status != FILE_UNKNOWN &&
+		if (cf->file_status != CVS_FILE_UNKNOWN &&
 		    verbosity > 1)
 			cvs_log(LP_ERR, "Updating %s", cf->file_path);
 		return;
@@ -363,7 +354,7 @@ cvs_update_local(struct cvs_file *cf)
 	}
 
 	if (print_stdout) {
-		if (cf->file_status != FILE_UNKNOWN && cf->file_rcs != NULL &&
+		if (cf->file_status != CVS_FILE_UNKNOWN && cf->file_rcs != NULL &&
 		    cf->file_rcsrev != NULL && !cf->file_rcs->rf_dead &&
 		    (cf->file_flags & FILE_HAS_TAG)) {
 			rcsnum_tostr(cf->file_rcsrev, rbuf, sizeof(rbuf));
@@ -399,7 +390,7 @@ cvs_update_local(struct cvs_file *cf)
 	}
 
 	switch (cf->file_status) {
-	case FILE_UNKNOWN:
+	case CVS_FILE_UNKNOWN:
 		cvs_printf("? %s\n", cf->file_path);
 		break;
 	case FILE_MODIFIED:
@@ -463,7 +454,9 @@ cvs_update_local(struct cvs_file *cf)
 		}
 		break;
 	case FILE_UNLINK:
-		(void)unlink(cf->file_path);
+		if (unlink(cf->file_path) == -1 && errno != ENOENT)
+			fatal("update: unlink %s: %s", cf->file_path, strerror(errno));
+		/* FALLTHROUGH */
 	case FILE_REMOVE_ENTRY:
 		entlist = cvs_ent_open(cf->file_wd);
 		cvs_ent_remove(entlist, cf->file_name);
@@ -548,7 +541,7 @@ update_has_conflict_markers(struct cvs_file *cf)
 	buf_putc(bp, '\0');
 	len = buf_len(bp);
 	content = buf_release(bp);
-	if ((lines = cvs_splitlines(content, len)) == NULL)
+	if ((lines = cvs_splitlines((u_char *)content, len)) == NULL)
 		fatal("update_has_conflict_markers: failed to split lines");
 
 	conflict = 0;
@@ -556,12 +549,15 @@ update_has_conflict_markers(struct cvs_file *cf)
 		if (lp->l_line == NULL)
 			continue;
 
-		if (!strncmp(lp->l_line, RCS_CONFLICT_MARKER1,
-		    sizeof(RCS_CONFLICT_MARKER1) - 1) ||
-		    !strncmp(lp->l_line, RCS_CONFLICT_MARKER2,
-		    sizeof(RCS_CONFLICT_MARKER2) - 1) ||
-		    !strncmp(lp->l_line, RCS_CONFLICT_MARKER3,
-		    sizeof(RCS_CONFLICT_MARKER3) - 1)) {
+		if ((lp->l_len >= sizeof(RCS_CONFLICT_MARKER1) - 1 &&
+		    !memcmp(lp->l_line, RCS_CONFLICT_MARKER1,
+		    sizeof(RCS_CONFLICT_MARKER1) - 1)) ||
+		    (lp->l_len >= sizeof(RCS_CONFLICT_MARKER2) - 1 &&
+		    !memcmp(lp->l_line, RCS_CONFLICT_MARKER2,
+		    sizeof(RCS_CONFLICT_MARKER2) - 1)) ||
+		    (lp->l_len >= sizeof(RCS_CONFLICT_MARKER3) - 1 &&
+		    !memcmp(lp->l_line, RCS_CONFLICT_MARKER3,
+		    sizeof(RCS_CONFLICT_MARKER3) - 1))) {
 			conflict = 1;
 			break;
 		}

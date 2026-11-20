@@ -71,7 +71,7 @@ struct cvs_file {
 	struct cvs_ent	*file_ent;
 };
 
-#define FILE_UNKNOWN		0
+#define CVS_FILE_UNKNOWN		0
 #define FILE_ADDED		1
 #define FILE_REMOVED		2
 #define FILE_MODIFIED		3

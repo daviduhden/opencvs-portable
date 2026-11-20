@@ -396,7 +396,16 @@ cvs_rmdir(const char *path)
 		return (-1);
 	}
 
-	while ((ent = readdir(dirp)) != NULL) {
+	for (;;) {
+		errno = 0;
+		ent = readdir(dirp);
+		if (ent == NULL) {
+			if (errno != 0) {
+				cvs_log(LP_ERRNO, "cvs_rmdir: readdir %s", path);
+				goto done;
+			}
+			break;
+		}
 		if (!strcmp(ent->d_name, ".") ||
 		    !strcmp(ent->d_name, ".."))
 			continue;
@@ -454,7 +463,10 @@ cvs_rmdir(const char *path)
 
 	ret = 0;
 done:
-	closedir(dirp);
+	if (closedir(dirp) == -1) {
+		cvs_log(LP_ERRNO, "cvs_rmdir: closedir %s", path);
+		ret = -1;
+	}
 	return (ret);
 }
 
@@ -904,7 +916,7 @@ cvs_exec(char *prog, char *in, int needwait)
 	pc_process child;
 	char **arguments;
 	char *oldroot;
-	int fds[2] = {-1, -1}, result, saved;
+	int fds[2] = {-1, -1}, result, saved, root_changed = 0;
 	size_t size;
 
 	arguments = pc_command_argv(prog, NULL);
@@ -914,6 +926,7 @@ cvs_exec(char *prog, char *in, int needwait)
 	oldroot = oldroot ? xstrdup(oldroot) : NULL;
 	if (setenv("CVSROOT", current_cvsroot->cr_dir, 1) == -1)
 		goto fail;
+	root_changed = 1;
 	if (in != NULL && pc_pipe(fds) == -1)
 		goto fail;
 	result = pc_spawn(&child, (const char *const *)arguments,
@@ -923,6 +936,7 @@ cvs_exec(char *prog, char *in, int needwait)
 		(void)setenv("CVSROOT", oldroot, 1);
 	else
 		(void)unsetenv("CVSROOT");
+	root_changed = 0;
 	errno = saved;
 	if (result == -1)
 		goto fail;
@@ -944,6 +958,12 @@ cvs_exec(char *prog, char *in, int needwait)
 	return result == -1 ? -1 : saved;
 fail:
 	saved = errno;
+	if (root_changed) {
+		if (oldroot != NULL)
+			(void)setenv("CVSROOT", oldroot, 1);
+		else
+			(void)unsetenv("CVSROOT");
+	}
 	if (fds[0] != -1) (void)close(fds[0]);
 	if (fds[1] != -1) (void)close(fds[1]);
 	pc_free_argv(arguments);

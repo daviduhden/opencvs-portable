@@ -114,7 +114,14 @@ cvs_repository_getdir(const char *dir, const char *wdir,
 	if ((dirp = opendir(dir)) == NULL)
 		fatal("cvs_repository_getdir: failed to open '%s'", dir);
 
-	while ((dp = readdir(dirp)) != NULL) {
+	for (;;) {
+		errno = 0;
+		dp = readdir(dirp);
+		if (dp == NULL) {
+			if (errno != 0)
+				fatal("cvs_repository_getdir: readdir: %s", strerror(errno));
+			break;
+		}
 		if (!strcmp(dp->d_name, ".") ||
 		    !strcmp(dp->d_name, "..") ||
 		    !strcmp(dp->d_name, CVS_LOCK))
@@ -192,5 +199,6 @@ cvs_repository_getdir(const char *dir, const char *wdir,
 		}
 	}
 
-	(void)closedir(dirp);
+	if (closedir(dirp) == -1)
+		fatal("cvs_repository_getdir: closedir: %s", strerror(errno));
 }
