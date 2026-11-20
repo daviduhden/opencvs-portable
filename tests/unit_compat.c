@@ -24,6 +24,8 @@
  */
 #include "portable.h"
 #include "pc_process.h"
+#include <sys/stat.h>
+#include <fcntl.h>
 
 static int failures;
 
@@ -124,11 +126,24 @@ formatting(void)
 	free(text);
 }
 
+static FILE *
+temporary_stream(void)
+{
+#ifdef _MSC_VER
+	FILE *stream = NULL;
+	if (tmpfile_s(&stream) != 0)
+		return NULL;
+	return stream;
+#else
+	return tmpfile();
+#endif
+}
+
 static void
 stream_lines(void)
 {
 	const unsigned char input[] = {'a', '\0', 'b', '\n', 'c'};
-	FILE *first = tmpfile(), *second = tmpfile();
+	FILE *first = temporary_stream(), *second = temporary_stream();
 	char *line, *other;
 	size_t length, other_length;
 	int first_closed, second_closed;
@@ -256,10 +271,181 @@ processes(const char *self)
 	    "missing executable fails before reporting a child success");
 }
 
+#ifndef _WIN32
+static int
+copy_child(void)
+{
+	char buffer[64];
+	ssize_t n, written;
+	while ((n = read(0, buffer, sizeof(buffer))) > 0) {
+		written = write(1, buffer, (size_t)n);
+		if (written != n) return 91;
+	}
+	return n == 0 ? 0 : 91;
+}
+
+/* Descriptor mutations are confined to this separate helper process. */
+static int
+swapped_redirect_child(const char *self)
+{
+	const char *args[] = {self, "--copy", NULL};
+	const char text[] = "swapped descriptors";
+	char buffer[sizeof(text)];
+	int input[2], output[2], status;
+	pc_process child;
+	ssize_t n;
+
+	if (pc_pipe(input) != 0 || pc_pipe(output) != 0) return 91;
+	if (write(input[1], text, sizeof(text)) != (ssize_t)sizeof(text)) return 91;
+	(void)close(input[1]);
+	if (dup2(input[0], 1) == -1 || dup2(output[1], 0) == -1) return 91;
+	(void)close(input[0]); (void)close(output[1]);
+	if (pc_spawn(&child, args, 1, 0, -1) != 0) return 91;
+	(void)close(0); (void)close(1);
+	n = read(output[0], buffer, sizeof(buffer));
+	(void)close(output[0]);
+	if (pc_wait(&child, &status) != 0 || status != 0) return 91;
+	return n == (ssize_t)sizeof(text) && memcmp(buffer, text, sizeof(text)) == 0 ? 0 : 91;
+}
+
+static void
+posix_process_contracts(const char *self)
+{
+	const char *swapped[] = {self, "--swapped-redirects", NULL};
+	const char *both[] = {self, "--both-streams", NULL};
+	const char *exit_args[] = {self, "--exit", NULL};
+	const char *leak_args[] = {self, "--fd-closed", NULL, NULL};
+	pc_process child, invalid;
+	int fds[2], status, flags;
+	char buffer[32], number[32];
+	ssize_t count;
+
+	expect(pc_run(swapped) == 0, "spawn safely snapshots swapped stdin/stdout sources");
+	if (pc_pipe(fds) != 0) { expect(0, "create shared output fixture"); return; }
+	if (pc_spawn(&child, both, -1, fds[1], fds[1]) != 0) {
+		expect(0, "spawn with shared stdout/stderr source");
+		(void)close(fds[0]); (void)close(fds[1]); return;
+	}
+	(void)close(fds[1]);
+	count = read(fds[0], buffer, sizeof(buffer));
+	/* Collect both writes; pipe reads may legitimately return only one write. */
+	if (count > 0 && count < 6) {
+		ssize_t second = read(fds[0], buffer + count, sizeof(buffer) - (size_t)count);
+		if (second > 0) count += second;
+	}
+	(void)close(fds[0]);
+	expect(count == 6 && memcmp(buffer, "outERR", 6) == 0,
+	    "stdout/stderr may share one redirect source");
+	expect(pc_wait(&child, &status) == 0 && status == 0, "wait for shared redirect child");
+
+	if (pc_pipe(fds) != 0) { expect(0, "create descriptor leakage fixture"); return; }
+	flags = fcntl(fds[1], F_GETFD);
+	expect(flags != -1 && fcntl(fds[1], F_SETFD, flags & ~FD_CLOEXEC) == 0,
+	    "make caller redirect source explicitly inheritable");
+	(void)snprintf(number, sizeof(number), "%d", fds[1]); leak_args[2] = number;
+	if (pc_spawn(&child, leak_args, -1, fds[1], -1) != 0)
+		expect(0, "spawn source-leakage child");
+	else expect(pc_wait(&child, &status) == 0 && status == 0,
+	    "borrowed redirect source is not leaked across exec");
+	expect(fcntl(fds[1], F_GETFD) != -1, "parent retains borrowed redirect source");
+	(void)close(fds[0]); (void)close(fds[1]);
+
+	if (pc_spawn(&child, exit_args, -1, -1, -1) != 0) {
+		expect(0, "spawn unrelated wait fixture"); return;
+	}
+	invalid.handle = -1; errno = 0;
+	expect(pc_wait(&invalid, &status) == -1 && errno == EINVAL,
+	    "invalid process wait never accepts wildcard child selectors");
+	expect(pc_wait(&child, &status) == 0 && status == 37,
+	    "invalid wait preserves unrelated child waitability");
+}
+#endif
+
+static void
+positional_reads(void)
+{
+	char *path = NULL, bytes[4];
+	const char contents[] = {'A', '\0', 'B', '\n'};
+	int fd;
+
+	if (asprintf(&path, "%s/pc-pread-XXXXXXXXXX", pc_default_tmpdir()) == -1) {
+		expect(0, "allocate positional-read test path"); return;
+	}
+	fd = mkstemp(path);
+	if (fd == -1) { expect(0, "create positional-read fixture"); free(path); return; }
+	expect(write(fd, contents, sizeof(contents)) == (ssize_t)sizeof(contents),
+	    "write binary positional-read fixture");
+	expect(lseek(fd, 2, SEEK_SET) == 2, "set original descriptor position");
+	expect(pread(fd, bytes, sizeof(bytes), 0) == (ssize_t)sizeof(bytes) &&
+	    memcmp(bytes, contents, sizeof(bytes)) == 0, "pread preserves binary bytes");
+	expect(lseek(fd, 0, SEEK_CUR) == 2, "pread preserves original descriptor position");
+	expect(pread(fd, bytes, sizeof(bytes), 100) == 0, "pread reports EOF");
+	errno = 0;
+	expect(pread(fd, bytes, sizeof(bytes), -1) == -1 && errno == EINVAL,
+	    "pread rejects negative offsets");
+	expect(close(fd) == 0, "close positional-read fixture");
+	fd = open(path, O_WRONLY);
+	if (fd == -1) expect(0, "open write-only positional-read fixture");
+	else {
+		expect(pread(fd, bytes, 1, 0) == -1, "pread rejects write-only descriptors");
+		(void)close(fd);
+	}
+	expect(unlink(path) == 0, "remove positional-read fixture");
+	free(path);
+}
+
+static void
+directory_descriptors(void)
+{
+	char *path = NULL;
+	struct stat st;
+	int fd;
+
+	if (asprintf(&path, "%s/pc-directory-XXXXXXXXXX", pc_default_tmpdir()) == -1) {
+		expect(0, "allocate private directory test path");
+		return;
+	}
+	fd = mkstemp(path);
+	if (fd == -1) {
+		expect(0, "reserve unique directory test path");
+		free(path);
+		return;
+	}
+	(void)close(fd);
+	if (unlink(path) != 0 || mkdir(path, 0700) != 0) {
+		expect(0, "create private directory descriptor fixture");
+		free(path);
+		return;
+	}
+	fd = open(path, O_RDONLY);
+	expect(fd != -1, "open a real native directory descriptor");
+	if (fd != -1) {
+		expect(fstat(fd, &st) == 0 && S_ISDIR(st.st_mode),
+		    "fstat preserves native directory identity");
+		expect(close(fd) == 0, "close native directory descriptor");
+	}
+	expect(rmdir(path) == 0, "remove directory after closing descriptor");
+	free(path);
+}
+
 int
 main(int argc, char **argv)
 {
 	pc_platform_startup(&argc, &argv);
+#ifndef _WIN32
+	if (argc > 1 && strcmp(argv[1], "--copy") == 0) return copy_child();
+	if (argc > 1 && strcmp(argv[1], "--swapped-redirects") == 0) return swapped_redirect_child(argv[0]);
+	if (argc > 1 && strcmp(argv[1], "--both-streams") == 0) {
+		return write(1, "out", 3) == 3 && write(2, "ERR", 3) == 3 ? 0 : 91;
+	}
+	if (argc == 3 && strcmp(argv[1], "--fd-closed") == 0) {
+		const char *error;
+		int fd = (int)strtonum(argv[2], 3, INT_MAX, &error);
+		if (error != NULL) return 91;
+		errno = 0;
+		return fcntl(fd, F_GETFD) == -1 && errno == EBADF ? 0 : 91;
+	}
+#endif
 	if (argc > 1 && strcmp(argv[1], "--child") == 0)
 		return child_arguments(argc, argv);
 	if (argc > 1 && strcmp(argv[1], "--exit") == 0)
@@ -268,8 +454,13 @@ main(int argc, char **argv)
 	numbers_and_memory();
 	formatting();
 	stream_lines();
+	directory_descriptors();
+	positional_reads();
 	command_arguments();
 	processes(argv[0]);
+#ifndef _WIN32
+	posix_process_contracts(argv[0]);
+#endif
 	if (failures != 0)
 		return 1;
 	puts("native compatibility contracts passed");

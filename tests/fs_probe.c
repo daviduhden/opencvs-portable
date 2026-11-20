@@ -25,6 +25,10 @@
 #include "portable.h"
 #include <sys/stat.h>
 #include <dirent.h>
+#ifndef _WIN32
+#include <sys/resource.h>
+#include <signal.h>
+#endif
 
 static int
 separator(char c)
@@ -177,6 +181,51 @@ cleanup_sandbox(const char *path)
 	return remove_private_tree(path);
 }
 
+/* Deliberately untrusted server fixtures, confined to the test subprocess. */
+static int
+fixture_server(const char *response)
+{
+	static const char capabilities[] = "Valid-requests Root Valid-responses valid-requests "
+	    "Directory Static-directory Sticky Entry Modified UseUnchanged Unchanged "
+	    "Questionable Argument Argumentx Global_option Set update\nok\n";
+	char *line, *length_line;
+	unsigned char block[4096];
+	size_t length, count, remaining;
+	FILE *fixture;
+	const char *error;
+	int negotiated = 0;
+
+	while ((line = fgetln(stdin, &length)) != NULL) {
+		if (length == 15 && memcmp(line, "valid-requests\n", 15) == 0) {
+			if (fputs(capabilities, stdout) == EOF || fflush(stdout) != 0) return 74;
+			negotiated = 1;
+		} else if (length >= 9 && memcmp(line, "Modified ", 9) == 0) {
+			if (fgetln(stdin, &length) == NULL) return 74; /* mode */
+			length_line = fgetln(stdin, &length);
+			if (length_line == NULL || length == 0 || length_line[length - 1] != '\n') return 74;
+			length_line[length - 1] = '\0';
+			remaining = (size_t)strtonum(length_line, 0, INT_MAX, &error);
+			if (error != NULL) return 74;
+			while (remaining != 0) {
+				count = remaining < sizeof(block) ? remaining : sizeof(block);
+				count = fread(block, 1, count, stdin);
+				if (count == 0) return 74;
+				remaining -= count;
+			}
+		} else if (length == 7 && memcmp(line, "update\n", 7) == 0) {
+			if (!negotiated) return 74;
+			fixture = fopen(response, "rb");
+			if (fixture == NULL) return 74;
+			while ((count = fread(block, 1, sizeof(block), fixture)) != 0)
+				if (fwrite(block, 1, count, stdout) != count) { fclose(fixture); return 74; }
+			if (ferror(fixture)) { fclose(fixture); return 74; }
+			if (fclose(fixture) != 0 || fflush(stdout) != 0) return 74;
+			return 0;
+		}
+	}
+	return 74;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -188,6 +237,42 @@ main(int argc, char **argv)
 	int result = 1;
 
 	pc_platform_startup(&argc, &argv);
+	if (argc == 2 && strcmp(argv[1], "server") == 0 &&
+	    getenv("PC_TEST_SERVER_RESPONSE") != NULL)
+		return fixture_server(getenv("PC_TEST_SERVER_RESPONSE"));
+	if (argc == 4 && strcmp(argv[1], "editor-check-template") == 0) {
+		static const char expected[] = "Portable OpenCVS template sentinel";
+		FILE *message = fopen(argv[3], "rb"), *marker;
+		size_t length, i;
+		int found = 0;
+		if (message == NULL) return 24;
+		length = fread(buffer, 1, sizeof(buffer), message);
+		if (ferror(message) || fclose(message) != 0) return 24;
+		for (i = 0; i + sizeof(expected) - 1 <= length; i++)
+			if (memcmp(buffer + i, expected, sizeof(expected) - 1) == 0) found = 1;
+		if (!found) return 24;
+		marker = fopen(argv[2], "wb");
+		if (marker == NULL) return 24;
+		if (fputs("template verified\n", marker) == EOF || fclose(marker) != 0) return 24;
+		return 23; /* Deliberate editor failure after checking actual template data. */
+	}
+#ifndef _WIN32
+	/* Resource limits apply only inside the spawned private regression child. */
+	if (argc >= 4 && strcmp(argv[1], "limit-exec") == 0) {
+		const char *error;
+		struct rlimit limit;
+		long long bytes = strtonum(argv[2], 1, INT_MAX, &error);
+		if (error != NULL) return 64;
+		limit.rlim_cur = limit.rlim_max = (rlim_t)bytes;
+		if (signal(SIGXFSZ, SIG_IGN) == SIG_ERR || setrlimit(RLIMIT_FSIZE, &limit) != 0) {
+			perror("install private file-size fault injection");
+			return 71;
+		}
+		execvp(argv[3], &argv[3]);
+		perror("execute private fault-injection child");
+		return 71;
+	}
+#endif
 	if (!((argc == 4 && (strcmp(argv[1], "read") == 0 ||
 	    strcmp(argv[1], "write") == 0)) ||
 	    (argc == 3 && strcmp(argv[1], "cleanup") == 0))) {

@@ -295,9 +295,10 @@ test_case core => full_lifecycle => sub {
     for my $name (qw(Entries Root Repository)) { check(-f path($work, 'CVS', $name), "Missing CVS/$name"); }
     check(read_bytes(path($work, 'CVS', 'Entries')) =~ m{/sample\.txt/}, 'Missing sample entry');
     check(read_bytes(path($work, 'CVS', 'Root')) =~ /repository/, 'Incorrect Root metadata');
+    cvs($s, ['diff', '-u', 'sample.txt'], cwd => $work, allowed => [0]);
     my $updated = "alpha\nchanged by commit\nomega\n";
     changed(path($work, 'sample.txt'), $updated);
-    my $diff = cvs($s, ['diff', '-u', 'sample.txt'], cwd => $work, allowed => [0, 1]);
+    my $diff = cvs($s, ['diff', '-u', 'sample.txt'], cwd => $work, allowed => [1]);
     check($diff->{text} =~ /-base/ && $diff->{text} =~ /\+changed by commit/, 'Missing actual unified diff changes');
     cvs($s, ['commit', '-m', 'change test content', 'sample.txt'], cwd => $work);
     check(cvs($s, ['status', 'sample.txt'], cwd => $work)->{text} =~ /Up-to-date/, 'Committed file not up-to-date');
@@ -404,6 +405,59 @@ test_case security => unknown_server_request_is_error => sub {
     my $result = server($s, "Not-a-real-CVS-request\n");
     check($result->{code} != 0 && $result->{text} =~ /(?:not supported|unsupported|unknown)/i, 'Unknown server request did not fail clearly');
 };
+test_case security => untrusted_server_responses_preserve_working_copy => sub {
+    my ($s) = @_;
+    skip_case('Native fake-server and transport helpers not supplied')
+        unless defined $fs_probe && defined $ssh_shim;
+    my $work = populated($s);
+    my $root = slash_path($s->{repo});
+    my $remote_root = ':ext:test.invalid:' . $root;
+    my $fixture = path($s->{base}, 'server-response.bin');
+    my $env = {%{remote_environment($s, $fs_probe)}, PC_TEST_SERVER_RESPONSE => $fixture};
+    my $file = path($work, 'sample.txt');
+    my $entries = path($work, 'CVS', 'Entries');
+    my $canary = path($s->{base}, 'canary.txt');
+    write_bytes($canary, 'outside working copy');
+    my $replacement = "alpha\nserver baseline\nomega\n";
+    my $frame = sub {
+        my ($kind, $repository, $entry_name, $length, $body) = @_;
+        return "$kind ./\n$repository\n/$entry_name/1.2///\nu=rw,g=r,o=r\n$length\n$body";
+    };
+    # Prove that negotiation and the positive fixture exercise Updated itself.
+    write_bytes($fixture, $frame->('Updated', "$root/module/sample.txt", 'sample.txt',
+        length($replacement), $replacement) . "ok\n");
+    cvs($s, ['update', 'sample.txt'], cwd => $work, root => $remote_root, env => $env);
+    equal(read_bytes($file), $replacement, 'Positive fake server did not update working file');
+    my $file_before = sha256_hex(read_bytes($file));
+    my $entries_before = sha256_hex(read_bytes($entries));
+    my @bad = (
+        $frame->('Updated', '/x', 'sample.txt', 5, 'PWNED'),
+        $frame->('Updated', "$root-collision/module/sample.txt", 'sample.txt', 5, 'PWNED'),
+        $frame->('Updated', "$root/../outside/sample.txt", 'sample.txt', 5, 'PWNED'),
+        $frame->('Merged', "$root/module/../../canary.txt", 'canary.txt', 5, 'PWNED'),
+        $frame->('Updated', "$root/module/sample.txt", 'different.txt', 5, 'PWNED'),
+        $frame->('Updated', "$root/module/sample.txt", 'sample.txt', 100, 'xx'),
+        $frame->('Merged', "$root/module/sample.txt", 'sample.txt', 100, 'xx')
+    );
+    for my $bad (@bad) {
+        write_bytes($fixture, $bad);
+        my $result = cvs($s, ['update', 'sample.txt'], cwd => $work,
+            root => $remote_root, env => $env, allowed => undef);
+        check($result->{code} != 0, 'Malicious/truncated server response succeeded');
+        equal(sha256_hex(read_bytes($file)), $file_before, 'Rejected response changed working file');
+        equal(sha256_hex(read_bytes($entries)), $entries_before, 'Rejected response changed Entries');
+        equal(read_bytes($canary), 'outside working copy', 'Rejected response changed canary');
+    }
+};
+test_case security => invalid_protocol_argument_state_is_rejected => sub {
+    my ($s) = @_;
+    for my $request ("ArgumentX\n", "Argument one\nArgumentX\n", "rlog\n", "rtag\n") {
+        my $result = server($s, $request);
+        check($result->{code} != 0, 'Malformed protocol state succeeded');
+        check($result->{text} =~ /(?:Root|Argument|argument|Protocol)/,
+            'Malformed state did not produce a protocol diagnostic');
+    }
+};
 test_case security => modified_path_traversal_preserves_canary => sub {
     my ($s) = @_;
     initialize($s);
@@ -447,6 +501,140 @@ test_case security => invalid_tag_does_not_change_repository => sub {
     my $before = sha256_hex(read_bytes($archive));
     check(cvs($s, ['tag', 'invalid/tag'], cwd => $work, allowed => undef)->{code} != 0, 'Invalid tag succeeded');
     equal(sha256_hex(read_bytes($archive)), $before, 'Invalid tag changed archive');
+};
+test_case security => malformed_rcs_delta_commands_are_rejected => sub {
+    my ($s) = @_;
+    populated($s);
+    my $archive = path($s->{repo}, 'module', 'sample.txt,v');
+    my $prefix = <<'RCS';
+head 1.2;
+access;
+symbols;
+locks; strict;
+comment @# @;
+
+1.2
+date 2026.01.02.00.00.00; author fixture; state Exp;
+branches;
+next 1.1;
+
+1.1
+date 2026.01.01.00.00.00; author fixture; state Exp;
+branches;
+next;
+
+desc
+@Controlled delta parser regression archive@
+1.2
+log
+@new revision@
+text
+@new
+@
+1.1
+log
+@old revision@
+text
+@
+RCS
+    # Establish that the fixture is valid before testing malformed commands.
+    write_bytes($archive, $prefix . "d1 1\na1 1\nold\n\@\n");
+    cvs($s, ['checkout', '-r', '1.1', '-d', 'delta-valid', 'module']);
+    equal(read_bytes(path($s->{base}, 'delta-valid', 'sample.txt')), "old\n");
+    my $index = 0;
+    for my $delta ("a1\n", "a2147483648 1\nx\n", "a0 2147483648\n",
+        "d0 1\n", "d1 0\n", "d1 1junk\n", "d1 2\n", "x1 1\n",
+        "a0 1\n", "a0 2\none\n", "a0 1\0\nbody\n", "d1\0 1\n",
+        "d1 1", "a0 -1\n", "a0 999999999999999999999999999999\n") {
+        write_bytes($archive, $prefix . $delta . "\@\n");
+        my $before = sha256_hex(read_bytes($archive));
+        my $result = cvs($s, ['checkout', '-r', '1.1', '-d', 'delta-bad-' . ++$index,
+            'module'], allowed => undef);
+        check($result->{code} != 0, 'Malformed RCS delta command succeeded');
+        equal(sha256_hex(read_bytes($archive)), $before, 'Rejected delta changed archive');
+    }
+};
+
+test_case security => invalid_rcs_numbers_and_dates_are_rejected => sub {
+    my ($s) = @_;
+    populated($s);
+    my $archive = path($s->{repo}, 'module', 'sample.txt,v');
+    my $original = read_bytes($archive);
+    my @headers;
+    for my $revision ('1..1', '.1', '1.', '65536.1') {
+        my $bad = $original;
+        check($bad =~ s/\Ahead\s+[^;]+;/head $revision;/,
+            'RCS header fixture has no head');
+        push @headers, $bad;
+    }
+    for my $date ('2026.13.01.00.00.00', '2026.01.00.00.00.00',
+        '2026.01.01.24.00.00', '2026.01.01.00.60.00',
+        '2025.02.29.00.00.00', '2026.04.31.00.00.00') {
+        my $bad = $original;
+        check($bad =~ s/date\s+[^;]+;/date $date;/,
+            'RCS date fixture has no date');
+        push @headers, $bad;
+    }
+    my $index = 0;
+    for my $bad (@headers) {
+        write_bytes($archive, $bad);
+        my $before = sha256_hex(read_bytes($archive));
+        my $result = cvs($s, ['checkout', '-d', 'bad-header-' . ++$index, 'module'],
+            allowed => undef);
+        check($result->{code} != 0, 'Invalid RCS number/date succeeded');
+        equal(sha256_hex(read_bytes($archive)), $before,
+            'Rejected RCS header changed archive');
+    }
+};
+
+test_case security => template_editor_failure_preserves_archive => sub {
+    my ($s) = @_;
+    skip_case('Native editor regression helper not supplied') unless defined $fs_probe;
+    my $work = populated($s);
+    my $archive = path($s->{repo}, 'module', 'sample.txt,v');
+    my $before = sha256_hex(read_bytes($archive));
+    my $template = path($s->{base}, 'commit-template.txt');
+    my $marker = path($s->{base}, 'editor-template-verified.txt');
+    write_bytes($template, "Portable OpenCVS template sentinel\n");
+    write_bytes(path($s->{repo}, 'CVSROOT', 'rcsinfo'), "ALL " . slash_path($template) . "\n");
+    changed(path($work, 'sample.txt'), "alpha\nfailed editor update\nomega\n");
+    my $editor = '"' . slash_path($fs_probe) . '" editor-check-template "'
+        . slash_path($marker) . '"';
+    my $env = {%{$s->{env}}, CVSEDITOR => $editor};
+    my $result = cvs($s, ['commit', 'sample.txt'], cwd => $work, env => $env,
+        allowed => undef);
+    check($result->{code} != 0, 'Failed editor allowed a commit');
+    equal(read_bytes($marker), "template verified\n", 'Editor did not receive configured template');
+    equal(sha256_hex(read_bytes($archive)), $before, 'Failed editor changed archive');
+};
+
+test_case security => archive_write_failure_preserves_original => sub {
+    my ($s) = @_;
+    skip_case('POSIX RLIMIT_FSIZE injection requires native helper')
+        if $^O eq 'MSWin32' || !defined $fs_probe;
+    my $work = populated($s);
+    my $archive = path($s->{repo}, 'module', 'sample.txt,v');
+    my $before = sha256_hex(read_bytes($archive));
+    changed(path($work, 'sample.txt'), "alpha\nprivate failed commit\nomega\n");
+    my $result = invoke($s, $fs_probe, ['limit-exec', '4096', $opencvs,
+        '-T', $s->{tmp}, '-d', $s->{repo}, 'commit', '-m', 'X' x 16384,
+        'sample.txt'], cwd => $work, allowed => undef);
+    check($result->{code} != 0, 'File-size-limited commit succeeded');
+    equal(sha256_hex(read_bytes($archive)), $before,
+        'Write failure replaced the original RCS archive');
+    check($result->{text} =~ /(?:write|close|large|limit|space)/i,
+        'Commit did not report a write-related failure');
+};
+
+test_case core => native_remote_rlog_reads_repository => sub {
+    my ($s) = @_;
+    skip_case('Native local transport shim not supplied') unless defined $ssh_shim;
+    populated($s);
+    my $root = ':ext:test.invalid:' . slash_path($s->{repo});
+    my $env = remote_environment($s, $opencvs);
+    my $result = cvs($s, ['rlog', 'module'], root => $root, env => $env);
+    check($result->{text} =~ /sample\.txt/ && $result->{text} =~ /(?:revision|head:)/,
+        'Remote rlog did not report archive history');
 };
 
 test_case interop => gnu_repository_read_write_by_opencvs => sub {
