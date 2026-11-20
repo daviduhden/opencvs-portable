@@ -74,6 +74,7 @@ int	cvs_noexec = 0;	/* set to 1 to disable disk operations (-n option) */
 int	cvs_cmdop;
 int	cvs_umask = CVS_UMASK_DEFAULT;
 int	cvs_server_active = 0;
+int	cvs_cleanup_failed;
 
 char	*cvs_tagname = NULL;
 char	*cvs_defargs;		/* default global arguments from .cvsrc */
@@ -87,7 +88,7 @@ struct cvsroot *current_cvsroot = NULL;
 struct cvs_cmd *cmdp;			/* struct of command we are running */
 
 int		cvs_getopt(int, char **);
-__dead void	usage(void);
+PC_NORETURN void	usage(void);
 static void	cvs_read_rcfile(void);
 
 struct cvs_varhead cvs_variables;
@@ -141,10 +142,10 @@ cvs_cleanup(void)
 	}
 
 	if (current_list != NULL)
-		cvs_ent_close(current_list, ENT_SYNC);
+		cvs_ent_close(current_list, cvs_cleanup_failed ? ENT_NOSYNC : ENT_SYNC);
 }
 
-__dead void
+PC_NORETURN void
 usage(void)
 {
 	(void)fprintf(stderr,
@@ -200,6 +201,12 @@ cvs_build_cmd(char ***cmd_argv, char **argv, int argc)
 	return cmd_argc;
 }
 
+static PC_NORETURN void
+cvs_metadata_failure(const char *reason)
+{
+	fatal("invalid CVS metadata: %s", reason);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -210,6 +217,7 @@ main(int argc, char **argv)
 	char fpath[PATH_MAX];
 
 	pc_platform_startup(&argc, &argv);
+	pc_set_metadata_error_handler(cvs_metadata_failure);
 	cvs_tmpdir = pc_default_tmpdir();
 
 	tzset();

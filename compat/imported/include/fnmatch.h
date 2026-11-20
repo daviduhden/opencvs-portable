@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: fnmatch.h,v 1.9 2026/03/29 14:08:46 daniel Exp $	*/
 /*	$NetBSD: fnmatch.h,v 1.5 1994/10/26 00:55:53 cgd Exp $	*/
 
@@ -35,7 +52,7 @@
 #ifndef	_FNMATCH_H_
 #define	_FNMATCH_H_
 
-#include <sys/cdefs.h>
+/* portable.h supplies linkage markers for this private fallback header. */
 
 #define	FNM_NOMATCH	1	/* Match failed. */
 #define	FNM_NOSYS	2	/* Function not supported (unused). */
@@ -44,15 +61,11 @@
 #define	FNM_PATHNAME	0x02	/* Slash must be matched by slash. */
 #define	FNM_PERIOD	0x04	/* Period must be matched by period. */
 
-#if __BSD_VISIBLE
 #define	FNM_LEADING_DIR	0x08	/* Ignore /<tail> after Imatch. */
 #define	FNM_FILE_NAME	FNM_PATHNAME
-#endif
 
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 202405
 #define	FNM_CASEFOLD	0x10	/* Case insensitive search. */
 #define	FNM_IGNORECASE	FNM_CASEFOLD
-#endif
 
 __BEGIN_DECLS
 int	 fnmatch(const char *, const char *, int);

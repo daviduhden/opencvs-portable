@@ -1,3 +1,18 @@
+/* Portable OpenCVS modifications.
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: log.h,v 1.24 2024/05/21 05:00:48 jsg Exp $	*/
 /*
  * Copyright (c) 2004 Jean-Francois Brousseau <jfb@openbsd.org>
@@ -43,9 +58,9 @@
 #define LOG_REVEND \
  "============================================================================="
 
-void	cvs_log(u_int, const char *, ...) __attribute__((format(printf, 2, 3)));
-void	cvs_vlog(u_int, const char *, va_list);
-int	cvs_printf(const char *, ...) __attribute__((format(printf, 1, 2)));
-void	fatal(const char *, ...) __dead __attribute__((format(printf, 1,2)));
+void	cvs_log(u_int, const char *, ...) PC_PRINTF(2, 3);
+void	cvs_vlog(u_int, const char *, va_list) PC_PRINTF(2, 0);
+int	cvs_printf(const char *, ...) PC_PRINTF(1, 2);
+PC_NORETURN void	fatal(const char *, ...) PC_PRINTF(1, 2);
 
 #endif	/* LOG_H */

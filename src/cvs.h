@@ -363,6 +363,7 @@ int		 cvs_build_cmd(char ***, char **, int);
 int		 cvs_var_set(const char *, const char *);
 int		 cvs_var_unset(const char *);
 const char	*cvs_var_get(const char *);
+extern int cvs_cleanup_failed;
 void		 cvs_cleanup(void);
 
 /* date.y */

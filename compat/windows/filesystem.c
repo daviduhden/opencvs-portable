@@ -135,7 +135,7 @@ wchar_t *
 pc_windows_path(const char *path)
 {
 	wchar_t *input, *full, *out;
-	DWORD len, got;
+	DWORD len, got, error;
 	size_t i, count, prefix;
 	input = pc_windows_utf16(path);
 	if (input == NULL) return NULL;
@@ -153,8 +153,12 @@ pc_windows_path(const char *path)
 	full = malloc(((size_t)len + 1) * sizeof(*full));
 	if (full == NULL) { free(input); return NULL; }
 	got = GetFullPathNameW(input, len + 1, full, NULL);
+	error = GetLastError();
 	free(input);
-	if (got == 0 || got > len) { pc_windows_errno(GetLastError()); free(full); return NULL; }
+	if (got == 0 || got > len) {
+		if (got == 0) pc_windows_errno(error); else errno = EAGAIN;
+		free(full); return NULL;
+	}
 	count = wcslen(full);
 	while (count > 3 && full[count - 1] == L'\\') full[--count] = L'\0';
 	prefix = !wcsncmp(full, L"\\\\", 2) ? 6 : 4;
@@ -210,9 +214,12 @@ check_handle(HANDLE handle, const wchar_t *expected)
 	actual = malloc(((size_t)len + 1) * sizeof(*actual));
 	if (actual == NULL) return -1;
 	got = GetFinalPathNameByHandleW(handle, actual, len + 1, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
-	if (got == 0 || got > len) { free(actual); return pc_windows_errno(GetLastError()); }
+	if (got == 0 || got > len) {
+		if (got == 0) pc_windows_errno(GetLastError()); else errno = EAGAIN;
+		free(actual); return -1;
+	}
 	len = GetLongPathNameW(expected, NULL, 0);
-	if (len == 0) { free(actual); return pc_windows_errno(GetLastError()); }
+	if (len == 0) { pc_windows_errno(GetLastError()); free(actual); return -1; }
 	canonical = malloc(((size_t)len + 1) * sizeof(*canonical));
 	if (canonical == NULL) { free(actual); return -1; }
 	got = GetLongPathNameW(expected, canonical, len + 1);
@@ -261,15 +268,25 @@ pc_open(const char *path, int flags, ...)
 	va_list ap;
 	if (flags & O_CREAT) { va_start(ap, flags); mode = (mode_t)va_arg(ap, int); va_end(ap); mode = (mode_t)(mode & ~creation_mask); }
 	/* NUL is an intentional native null-device mapping, not a repo name. */
-	if (!strcmp(path, "/dev/null"))
-		return _open("NUL", (flags & ~O_NOFOLLOW) | _O_BINARY | _O_NOINHERIT, (int)mode);
+	if (!strcmp(path, "/dev/null")) {
+		access = (flags & O_RDWR) ? GENERIC_READ | GENERIC_WRITE :
+		    ((flags & O_WRONLY) ? GENERIC_WRITE : GENERIC_READ);
+		handle = CreateFileW(L"NUL", access, FILE_SHARE_READ | FILE_SHARE_WRITE,
+		    NULL, OPEN_EXISTING, 0, NULL);
+		if (handle == INVALID_HANDLE_VALUE) return pc_windows_errno(GetLastError());
+		fd = _open_osfhandle((intptr_t)handle,
+		    (flags & (O_RDONLY | O_WRONLY | O_RDWR)) | _O_BINARY | _O_NOINHERIT);
+		if (fd == -1) CloseHandle(handle);
+		return fd;
+	}
 	wide = pc_windows_path(path);
 	if (wide == NULL) return -1;
 	if (check_components(wide) == -1) { free(wide); return -1; }
 	access = (flags & O_RDWR) ? GENERIC_READ | GENERIC_WRITE :
 	    ((flags & O_WRONLY) ? GENERIC_WRITE : GENERIC_READ);
 	creation = (flags & O_CREAT) ? ((flags & O_EXCL) ? CREATE_NEW : OPEN_ALWAYS) : OPEN_EXISTING;
-	attrs = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT;
+	/* A real directory HANDLE is needed by the core file walker and fstat. */
+	attrs = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS;
 	memset(&sa, 0, sizeof(sa)); sa.nLength = (DWORD)sizeof(sa);
 	if ((flags & O_CREAT) && !(mode & 0077)) {
 		if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(
@@ -528,6 +545,7 @@ pc_rmdir(const char *path)
 	int result;
 	if (wide == NULL) return -1;
 	if (check_components(wide) == -1) { free(wide); return -1; }
+	if (check_named(wide) == -1) { free(wide); return -1; }
 	result = RemoveDirectoryW(wide) ? 0 : pc_windows_errno(GetLastError());
 	free(wide); return result;
 }
@@ -547,14 +565,18 @@ pc_chdir(const char *path)
 char *
 pc_getcwd(char *buffer, size_t size)
 {
-	DWORD len = GetCurrentDirectoryW(0, NULL);
+	DWORD len = GetCurrentDirectoryW(0, NULL), got;
 	wchar_t *wide;
 	char *utf8;
 	size_t bytes;
 	if (len == 0) { pc_windows_errno(GetLastError()); return NULL; }
 	wide = malloc((size_t)len * sizeof(*wide));
 	if (wide == NULL) return NULL;
-	if (!GetCurrentDirectoryW(len, wide)) { pc_windows_errno(GetLastError()); free(wide); return NULL; }
+	got = GetCurrentDirectoryW(len, wide);
+	if (got == 0 || got >= len) {
+		if (got == 0) pc_windows_errno(GetLastError()); else errno = EAGAIN;
+		free(wide); return NULL;
+	}
 	utf8 = pc_windows_utf8(wide); free(wide);
 	if (utf8 == NULL) return NULL;
 	for (char *p = utf8; *p; p++) if (*p == '\\') *p = '/';
@@ -662,6 +684,54 @@ pc_futimes(int fd, const struct timeval times[2])
 		ts[i].tv_sec = (time_t)times[i].tv_sec; ts[i].tv_nsec = times[i].tv_usec * 1000;
 	}
 	return pc_futimens(fd, ts);
+}
+
+/* Reopen the same object for private positional I/O, never seek a shared fd. */
+ssize_t
+pc_pread(int fd, void *buffer, size_t size, pc_off_t offset)
+{
+	HANDLE original = (HANDLE)_get_osfhandle(fd), reader;
+	OVERLAPPED operation;
+	DWORD got = 0, error;
+	char byte;
+	int result = -1;
+
+	if (original == INVALID_HANDLE_VALUE) { errno = EBADF; return -1; }
+	if (offset < 0) { errno = EINVAL; return -1; }
+	if (size != 0 && buffer == NULL) { errno = EFAULT; return -1; }
+	if (GetFileType(original) != FILE_TYPE_DISK) { errno = ESPIPE; return -1; }
+	/* ReOpenFile may request additional rights; require the supplied handle
+	 * itself to be readable before opening the private I/O handle. */
+	if (!ReadFile(original, &byte, 0, &got, NULL) &&
+	    GetLastError() != ERROR_HANDLE_EOF)
+		return pc_windows_errno(GetLastError());
+	if (size == 0) return 0;
+	reader = ReOpenFile(original, GENERIC_READ,
+	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+	    FILE_FLAG_OVERLAPPED | FILE_FLAG_OPEN_REPARSE_POINT);
+	if (reader == INVALID_HANDLE_VALUE) return pc_windows_errno(GetLastError());
+	memset(&operation, 0, sizeof(operation));
+	operation.Offset = (DWORD)((uint64_t)offset & UINT32_MAX);
+	operation.OffsetHigh = (DWORD)((uint64_t)offset >> 32);
+	operation.hEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+	if (operation.hEvent == NULL) {
+		pc_windows_errno(GetLastError()); CloseHandle(reader); return -1;
+	}
+	if (!ReadFile(reader, buffer, (DWORD)(size > INT_MAX ? INT_MAX : size),
+	    NULL, &operation)) {
+		error = GetLastError();
+		if (error == ERROR_HANDLE_EOF) { got = 0; result = 0; }
+		else if (error != ERROR_IO_PENDING) pc_windows_errno(error);
+		else if (GetOverlappedResult(reader, &operation, &got, TRUE)) result = 0;
+		else {
+			error = GetLastError();
+			if (error == ERROR_HANDLE_EOF) { got = 0; result = 0; }
+			else pc_windows_errno(error);
+		}
+	} else if (GetOverlappedResult(reader, &operation, &got, TRUE)) result = 0;
+	else pc_windows_errno(GetLastError());
+	CloseHandle(operation.hEvent); CloseHandle(reader);
+	return result == 0 ? (ssize_t)got : -1;
 }
 
 pc_off_t pc_lseek(int fd, pc_off_t offset, int origin) { return _lseeki64(fd, offset, origin); }

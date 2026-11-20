@@ -17,6 +17,7 @@
  */
 #ifndef PC_CONFIG_H
 #define PC_CONFIG_H
+#cmakedefine PC_HAVE_STRUCT_TIMESPEC 1
 #cmakedefine PC_HAVE_STRLCPY 1
 #cmakedefine PC_HAVE_STRLCAT 1
 #cmakedefine PC_HAVE_STRTONUM 1
@@ -25,5 +26,10 @@
 #cmakedefine PC_HAVE_ASPRINTF 1
 #cmakedefine PC_HAVE_VASPRINTF 1
 #cmakedefine PC_HAVE_FNMATCH 1
+#cmakedefine PC_HAVE_FNM_CASEFOLD 1
+#cmakedefine PC_HAVE_FGETLN 1
+#cmakedefine PC_HAVE_BSD_GETOPT 1
+#cmakedefine PC_HAVE_SYS_QUEUE_H 1
+#cmakedefine PC_HAVE_SYS_TREE_H 1
 #cmakedefine PC_HAVE_REGEX 1
 #endif

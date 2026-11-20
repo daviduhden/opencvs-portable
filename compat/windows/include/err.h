@@ -17,14 +17,19 @@
  */
 #ifndef OPENCVS_WINDOWS_ERR_H
 #define OPENCVS_WINDOWS_ERR_H
+#if defined(__MINGW32__)
+#define PC_ERR_FORMAT gnu_printf
+#else
+#define PC_ERR_FORMAT printf
+#endif
 #ifdef _MSC_VER
 __declspec(noreturn)
 #else
-__attribute__((noreturn, format(printf, 2, 3)))
+__attribute__((noreturn, format(PC_ERR_FORMAT, 2, 3)))
 #endif
 void pc_errx(int, const char *, ...);
 #ifndef _MSC_VER
-__attribute__((format(printf, 1, 2)))
+__attribute__((format(PC_ERR_FORMAT, 1, 2)))
 #endif
 void pc_warnx(const char *, ...);
 #define errx pc_errx

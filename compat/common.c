@@ -19,6 +19,7 @@
 #include "portable.h"
 #include "pc_process.h"
 #include <ctype.h>
+#include <fcntl.h>
 #undef fclose
 
 char *pc_progname = "opencvs";
@@ -100,7 +101,38 @@ asprintf(char **out, const char *fmt, ...)
 }
 #endif
 
-/* Each stream owns its buffer until the next fgetln or its fclose. */
+/* Retain the descriptor anchor on POSIX; Win32 validates native path handles. */
+DIR *
+pc_directory_open(int fd, const char *path)
+{
+#ifdef _WIN32
+	(void)fd;
+	return opendir(path);
+#else
+	DIR *directory;
+	int duplicate, saved;
+	(void)path;
+	duplicate = dup(fd);
+	if (duplicate == -1)
+		return NULL;
+	if (fcntl(duplicate, F_SETFD, FD_CLOEXEC) == -1) {
+		saved = errno;
+		close(duplicate);
+		errno = saved;
+		return NULL;
+	}
+	directory = fdopendir(duplicate);
+	if (directory == NULL) {
+		saved = errno;
+		close(duplicate);
+		errno = saved;
+	} else
+		rewinddir(directory);
+	return directory;
+#endif
+}
+
+/* Each fallback stream owns its buffer until the next fgetln or fclose. */
 struct line_buffer {
 	FILE *stream;
 	char *data;
@@ -112,6 +144,9 @@ static struct line_buffer *line_buffers;
 char *
 pc_fgetln(FILE *stream, size_t *length)
 {
+#ifdef PC_HAVE_FGETLN
+	return fgetln(stream, length);
+#else
 	struct line_buffer *line;
 	size_t used = 0, capacity;
 	int ch;
@@ -146,6 +181,7 @@ pc_fgetln(FILE *stream, size_t *length)
 	}
 	*length = used;
 	return used ? line->data : NULL;
+#endif
 }
 
 int
@@ -288,30 +324,93 @@ pc_strip_slash(char *path)
 	}
 }
 
-/* Only CVS metadata and protocol text lines use these CRLF adapters. */
+/* Only CVS metadata and protocol text use these adapters; file bytes do not. */
+#define PC_METADATA_LIMIT (16U * 1024U * 1024U)
+static void (*metadata_error_handler)(const char *);
+
+void
+pc_set_metadata_error_handler(void (*handler)(const char *))
+{
+	metadata_error_handler = handler;
+}
+
+static PC_NORETURN void
+metadata_error(const char *reason)
+{
+	if (metadata_error_handler != NULL)
+		metadata_error_handler(reason);
+	fprintf(stderr, "%s: invalid CVS metadata: %s\n", pc_progname, reason);
+	exit(EXIT_FAILURE);
+}
+
 char *
 pc_metadata_getln(FILE *stream, size_t *length)
 {
-	char *line = pc_fgetln(stream, length);
-	if (line != NULL && *length >= 2 && line[*length - 2] == '\r' &&
-	    line[*length - 1] == '\n') {
-		line[*length - 2] = '\n';
-		(*length)--;
+	size_t used = 0, capacity;
+	int ch;
+	char *next;
+	struct line_buffer *line;
+	for (line = line_buffers; line != NULL; line = line->next)
+		if (line->stream == stream)
+			break;
+	if (line == NULL) {
+		line = calloc(1, sizeof(*line));
+		if (line == NULL)
+			metadata_error("allocation failure");
+		line->stream = stream;
+		line->next = line_buffers;
+		line_buffers = line;
 	}
-	return line;
+	while ((ch = getc(stream)) != EOF) {
+		if (ch == 0)
+			metadata_error("embedded NUL");
+		if (used == PC_METADATA_LIMIT)
+			metadata_error("line exceeds 16 MiB");
+		if (used == line->capacity) {
+			capacity = line->capacity ? line->capacity * 2 : 256;
+			next = realloc(line->data, capacity);
+			if (next == NULL)
+				metadata_error("allocation failure");
+			line->data = next;
+			line->capacity = capacity;
+		}
+		line->data[used++] = (char)ch;
+		if (ch == '\n')
+			break;
+	}
+	if (ferror(stream))
+		metadata_error("read error");
+	if (used >= 2 && line->data[used - 2] == '\r' &&
+	    line->data[used - 1] == '\n') {
+		line->data[used - 2] = '\n';
+		used--;
+	}
+	*length = used;
+	return used ? line->data : NULL;
 }
 
 char *
 pc_metadata_fgets(char *line, int capacity, FILE *stream)
 {
-	char *result = fgets(line, capacity, stream);
-	size_t length;
-	if (result == NULL)
-		return NULL;
-	length = strlen(line);
-	if (length >= 2 && line[length - 2] == '\r' && line[length - 1] == '\n') {
-		line[length - 2] = '\n';
-		line[length - 1] = '\0';
+	size_t used = 0;
+	int ch;
+	if (capacity < 2)
+		metadata_error("invalid line buffer capacity");
+	while ((ch = getc(stream)) != EOF) {
+		if (ch == 0)
+			metadata_error("embedded NUL");
+		if (used == (size_t)capacity - 1)
+			metadata_error("administrative line exceeds buffer capacity");
+		line[used++] = (char)ch;
+		if (ch == '\n')
+			break;
 	}
-	return result;
+	if (ferror(stream))
+		metadata_error("read error");
+	if (used == 0)
+		return NULL;
+	if (used >= 2 && line[used - 2] == '\r' && line[used - 1] == '\n')
+		line[--used - 1] = '\n';
+	line[used] = '\0';
+	return line;
 }

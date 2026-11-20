@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: fatal.c,v 1.14 2008/06/12 03:54:43 joris Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
@@ -52,6 +69,7 @@ fatal(const char *fmt,...)
 		va_end(args);
 	}
 
+	cvs_cleanup_failed = 1;
 	if (current_cvsroot != NULL)
 		cvs_cleanup();
 

@@ -43,7 +43,7 @@ pc_getenv(const char *name)
 	wchar_t *wide_name = pc_windows_utf16(name), *wide_value;
 	struct environment_value *entry;
 	char *utf8;
-	DWORD len, got;
+	DWORD len, got, error;
 	if (wide_name == NULL) return NULL;
 	SetLastError(ERROR_SUCCESS);
 	len = GetEnvironmentVariableW(wide_name, NULL, 0);
@@ -52,9 +52,14 @@ pc_getenv(const char *name)
 	}
 	wide_value = calloc((size_t)len + 1, sizeof(*wide_value));
 	if (wide_value == NULL) { free(wide_name); return NULL; }
+	SetLastError(ERROR_SUCCESS);
 	got = GetEnvironmentVariableW(wide_name, wide_value, len + 1);
+	error = GetLastError();
 	free(wide_name);
-	if (got > len) { free(wide_value); errno = EAGAIN; return NULL; }
+	if (got > len || (got == 0 && error != ERROR_SUCCESS)) {
+		if (got > len) errno = EAGAIN; else pc_windows_errno(error);
+		free(wide_value); return NULL;
+	}
 	utf8 = pc_windows_utf8(wide_value); free(wide_value);
 	if (utf8 == NULL) return NULL;
 	for (entry = environment_values; entry != NULL; entry = entry->next)

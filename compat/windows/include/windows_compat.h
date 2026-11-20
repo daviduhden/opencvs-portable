@@ -38,6 +38,7 @@
 #include <time.h>
 #include <fcntl.h>
 #include <io.h>
+#include <process.h>
 #include <direct.h>
 #include <signal.h>
 #include <errno.h>
@@ -75,8 +76,7 @@ typedef unsigned short mode_t;
 typedef int pid_t;
 #endif
 #endif
-#ifndef _TIMESPEC_DEFINED
-#define _TIMESPEC_DEFINED
+#ifndef PC_HAVE_STRUCT_TIMESPEC
 struct timespec { time_t tv_sec; long tv_nsec; };
 #endif
 #ifndef _TIMEVAL_DEFINED
@@ -172,6 +172,10 @@ struct pc_stat {
 #ifndef MAXNAMLEN
 #define MAXNAMLEN NAME_MAX
 #endif
+/* POSIX minimum required by the imported BSD regular-expression parser. */
+#ifndef _POSIX2_RE_DUP_MAX
+#define _POSIX2_RE_DUP_MAX 255
+#endif
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 255
 #endif
@@ -187,6 +191,9 @@ wchar_t *pc_windows_path(const char *);
 int pc_windows_errno(DWORD);
 void pc_windows_startup(int *, char ***);
 char *pc_windows_tempdir(void);
+#ifdef _MSC_VER
+char *pc_strerror(int);
+#endif
 char *pc_strptime(const char *, const char *, struct tm *);
 int pc_open(const char *, int, ...);
 FILE *pc_fopen(const char *, const char *);
@@ -208,6 +215,7 @@ int pc_mkstemp(char *);
 int pc_futimes(int, const struct pc_timeval [2]);
 int pc_futimens(int, const struct timespec [2]);
 pc_off_t pc_lseek(int, pc_off_t, int);
+ssize_t pc_pread(int, void *, size_t, pc_off_t);
 ssize_t pc_read(int, void *, size_t);
 ssize_t pc_write(int, const void *, size_t);
 int pc_fsync(int);
@@ -248,8 +256,13 @@ time_t pc_timegm(struct tm *);
 #define futimes pc_futimes
 #define futimens pc_futimens
 #define lseek pc_lseek
+#define pread pc_pread
 #define read pc_read
 #define write pc_write
+#define getpid _getpid
+#ifdef _MSC_VER
+#define strerror pc_strerror
+#endif
 #define close _close
 #define dup _dup
 #define dup2 _dup2

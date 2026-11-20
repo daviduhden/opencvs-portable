@@ -29,18 +29,26 @@
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
+#include <dirent.h>
 #ifdef _WIN32
 #include "windows_compat.h"
 #else
 #include <sys/types.h>
 #include <unistd.h>
 #endif
-#ifndef __dead
 #ifdef _MSC_VER
-#define __dead __declspec(noreturn)
+#define PC_NORETURN __declspec(noreturn)
 #else
-#define __dead __attribute__((noreturn))
+#define PC_NORETURN __attribute__((noreturn))
 #endif
+#if defined(__GNUC__) || defined(__clang__)
+#if defined(__MINGW32__)
+#define PC_PRINTF(a, b) __attribute__((format(gnu_printf, a, b)))
+#else
+#define PC_PRINTF(a, b) __attribute__((format(printf, a, b)))
+#endif
+#else
+#define PC_PRINTF(a, b)
 #endif
 #if defined(_MSC_VER) && !defined(__clang__)
 #define PC_UNUSED
@@ -69,8 +77,15 @@
 #ifndef _DIAGASSERT
 #define _DIAGASSERT(expr) assert(expr)
 #endif
+#ifndef PC_HAVE_FNM_CASEFOLD
+#define fnmatch pc_fnmatch
+#endif
 #ifndef PATH_MAX
 #define PATH_MAX 4096
+#endif
+#ifndef MAXNAMLEN
+/* Pattern storage capacity in bytes, not an asserted filesystem limit. */
+#define MAXNAMLEN 4096
 #endif
 #ifndef SIZE_MAX
 #define SIZE_MAX ((size_t)-1)
@@ -102,13 +117,24 @@ void *reallocarray(void *, size_t, size_t);
 #ifndef PC_HAVE_STRSEP
 char *strsep(char **, const char *);
 #endif
-int asprintf(char **, const char *, ...);
-int vasprintf(char **, const char *, va_list);
+/* Namespace fallbacks when a native declaration is unavailable. */
+#ifndef PC_HAVE_ASPRINTF
+#define asprintf pc_asprintf
+#endif
+#ifndef PC_HAVE_VASPRINTF
+#define vasprintf pc_vasprintf
+#endif
+int asprintf(char **, const char *, ...) PC_PRINTF(2, 3);
+int vasprintf(char **, const char *, va_list) PC_PRINTF(2, 0);
 char *pc_fgetln(FILE *, size_t *);
 char *pc_metadata_getln(FILE *, size_t *);
 char *pc_metadata_fgets(char *, int, FILE *);
 int pc_fclose(FILE *);
+void pc_set_metadata_error_handler(void (*)(const char *));
+DIR *pc_directory_open(int, const char *);
+#ifndef PC_HAVE_FGETLN
 #define fgetln pc_fgetln
+#endif
 #define fclose pc_fclose
 extern char *pc_progname;
 #define __progname pc_progname
@@ -119,6 +145,7 @@ int pc_native_absolute(const char *);
 int pc_any_absolute(const char *);
 void pc_strip_slash(char *);
 /* Namespaced BSD getopt preserves optreset on every supported libc. */
+#ifndef PC_HAVE_BSD_GETOPT
 int pc_getopt(int, char *const *, const char *);
 extern char *pc_optarg;
 extern int pc_opterr, pc_optind, pc_optopt, pc_optreset;
@@ -130,4 +157,5 @@ extern int pc_opterr, pc_optind, pc_optopt, pc_optreset;
 #define optreset pc_optreset
 #define getopt_long pc_getopt_long
 #define getopt_long_only pc_getopt_long_only
+#endif
 #endif

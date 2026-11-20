@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: engine.c,v 1.26 2020/12/28 21:41:55 millert Exp $	*/
 
 /*-
@@ -95,7 +112,7 @@ static const char *slow(struct match *, const char *, const char *, sopno,
     sopno);
 static states step(struct re_guts *, sopno, sopno, states, int, states);
 #define MAX_RECURSION	100
-#define	BOL	(OUT+1)
+#define	BOL	(PC_REGEX_OUT+1)
 #define	EOL	(BOL+1)
 #define	BOLEOL	(BOL+2)
 #define	NOTHING	(BOL+3)
@@ -685,7 +702,7 @@ fast(struct match *m, const char *start, const char *stop, sopno startst,
 	const char *coldp;	/* last p after which no match was underway */
 
 	if (start == m->offp || (start == m->beginp && !(m->eflags&REG_NOTBOL)))
-		c = OUT;
+		c = PC_REGEX_OUT;
 	else
 		c = *(start-1);
 
@@ -698,7 +715,7 @@ fast(struct match *m, const char *start, const char *stop, sopno startst,
 	for (;;) {
 		/* next character */
 		lastc = c;
-		c = (p == m->endp) ? OUT : *p;
+		c = (p == m->endp) ? PC_REGEX_OUT : *p;
 		if (EQ(st, fresh))
 			coldp = p;
 
@@ -706,12 +723,12 @@ fast(struct match *m, const char *start, const char *stop, sopno startst,
 		flagch = '\0';
 		i = 0;
 		if ((lastc == '\n' && m->g->cflags&REG_NEWLINE) ||
-		    (lastc == OUT && !(m->eflags&REG_NOTBOL))) {
+		    (lastc == PC_REGEX_OUT && !(m->eflags&REG_NOTBOL))) {
 			flagch = BOL;
 			i = m->g->nbol;
 		}
 		if ((c == '\n' && m->g->cflags&REG_NEWLINE) ||
-		    (c == OUT && !(m->eflags&REG_NOTEOL)) ) {
+		    (c == PC_REGEX_OUT && !(m->eflags&REG_NOTEOL)) ) {
 			flagch = (flagch == BOL) ? BOLEOL : EOL;
 			i += m->g->neol;
 		}
@@ -723,11 +740,11 @@ fast(struct match *m, const char *start, const char *stop, sopno startst,
 		}
 
 		/* how about a word boundary? */
-		if ((flagch == BOL || (lastc != OUT && !ISWORD(lastc))) &&
-		    (c != OUT && ISWORD(c)))
+		if ((flagch == BOL || (lastc != PC_REGEX_OUT && !ISWORD(lastc))) &&
+		    (c != PC_REGEX_OUT && ISWORD(c)))
 			flagch = BOW;
-		if ((lastc != OUT && ISWORD(lastc)) &&
-		    (flagch == EOL || (c != OUT && !ISWORD(c))))
+		if ((lastc != PC_REGEX_OUT && ISWORD(lastc)) &&
+		    (flagch == EOL || (c != PC_REGEX_OUT && !ISWORD(c))))
 			flagch = EOW;
 		if (flagch == BOW || flagch == EOW) {
 			st = step(m->g, startst, stopst, st, flagch, st);
@@ -741,7 +758,7 @@ fast(struct match *m, const char *start, const char *stop, sopno startst,
 		/* no, we must deal with this character */
 		ASSIGN(tmp, st);
 		ASSIGN(st, fresh);
-		assert(c != OUT);
+		assert(c != PC_REGEX_OUT);
 		st = step(m->g, startst, stopst, tmp, c, st);
 		SP("aft", st, c);
 		assert(EQ(step(m->g, startst, stopst, st, NOTHING, st), st));
@@ -774,7 +791,7 @@ slow(struct match *m, const char *start, const char *stop, sopno startst,
 	const char *matchp;	/* last p at which a match ended */
 
 	if (start == m->offp || (start == m->beginp && !(m->eflags&REG_NOTBOL)))
-		c = OUT;
+		c = PC_REGEX_OUT;
 	else
 		c = *(start-1);
 
@@ -787,18 +804,18 @@ slow(struct match *m, const char *start, const char *stop, sopno startst,
 	for (;;) {
 		/* next character */
 		lastc = c;
-		c = (p == m->endp) ? OUT : *p;
+		c = (p == m->endp) ? PC_REGEX_OUT : *p;
 
 		/* is there an EOL and/or BOL between lastc and c? */
 		flagch = '\0';
 		i = 0;
 		if ((lastc == '\n' && m->g->cflags&REG_NEWLINE) ||
-		    (lastc == OUT && !(m->eflags&REG_NOTBOL))) {
+		    (lastc == PC_REGEX_OUT && !(m->eflags&REG_NOTBOL))) {
 			flagch = BOL;
 			i = m->g->nbol;
 		}
 		if ((c == '\n' && m->g->cflags&REG_NEWLINE) ||
-		    (c == OUT && !(m->eflags&REG_NOTEOL))) {
+		    (c == PC_REGEX_OUT && !(m->eflags&REG_NOTEOL))) {
 			flagch = (flagch == BOL) ? BOLEOL : EOL;
 			i += m->g->neol;
 		}
@@ -810,11 +827,11 @@ slow(struct match *m, const char *start, const char *stop, sopno startst,
 		}
 
 		/* how about a word boundary? */
-		if ((flagch == BOL || (lastc != OUT && !ISWORD(lastc))) &&
-		    (c != OUT && ISWORD(c)))
+		if ((flagch == BOL || (lastc != PC_REGEX_OUT && !ISWORD(lastc))) &&
+		    (c != PC_REGEX_OUT && ISWORD(c)))
 			flagch = BOW;
-		if ((lastc != OUT && ISWORD(lastc)) &&
-		    (flagch == EOL || (c != OUT && !ISWORD(c))))
+		if ((lastc != PC_REGEX_OUT && ISWORD(lastc)) &&
+		    (flagch == EOL || (c != PC_REGEX_OUT && !ISWORD(c))))
 			flagch = EOW;
 		if (flagch == BOW || flagch == EOW) {
 			st = step(m->g, startst, stopst, st, flagch, st);
@@ -830,7 +847,7 @@ slow(struct match *m, const char *start, const char *stop, sopno startst,
 		/* no, we must deal with this character */
 		ASSIGN(tmp, st);
 		ASSIGN(st, empty);
-		assert(c != OUT);
+		assert(c != PC_REGEX_OUT);
 		st = step(m->g, startst, stopst, tmp, c, st);
 		SP("saft", st, c);
 		assert(EQ(step(m->g, startst, stopst, st, NOTHING, st), st));
@@ -1002,8 +1019,8 @@ at(struct match *m, const char *title, const char *start, const char *stop,
 static const char *nonchars[] =
     { "OUT", "BOL", "EOL", "BOLEOL", "NOTHING", "BOW", "EOW" };
 #define	PNONCHAR(c)						\
-	((c) - OUT < (sizeof(nonchars)/sizeof(nonchars[0]))	\
-	    ? nonchars[(c) - OUT] : "invalid")
+	((c) - PC_REGEX_OUT < (sizeof(nonchars)/sizeof(nonchars[0]))	\
+	    ? nonchars[(c) - PC_REGEX_OUT] : "invalid")
 
 /*
  - pchar - make a character printable
@@ -1019,8 +1036,8 @@ pchar(int ch)
 	static char pbuf[10];
 
 	if (NONCHAR(ch)) {
-		if (ch - OUT < (sizeof(nonchars)/sizeof(nonchars[0])))
-			return nonchars[ch - OUT];
+		if (ch - PC_REGEX_OUT < (sizeof(nonchars)/sizeof(nonchars[0])))
+			return nonchars[ch - PC_REGEX_OUT];
 		return "invalid";
 	}
 	if (isprint((unsigned char)ch) || ch == ' ')

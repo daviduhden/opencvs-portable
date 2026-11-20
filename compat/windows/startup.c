@@ -69,15 +69,11 @@ pc_windows_startup(int *argc, char ***argv)
 	}
 	LocalFree(wide);
 	if (pc_getenv("TMPDIR") == NULL) {
-		DWORD length = GetTempPathW(0, NULL);
-		wchar_t *temp = malloc(((size_t)length + 1) * sizeof(*temp));
-		char *path;
-		if (temp == NULL || length == 0 || GetTempPathW(length + 1, temp) == 0) {
-			free(temp); exit(EXIT_FAILURE);
+		char *path = pc_windows_tempdir();
+		if (path == NULL || pc_setenv("TMPDIR", path, 0) == -1) {
+			fputs("opencvs: cannot initialize native temporary directory\n", stderr);
+			exit(EXIT_FAILURE);
 		}
-		path = pc_windows_utf8(temp); free(temp);
-		if (path == NULL || pc_setenv("TMPDIR", path, 0) == -1) { free(path); exit(EXIT_FAILURE); }
-		free(path);
 	}
 	*argc = count; *argv = utf8;
 	if (GetConsoleCP() != 0 && !SetConsoleCtrlHandler(console_control, TRUE)) {
@@ -98,7 +94,10 @@ pc_windows_tempdir(void)
 	wide = malloc(((size_t)len + 1) * sizeof(*wide));
 	if (wide == NULL) return NULL;
 	got = GetTempPathW(len + 1, wide);
-	if (got == 0 || got > len) { pc_windows_errno(GetLastError()); free(wide); return NULL; }
+	if (got == 0 || got > len) {
+		if (got == 0) pc_windows_errno(GetLastError()); else errno = EAGAIN;
+		free(wide); return NULL;
+	}
 	directory = pc_windows_utf8(wide); free(wide);
 	if (directory != NULL) for (char *p = directory; *p; p++) if (*p == '\\') *p = '/';
 	return directory;

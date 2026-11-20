@@ -43,3 +43,14 @@ pc_errx(int status, const char *format, ...)
 	va_start(ap, format); message(format, ap); va_end(ap);
 	exit(status);
 }
+
+#ifdef _MSC_VER
+char *
+pc_strerror(int number)
+{
+	static __declspec(thread) char text[256];
+	if (strerror_s(text, sizeof(text), number) != 0)
+		(void)snprintf(text, sizeof(text), "Unknown error %d", number);
+	return text;
+}
+#endif

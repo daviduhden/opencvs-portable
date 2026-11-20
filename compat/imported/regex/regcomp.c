@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: regcomp.c,v 1.44 2022/12/27 17:10:06 jmc Exp $ */
 /*-
  * Copyright (c) 1992, 1993, 1994 Henry Spencer.
@@ -201,11 +218,11 @@ regcomp(regex_t *preg, const char *pattern, int cflags)
 	EMIT(OEND, 0);
 	g->firststate = THERE();
 	if (cflags&REG_EXTENDED)
-		p_ere(p, OUT);
+		p_ere(p, PC_REGEX_OUT);
 	else if (cflags&REG_NOSPEC)
 		p_str(p);
 	else
-		p_bre(p, OUT, OUT);
+		p_bre(p, PC_REGEX_OUT, PC_REGEX_OUT);
 	EMIT(OEND, 0);
 	g->laststate = THERE();
 
