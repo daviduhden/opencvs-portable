@@ -53,7 +53,7 @@ static wchar_t *
 find_program(const char *program)
 {
 	wchar_t *wide = pc_windows_utf16(program), *path, *full;
-	DWORD len, found;
+	DWORD len, found, error;
 	if (wide == NULL) return NULL;
 	if (wcschr(wide, L'/') || wcschr(wide, L'\\') || wcschr(wide, L':')) {
 		free(wide); return pc_windows_path(program);
@@ -62,19 +62,26 @@ find_program(const char *program)
 	if (len == 0) { free(wide); errno = ENOENT; return NULL; }
 	path = malloc((size_t)len * sizeof(*path));
 	if (path == NULL) { free(wide); return NULL; }
-	if (!GetEnvironmentVariableW(L"PATH", path, len)) {
-		pc_windows_errno(GetLastError()); free(path); free(wide); return NULL;
+	found = GetEnvironmentVariableW(L"PATH", path, len);
+	if (found == 0 || found >= len) {
+		if (found == 0) pc_windows_errno(GetLastError()); else errno = EAGAIN;
+		free(path); free(wide); return NULL;
 	}
 	/* An explicit PATH avoids CreateProcess's implicit current-directory search. */
 	len = SearchPathW(path, wide, L".exe", 0, NULL, NULL);
 	if (len == 0 || len >= PC_COMMAND_LIMIT) {
-		pc_windows_errno(GetLastError()); free(path); free(wide); return NULL;
+		if (len == 0) pc_windows_errno(GetLastError()); else errno = ENAMETOOLONG;
+		free(path); free(wide); return NULL;
 	}
 	full = malloc(((size_t)len + 1) * sizeof(*full));
 	if (full == NULL) { free(path); free(wide); return NULL; }
 	found = SearchPathW(path, wide, L".exe", len + 1, full, NULL);
+	error = GetLastError();
 	free(path); free(wide);
-	if (found == 0 || found > len) { pc_windows_errno(GetLastError()); free(full); return NULL; }
+	if (found == 0 || found > len) {
+		if (found == 0) pc_windows_errno(error); else errno = EAGAIN;
+		free(full); return NULL;
+	}
 	return full;
 }
 
@@ -113,7 +120,8 @@ pc_spawn(pc_process *child, const char *const argv[], int input, int output,
 	size_t used = 0, i;
 	int result = -1, saved_errno;
 	BOOL initialized = FALSE;
-	if (child == NULL || argv == NULL || argv[0] == NULL || argv[0][0] == '\0') {
+	if (child == NULL || argv == NULL || argv[0] == NULL || argv[0][0] == '\0' ||
+	    input < -1 || output < -1 || error < -1) {
 		errno = EINVAL; return -1;
 	}
 	child->handle = 0;
@@ -171,7 +179,7 @@ pc_wait(pc_process *child, int *exit_code)
 {
 	HANDLE handle;
 	DWORD code;
-	if (child == NULL || child->handle == 0 || exit_code == NULL) { errno = EINVAL; return -1; }
+	if (child == NULL || (child->handle == 0 || child->handle == -1) || exit_code == NULL) { errno = EINVAL; return -1; }
 	handle = (HANDLE)child->handle;
 	if (WaitForSingleObject(handle, INFINITE) != WAIT_OBJECT_0 ||
 	    !GetExitCodeProcess(handle, &code)) return pc_windows_errno(GetLastError());
