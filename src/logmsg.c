@@ -119,6 +119,8 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 	struct stat st1, st2;
 	char *fpath, *logmsg, repo[PATH_MAX];
 	char *f, path[PATH_MAX];
+	unsigned char block[65536];
+	size_t count;
 	struct stat st;
 	struct trigger_list *line_list;
 	struct trigger_line *line;
@@ -146,6 +148,7 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 	else
 		fputc('\n', fp);
 
+	cvs_get_repository_name(dir != NULL ? dir : ".", repo, sizeof(repo));
 	line_list = cvs_trigger_getlines(CVS_PATH_RCSINFO, repo);
 	if (line_list != NULL) {
 		TAILQ_FOREACH(line, line_list, flist) {
@@ -161,14 +164,17 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 			if ((rp = fdopen(rd, "r")) == NULL)
 				fatal("cvs_logmsg_create: fdopen %s",
 				    strerror(errno));
-			if ((uintmax_t)st.st_size > SIZE_MAX)
-				fatal("cvs_logmsg_create: %s: file size "
-				    "too big", line->line);
-			logmsg = xmalloc(st.st_size);
-			fread(logmsg, st.st_size, 1, rp);
-			fwrite(logmsg, st.st_size, 1, fp);
-			free(logmsg);
-			(void)fclose(rp);
+			/* Stream templates: stat sizes can become stale while reading. */
+			while ((count = fread(block, 1, sizeof(block), rp)) != 0)
+				if (fwrite(block, 1, count, fp) != count)
+					fatal("cvs_logmsg_create: template write: %s",
+					    strerror(errno));
+			if (ferror(rp))
+				fatal("cvs_logmsg_create: template read: %s",
+				    strerror(errno));
+			if (fclose(rp) == EOF)
+				fatal("cvs_logmsg_create: template close: %s",
+				    strerror(errno));
 		}
 		cvs_trigger_freelist(line_list);
 	}
@@ -228,7 +234,8 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 	}
 
 	fprintf(fp, "%s %s\n", CVS_LOGMSG_PREFIX, CVS_LOGMSG_LINE);
-	(void)fflush(fp);
+	if (fflush(fp) == EOF)
+		fatal("cvs_logmsg_create: flush: %s", strerror(errno));
 
 	if (fstat(fd, &st1) == -1) {
 		saved_errno = errno;
@@ -239,8 +246,8 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 	logmsg = NULL;
 
 	for (;;) {
-		if (cvs_logmsg_edit(fpath) == -1)
-			break;
+		if (cvs_logmsg_edit(fpath) != 0)
+			fatal("log message editor failed; commit aborted");
 
 		if (fstat(fd, &st2) == -1) {
 			saved_errno = errno;
@@ -314,6 +321,7 @@ cvs_logmsg_edit(const char *pathname)
 int
 cvs_logmsg_verify(char *logmsg)
 {
+	(void)logmsg;
 	int fd, ret = 0;
 	char *fpath;
 	struct trigger_list *line_list;

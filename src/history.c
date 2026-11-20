@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: history.c,v 1.46 2024/05/21 05:00:48 jsg Exp $	*/
 /*
  * Copyright (c) 2007 Joris Vink <joris@openbsd.org>
@@ -68,13 +85,16 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 	RCSNUM *hrev;
 	size_t len;
 	int fd;
-	char *cwd, *p, *rev;
+	char *cwd, *p, *rev, *login;
+	struct passwd *password;
 	char revbuf[CVS_REV_BUFSZ], repo[PATH_MAX], fpath[PATH_MAX];
 	char timebuf[CVS_TIME_BUFSZ];
 	struct tm datetm;
 
 	if (cvs_nolog == 1)
 		return;
+	if (type < 0 || (size_t)type >= sizeof(historytab) - 1)
+		fatal("history: invalid event type");
 
 	if (cvs_cmdop == CVS_OP_CHECKOUT || cvs_cmdop == CVS_OP_EXPORT) {
 		if (type != CVS_HISTORY_CHECKOUT &&
@@ -83,7 +103,8 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 	}
 
 	cvs_log(LP_TRACE, "cvs_history_add(`%c', `%s', `%s')",
-	    historytab[type], (cf != NULL) ? cf->file_name : "", argument);
+	    historytab[type], (cf != NULL) ? cf->file_name : "",
+	    argument != NULL ? argument : "");
 
 	/* construct repository field */
 	if (cvs_cmdop != CVS_OP_CHECKOUT && cvs_cmdop != CVS_OP_EXPORT) {
@@ -168,9 +189,20 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 			cvs_log(LP_ERR, "failed to open history file");
 	} else {
 		if ((fp = fdopen(fd, "a")) != NULL) {
+#ifdef _WIN32
+			login = NULL;
+#else
+			login = getlogin();
+#endif
+			if (login == NULL) {
+				password = getpwuid(getuid());
+				if (password == NULL)
+					fatal("history: cannot determine account name");
+				login = password->pw_name;
+			}
 			fprintf(fp, "%c%08llx|%s|%s|%s|%s|%s\n",
 			    historytab[type], (long long)time(NULL),
-			    getlogin(), cwd, repo, rev,
+			    login, cwd, repo, rev,
 			    (cf != NULL) ? cf->file_name : argument);
 			(void)fclose(fp);
 		} else {
@@ -188,54 +220,42 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 static void
 history_compress(char *wdir, const char *repo)
 {
-	char *p;
-	const char *q;
-	size_t repo_len, wdir_len;
+	char offset[2 * sizeof(size_t) + 2];
+	size_t repo_len, wdir_len, common;
+	int count;
 
 	repo_len = strlen(repo);
 	wdir_len = strlen(wdir);
-
-	p = wdir + wdir_len;
-	q = repo + repo_len;
-
-	while (p >= wdir && q >= repo) {
-		if (*p != *q)
-			break;
-		p--;
-		q--;
-	}
-	p++;
-	q++;
-
-	/* if it's not worth the effort, skip compression */
-	if (repo + repo_len - q < 3)
+	common = 0;
+	while (common < wdir_len && common < repo_len &&
+	    wdir[wdir_len - common - 1] == repo[repo_len - common - 1])
+		common++;
+	if (common < 3)
 		return;
-
-	(void)xsnprintf(p, strlen(p) + 1, "*%zx", q - repo);
+	count = snprintf(offset, sizeof(offset), "*%zx", repo_len - common);
+	if (count < 0 || (size_t)count >= sizeof(offset) ||
+	    (size_t)count >= common)
+		return;
+	memcpy(wdir + wdir_len - common, offset, (size_t)count + 1);
 }
 
 int
 cvs_history(int argc, char **argv)
 {
-	int ch, flags;
-
-	flags = 0;
+	int ch;
 
 	while ((ch = getopt(argc, argv, cvs_cmd_history.cmd_opts)) != -1) {
 		switch (ch) {
 		case 'a':
-			flags |= HISTORY_ALL_USERS;
 			break;
 		case 'c':
-			flags |= HISTORY_DISPLAY_ARCHIVED;
 			break;
 		default:
 			fatal("%s", cvs_cmd_history.cmd_synopsis);
 		}
 	}
 
-	argc -= optind;
-	argv += optind;
-
-	return (0);
+	/* Upstream has no history-report implementation; never report false success. */
+	cvs_log(LP_ERR, "history reporting is not implemented");
+	return (1);
 }
