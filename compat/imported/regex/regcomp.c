@@ -257,10 +257,9 @@ static void
 p_ere(struct parse *p, int stop)	/* character this ERE should end at */
 {
 	char c;
-	sopno prevback;
-	sopno prevfwd;
+	sopno prevback = -1;
+	sopno prevfwd = -1;
 	sopno conc;
-	int first = 1;		/* is this the first alternative? */
 
 	for (;;) {
 		/* do a bunch of concatenated expressions */
@@ -272,11 +271,10 @@ p_ere(struct parse *p, int stop)	/* character this ERE should end at */
 		if (!EAT('|'))
 			break;		/* NOTE BREAK OUT */
 
-		if (first) {
+		if (prevfwd == -1) {
 			INSERT(OCH_, conc);	/* offset is wrong */
 			prevfwd = conc;
 			prevback = conc;
-			first = 0;
 		}
 		ASTERN(OOR1, prevback);
 		prevback = THERE();
@@ -285,7 +283,7 @@ p_ere(struct parse *p, int stop)	/* character this ERE should end at */
 		EMIT(OOR2, 0);			/* offset is very wrong */
 	}
 
-	if (!first) {		/* tail-end fixups */
+	if (prevfwd != -1) {	/* tail-end fixups */
 		AHEAD(prevfwd);
 		ASTERN(O_CH, prevback);
 	}
