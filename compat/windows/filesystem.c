@@ -238,7 +238,15 @@ check_handle(HANDLE handle, const wchar_t *expected)
 		search = FindFirstFileW(expected, &entry);
 		if (search == INVALID_HANDLE_VALUE) return pc_windows_errno(GetLastError());
 		FindClose(search);
-		if (wcscmp(entry.cFileName, base)) { errno = EEXIST; return -1; }
+		if (wcscmp(entry.cFileName, base)) {
+			/* Native environment paths may name a directory by its verified
+			 * 8.3 alias (for example RUNNER~1). Never allow file aliases. */
+			if (!(info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
+			    entry.cAlternateFileName[0] == L'\0' ||
+			    CompareStringOrdinal(entry.cAlternateFileName, -1, base, -1, TRUE) != CSTR_EQUAL) {
+				errno = EEXIST; return -1;
+			}
+		}
 	}
 	return 0;
 }
