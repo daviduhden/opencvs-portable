@@ -760,7 +760,8 @@ test_case interop => opencvs_client_gnu_server_wire => sub {
     };
     if (!$checkout_ok) {
         my $error = $@;
-        my $incoming = $wire_log . '-0.in';
+        # cvs_remote_input records server output in the .out log.
+        my $incoming = $wire_log . '-0.out';
         if (-f $incoming) {
             my $traffic = read_bytes($incoming);
             my @lines = split /\n/, $traffic;

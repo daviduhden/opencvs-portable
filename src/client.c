@@ -238,8 +238,18 @@ client_repository_relative(const char *path)
 	    current_cvsroot->cr_dir == NULL)
 		fatal("server response lacks a repository root");
 	root_length = strlen(current_cvsroot->cr_dir);
+	if (root_length == 0)
+		fatal("server response lacks a repository root");
+
+	/* GNU CVS also sends repository names relative to the selected root. */
+	if (!pc_any_absolute(path)) {
+		client_check_relative(path);
+		if (strcmp(path, ".") == 0 || strcmp(path, "./") == 0)
+			return path + strlen(path);
+		return path;
+	}
 	length = strlen(path);
-	if (root_length == 0 || length < root_length ||
+	if (length < root_length ||
 	    strncmp(path, current_cvsroot->cr_dir, root_length) != 0)
 		fatal("server repository path is outside the selected root");
 	relative = path + root_length;
