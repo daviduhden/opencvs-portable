@@ -100,12 +100,19 @@ cvs_ent_open(const char *dir)
 {
 	FILE *fp;
 	CVSENTRIES *ep;
-	char *p, buf[PATH_MAX];
+	char *p, buf[PATH_MAX], cwd[PATH_MAX], absolute[PATH_MAX];
 	struct cvs_ent *ent;
 	struct cvs_ent_line *line;
 
 	cvs_log(LP_TRACE, "cvs_ent_open(%s)", dir);
 
+	/* Cached entries can be flushed after a server command changes cwd. */
+	if (!pc_native_absolute(dir)) {
+		if (getcwd(cwd, sizeof(cwd)) == NULL)
+			fatal("cvs_ent_open: getcwd: %s", strerror(errno));
+		(void)xsnprintf(absolute, sizeof(absolute), "%s/%s", cwd, dir);
+		dir = absolute;
+	}
 	(void)xsnprintf(buf, sizeof(buf), "%s/%s", dir, CVS_PATH_ENTRIES);
 
 	if (current_list != NULL && !strcmp(current_list->cef_path, buf))

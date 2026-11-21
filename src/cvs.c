@@ -133,6 +133,9 @@ cvs_cleanup(void)
 	worklist_run(&temp_files, worklist_unlink);
 
 	if (cvs_server_path != NULL) {
+		/* The server working copy is private and is about to be deleted. */
+		if (current_list != NULL)
+			cvs_ent_close(current_list, ENT_NOSYNC);
 		if (cvs_rmdir(cvs_server_path) == -1)
 			cvs_log(LP_ERR,
 			    "warning: failed to remove server directory: %s",
