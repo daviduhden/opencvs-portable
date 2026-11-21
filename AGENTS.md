@@ -104,3 +104,8 @@ and retain diagnostics already emitted before cancellation.
 
 Record successful stages before failures. Keep dependency inspection separate
 from test outcomes when a native executable was successfully built.
+
+For resource lifetime failures, audit ownership across cwd changes and
+cleanup. Keep temporary server state distinct from persistent working-copy
+metadata. Use native failure stages to distinguish platform semantics from
+test fixture assumptions.

@@ -28,3 +28,7 @@ Validate a known-good archive fixture before interpreting its negative cases.
 Check real output files after commands that report success. For wire
 interoperability, verify the test transport's argument contract separately
 from protocol and repository failures.
+
+Record whether failures vary with destination existence, open handles, or
+cleanup order. Compare the smallest existing regression variants before
+making another platform-specific change.
