@@ -47,7 +47,8 @@ pc_windows_errno(DWORD error)
 	case ERROR_SHARING_VIOLATION: case ERROR_LOCK_VIOLATION: errno = EBUSY; break;
 	case ERROR_NOT_ENOUGH_MEMORY: case ERROR_OUTOFMEMORY: errno = ENOMEM; break;
 	case ERROR_INVALID_HANDLE: errno = EBADF; break;
-	case ERROR_INVALID_NAME: case ERROR_BAD_PATHNAME: errno = EINVAL; break;
+	case ERROR_INVALID_NAME: case ERROR_BAD_PATHNAME:
+	case ERROR_INVALID_PARAMETER: case ERROR_INVALID_FLAGS: errno = EINVAL; break;
 	case ERROR_FILENAME_EXCED_RANGE: errno = ENAMETOOLONG; break;
 	case ERROR_DIRECTORY: errno = ENOTDIR; break;
 	case ERROR_DIR_NOT_EMPTY: errno = ENOTEMPTY; break;
@@ -536,9 +537,8 @@ pc_rename(const char *from, const char *to)
 {
 	wchar_t *a = NULL, *b = NULL, *parent = NULL, *split;
 	FILE_RENAME_INFO *information = NULL;
-	BY_HANDLE_FILE_INFORMATION source_info;
 	HANDLE source = INVALID_HANDLE_VALUE, directory = INVALID_HANDLE_VALUE;
-	DWORD attrs, native_error = ERROR_SUCCESS, access;
+	DWORD attrs, native_error = ERROR_SUCCESS;
 	size_t name_bytes, information_bytes;
 	int result = -1, saved = 0, destination_absent = 0;
 	const char *stage = "source path";
@@ -560,7 +560,6 @@ pc_rename(const char *from, const char *to)
 	if (source == INVALID_HANDLE_VALUE) goto native_failure;
 	stage = "source identity validation";
 	if (check_handle(source, a) == -1) goto failed;
-	if (!GetFileInformationByHandle(source, &source_info)) goto native_failure;
 	stage = "destination identity validation";
 	attrs = GetFileAttributesW(b);
 	if (attrs != INVALID_FILE_ATTRIBUTES) {
@@ -578,28 +577,30 @@ pc_rename(const char *from, const char *to)
 	if (split == NULL || split[1] == L'\0') {
 		errno = EINVAL; SetLastError(ERROR_SUCCESS); goto failed;
 	}
-	name_bytes = wcslen(split + 1) * sizeof(wchar_t);
+	name_bytes = wcslen(b) * sizeof(wchar_t);
 	information_bytes = offsetof(FILE_RENAME_INFO, FileName) + name_bytes + sizeof(wchar_t);
 	if (information_bytes > UINT32_MAX) {
 		errno = EOVERFLOW; SetLastError(ERROR_SUCCESS); goto failed;
 	}
 	information = calloc(1, information_bytes);
 	if (information == NULL) { errno = ENOMEM; SetLastError(ERROR_SUCCESS); goto failed; }
-	memcpy(information->FileName, split + 1, name_bytes);
+	memcpy(information->FileName, b, name_bytes);
 	information->FileNameLength = (DWORD)name_bytes;
 	/* Keep the slash of a native drive root, but strip other trailing slashes. */
 	if (split == parent + 6 && parent[5] == L':') split[1] = L'\0';
 	else *split = L'\0';
-	access = FILE_READ_ATTRIBUTES | ((source_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ?
-	    FILE_ADD_SUBDIRECTORY : FILE_ADD_FILE);
 	stage = "destination parent handle";
-	directory = CreateFileW(parent, access,
+	directory = CreateFileW(parent, FILE_READ_ATTRIBUTES,
 	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
 	    FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (directory == INVALID_HANDLE_VALUE) goto native_failure;
 	stage = "destination parent identity validation";
 	if (check_handle(directory, parent) == -1) goto failed;
-	information->RootDirectory = directory;
+	/* The Win32 wrapper requires NULL here. A full extended DOS/UNC
+	 * target is accepted; a relative name with a parent handle returns 87.
+	 * The parent handle above validates identity, but does not make this
+	 * named destination immune to concurrent ancestor replacement. */
+	information->RootDirectory = NULL;
 	information->Flags = FILE_RENAME_FLAG_REPLACE_IF_EXISTS |
 	    FILE_RENAME_FLAG_POSIX_SEMANTICS | FILE_RENAME_FLAG_IGNORE_READONLY_ATTRIBUTE;
 	stage = "SetFileInformationByHandle(FileRenameInfoEx)";
