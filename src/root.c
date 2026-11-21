@@ -77,6 +77,7 @@ static struct cvsroot *
 cvsroot_parse(const char *str)
 {
 	u_int i;
+	long long port;
 	char *cp, *sp, *pp;
 	const char *errstr;
 	static struct cvsroot *root = NULL;
@@ -163,9 +164,11 @@ cvsroot_parse(const char *str)
 			*pp++ = '\0';
 	}
 	if (pp != NULL) {
-		root->cr_port = strtonum(pp, 1, 65535, &errstr);
+		port = strtonum(pp, 1, 65535, &errstr);
 		if (errstr != NULL)
 			fatal("port specification in CVSROOT is %s", errstr);
+		/* Network ports are bounded to 1..65535 before narrowing. */
+		root->cr_port = (u_int)port;
 	}
 
 	root->cr_host = sp;

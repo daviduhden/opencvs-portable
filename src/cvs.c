@@ -322,7 +322,7 @@ main(int argc, char **argv)
 	}
 
 	cvs_umask = umask(0);
-	umask(cvs_umask);
+	umask((mode_t)cvs_umask);
 
 	if ((current_cvsroot = cvsroot_get(".")) == NULL) {
 		cvs_log(LP_ERR,
@@ -370,6 +370,7 @@ int
 cvs_getopt(int argc, char **argv)
 {
 	int ret;
+	long long compression;
 	char *ep;
 	const char *errstr;
 
@@ -442,9 +443,11 @@ cvs_getopt(int argc, char **argv)
 			 */
 			break;
 		case 'z':
-			cvs_compress = strtonum(optarg, 0, 9, &errstr);
+			compression = strtonum(optarg, 0, 9, &errstr);
 			if (errstr != NULL)
 				fatal("cvs_compress: %s", errstr);
+			/* strtonum bounds the successful result to 0..9. */
+			cvs_compress = (int)compression;
 			break;
 		default:
 			usage();

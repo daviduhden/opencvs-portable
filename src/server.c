@@ -194,7 +194,7 @@ cvs_server_root(char *data)
 
 	cvs_parse_configfile();
 	cvs_parse_modules();
-	umask(cvs_umask);
+	umask((mode_t)cvs_umask);
 }
 
 void

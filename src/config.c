@@ -69,14 +69,16 @@ config_parse_line(char *line, int lineno)
 		free(cvs_tagname);
 		cvs_tagname = xstrdup(val);
 	} else if (!strcmp(opt, "umask")) {
-		cvs_umask = strtol(val, &ep, 8);
+		long mask;
 
-		if (val == ep || *ep != '\0')
+		errno = 0;
+		mask = strtol(val, &ep, 8);
+
+		if (errno == ERANGE || val == ep || *ep != '\0' ||
+		    mask < 0 || mask > 07777)
 			fatal("cvs_parse_configfile: umask %s is "
 			    "invalid", val);
-		if (cvs_umask < 0 || cvs_umask > 07777)
-			fatal("cvs_parse_configfile: umask %s is "
-			    "invalid", val);
+		cvs_umask = (int)mask;
 	} else if (!strcmp(opt, "dlimit")) {
 		if (getrlimit(RLIMIT_DATA, &rl) != -1) {
 			rl.rlim_cur = (int)strtonum(val, 0, INT_MAX,
