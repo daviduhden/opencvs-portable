@@ -466,8 +466,9 @@ cvs_client_connect_to_server(void)
 	if ((current_cvsroot->cr_srvout = fdopen(ofd[0], "r")) == NULL)
 		fatal("cvs_client_connect: %s", strerror(errno));
 
-	setvbuf(current_cvsroot->cr_srvin, NULL,_IOLBF, 0);
-	setvbuf(current_cvsroot->cr_srvout, NULL, _IOLBF, 0);
+	if (setvbuf(current_cvsroot->cr_srvin, NULL, _IONBF, 0) != 0 ||
+	    setvbuf(current_cvsroot->cr_srvout, NULL, _IONBF, 0) != 0)
+		fatal("cvs_client_connect: cannot configure protocol streams");
 
 	cvs_client_initlog();
 

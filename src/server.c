@@ -119,8 +119,9 @@ cvs_server(int argc, char **argv)
 	/* Be on server-side very verbose per default. */
 	verbosity = 2;
 
-	setvbuf(stdin, NULL, _IOLBF, 0);
-	setvbuf(stdout, NULL, _IOLBF, 0);
+	if (setvbuf(stdin, NULL, _IONBF, 0) != 0 ||
+	    setvbuf(stdout, NULL, _IONBF, 0) != 0)
+		fatal("cannot configure server protocol streams");
 
 	cvs_server_active = 1;
 
