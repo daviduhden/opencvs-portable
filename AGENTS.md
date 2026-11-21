@@ -98,3 +98,6 @@ changing build flags.
 When suites first reach execution, trace shared setup and cleanup failures
 before attributing each failed assertion to a separate product defect. Record
 sanitizer findings independently, including findings from successful paths.
+
+Treat cancelled runs as incomplete. Record the last completed stage per job
+and retain diagnostics already emitted before cancellation.
