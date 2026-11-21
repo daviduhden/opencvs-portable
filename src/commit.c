@@ -234,6 +234,11 @@ cvs_commit(int argc, char **argv)
 		if (mc->mc_prog != NULL &&
 		    (mc->mc_flags & MODULE_RUN_ON_COMMIT))
 			cvs_exec(mc->mc_prog, NULL, 0);
+		if (mc->mc_canfree) {
+			cvs_file_freelist(&mc->mc_modules);
+			cvs_file_freelist(&mc->mc_ignores);
+		}
+		free(mc);
 	}
 
 end:

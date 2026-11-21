@@ -662,6 +662,26 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 		return;
 	}
 
+	/* Classification may run again after pre-commit checks; release owned cache. */
+	cf->in_attic = 0;
+	free(cf->file_rpath);
+	cf->file_rpath = NULL;
+	free(cf->file_rcsrev);
+	cf->file_rcsrev = NULL;
+	if (cf->file_ent != NULL) {
+		cvs_ent_free(cf->file_ent);
+		cf->file_ent = NULL;
+	}
+	if (cf->file_rcs != NULL) {
+		rcs_close(cf->file_rcs);
+		cf->file_rcs = NULL;
+		/* The RCS stream owns the descriptor passed to rcs_open. */
+		cf->repo_fd = -1;
+	} else if (cf->repo_fd != -1) {
+		(void)close(cf->repo_fd);
+		cf->repo_fd = -1;
+	}
+
 	cvs_get_repository_path(cf->file_wd, repo, PATH_MAX);
 	(void)xsnprintf(rcsfile, PATH_MAX, "%s/%s",
 	    repo, cf->file_name);
@@ -987,8 +1007,10 @@ cvs_file_free(struct cvs_file *cf)
 	free(cf->file_rpath);
 	if (cf->file_ent != NULL)
 		cvs_ent_free(cf->file_ent);
-	if (cf->file_rcs != NULL)
+	if (cf->file_rcs != NULL) {
 		rcs_close(cf->file_rcs);
+		cf->repo_fd = -1;
+	}
 	if (cf->fd != -1)
 		(void)close(cf->fd);
 	if (cf->repo_fd != -1)
