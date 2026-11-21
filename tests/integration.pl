@@ -38,6 +38,10 @@ use POSIX qw(WNOHANG);
 use Test::More;
 use Time::HiRes qw(time sleep);
 
+# Diagnostics can contain native Unicode filenames on every runner.
+binmode STDOUT, ':encoding(UTF-8)';
+binmode STDERR, ':encoding(UTF-8)';
+
 my ($opencvs, $gnu_cvs, $ssh_shim, $fs_probe, $report, $require_gnu);
 my $suite = 'all';
 my $timeout = 30;
