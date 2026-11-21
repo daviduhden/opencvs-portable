@@ -895,6 +895,11 @@ cvs_server_exp_modules(char *module)
 
 	RB_FOREACH(fl, cvs_flisthead, &(mo->mc_modules))
 		cvs_server_send_response("Module-expansion %s", fl->file_path);
+	if (mo->mc_canfree) {
+		cvs_file_freelist(&mo->mc_modules);
+		cvs_file_freelist(&mo->mc_ignores);
+	}
+	free(mo);
 	cvs_server_send_response("ok");
 
 	server_argc--;
