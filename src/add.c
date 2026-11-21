@@ -316,10 +316,11 @@ cvs_add_tobranch(struct cvs_file *cf, char *tag)
 static void
 add_directory(struct cvs_file *cf)
 {
-	int added, nb;
+	int added, nb = 0;
 	struct stat st;
 	CVSENTRIES *entlist;
-	char *date, entry[PATH_MAX], msg[1024], repo[PATH_MAX], *tag, *p;
+	char *date = NULL, entry[PATH_MAX], msg[1024], repo[PATH_MAX];
+	char *tag = NULL, *p;
 	struct file_info_list files_info;
 	struct file_info *fi;
 	struct trigger_list *line_list;
