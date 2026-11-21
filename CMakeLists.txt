@@ -218,6 +218,11 @@ if(PC_BUILD_TESTS)
   add_executable(test-unit-compat tests/unit_compat.c)
   target_link_libraries(test-unit-compat PRIVATE pc_compat)
   add_test(NAME unit-compat COMMAND test-unit-compat)
+  if(PC_SANITIZERS)
+    # The overflow case expects NULL/ENOMEM rather than ASan's allocator abort.
+    set_tests_properties(unit-compat PROPERTIES
+      ENVIRONMENT "ASAN_OPTIONS=allocator_may_return_null=1")
+  endif()
   set_tests_properties(unit-compat PROPERTIES TIMEOUT 30)
   foreach(suite core security)
     add_test(NAME ${suite} COMMAND "${PERL_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration.pl" --opencvs $<TARGET_FILE:opencvs> --ssh-shim $<TARGET_FILE:test-ssh-shim> --fs-probe $<TARGET_FILE:test-fs-probe> --suite ${suite})

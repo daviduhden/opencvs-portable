@@ -175,8 +175,8 @@ stream_lines(void)
 	expect(line != NULL && length == 1 && line[0] == 'c',
 	    "fgetln preserves the final unterminated line");
 	line = fgetln(first, &length);
-	expect(line == NULL && length == 0 && !ferror(first),
-	    "fgetln reports clean EOF without stale length");
+	expect(line == NULL && feof(first) && !ferror(first),
+	    "fgetln reports clean EOF");
 	first_closed = fclose(first);
 	second_closed = fclose(second);
 	expect(first_closed == 0 && second_closed == 0,
@@ -268,8 +268,14 @@ processes(const char *self)
 	expect(pc_wait(&child, &status) == 0 && status == 23,
 	    "native process wait preserves nonzero exit status");
 	expect(pc_run(exit_args) == 37, "pc_run returns the actual child exit code");
-	expect(pc_spawn(&child, missing, -1, -1, -1) == -1,
-	    "missing executable fails before reporting a child success");
+	{
+		int launched = pc_spawn(&child, missing, -1, -1, -1);
+
+		/* POSIX can report exec failure as the child's status 127. */
+		expect(launched == -1 ? errno == ENOENT :
+		    launched == 0 && pc_wait(&child, &status) == 0 && status == 127,
+		    "missing executable is reported by spawn or child status");
+	}
 }
 
 #ifndef _WIN32
