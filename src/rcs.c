@@ -403,8 +403,12 @@ rcs_write(RCSFILE *rfp)
 			    sizeof(numbuf)));
 		}
 		fputs(";\n", fp);
-		fprintf(fp, "next\t%s;\n\n", rcsnum_tostr(rdp->rd_next,
+		fprintf(fp, "next\t%s;\n", rcsnum_tostr(rdp->rd_next,
 		    numbuf, sizeof(numbuf)));
+		/* Validated optional GNU CVS commit IDs remain part of existing history. */
+		if (rdp->rd_commitid != NULL)
+			fprintf(fp, "commitid\t%s;\n", rdp->rd_commitid);
+		fputc('\n', fp);
 	}
 
 	fputs("\ndesc\n@", fp);
@@ -1483,6 +1487,7 @@ rcs_freedelta(struct rcs_delta *rdp)
 	free(rdp->rd_num);
 	free(rdp->rd_next);
 	free(rdp->rd_author);
+	free(rdp->rd_commitid);
 	free(rdp->rd_locker);
 	free(rdp->rd_state);
 	free(rdp->rd_log);
