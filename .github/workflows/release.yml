@@ -301,10 +301,12 @@ jobs:
         run: |
           docker run --rm -e PACKAGE_NAME -v "$PWD:/source" -w /source alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 sh -ec '
             apk add --no-cache build-base cmake ninja perl cvs
-            cmake -S . -B build-musl -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
+            cmake -S . -B build-musl -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_REQUIRE_GNU_CVS=ON
             cmake --build build-musl --parallel 2 > build-musl/compile.log 2>&1 || { status=$?; cat build-musl/compile.log; exit "$status"; }
             cat build-musl/compile.log
-            ctest --test-dir build-musl --output-on-failure
+            # GNU CVS refuses commits as root. Keep dependency installation separate from test identity.
+            chown -R nobody build-musl
+            su -s /bin/sh nobody -c "ctest --test-dir build-musl --output-on-failure"
             cpack --config build-musl/CPackConfig.cmake -G TGZ -B dist-musl -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
           '
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
