@@ -464,7 +464,7 @@ static TABLE const TimezoneTable[] = {
 	{ "nzst",	tZONE,     -HOUR(12) },	/* New Zealand Standard */
 	{ "nzdt",	tDAYZONE,  -HOUR(12) },	/* New Zealand Daylight */
 	{ "idle",	tZONE,     -HOUR(12) },	/* International Date Line East */
-	{  NULL  }
+	{ NULL, 0, 0 }
 };
 
 /* Military timezone table. */
@@ -557,7 +557,11 @@ Convert(time_t Month, time_t Day, time_t Year, time_t Hours, time_t Minutes,
 	time_t	tod;
 	time_t	julian;
 	int	i;
+	struct tm local;
 
+	/* Bound the supported calendar before negation and year iteration. */
+	if (Year < -9999 || Year > 9999)
+		return (-1);
 	if (Year < 0)
 		Year = -Year;
 	if (Year < 69)
@@ -581,16 +585,17 @@ Convert(time_t Month, time_t Day, time_t Year, time_t Hours, time_t Minutes,
 		julian += DaysInMonth[i];
 
 	for (i = YEAR_EPOCH; i < Year; i++)
-		julian += 365 + (i % 4 == 0);
+		julian += 365 + (i % 4 == 0 && (i % 100 != 0 || i % 400 == 0));
 	julian *= SECSPERDAY;
 	julian += yyTimezone * 60L;
 
 	if ((tod = ToSeconds(Hours, Minutes, Seconds, Meridian)) < 0)
 		return (-1);
 	julian += tod;
-	if ((DSTmode == DSTon) ||
-	    (DSTmode == DSTmaybe && localtime(&julian)->tm_isdst))
-	julian -= 60 * 60;
+	if (DSTmode == DSTmaybe && localtime_r(&julian, &local) == NULL)
+		return (-1);
+	if (DSTmode == DSTon || (DSTmode == DSTmaybe && local.tm_isdst))
+		julian -= 60 * 60;
 	return (julian);
 }
 
@@ -600,9 +605,13 @@ DSTcorrect(time_t Start, time_t Future)
 {
 	time_t	StartDay;
 	time_t	FutureDay;
+	struct tm start_tm, future_tm;
 
-	StartDay = (localtime(&Start)->tm_hour + 1) % 24;
-	FutureDay = (localtime(&Future)->tm_hour + 1) % 24;
+	if (localtime_r(&Start, &start_tm) == NULL ||
+	    localtime_r(&Future, &future_tm) == NULL)
+		return (-1);
+	StartDay = (start_tm.tm_hour + 1) % 24;
+	FutureDay = (future_tm.tm_hour + 1) % 24;
 	return (Future - Start) + (StartDay - FutureDay) * 60L * 60L;
 }
 
@@ -610,11 +619,12 @@ DSTcorrect(time_t Start, time_t Future)
 static time_t
 RelativeDate(time_t Start, time_t DayOrdinal, time_t DayNumber)
 {
-	struct tm	*tm;
+	struct tm value, *tm = &value;
 	time_t	now;
 
 	now = Start;
-	tm = localtime(&now);
+	if (localtime_r(&now, tm) == NULL)
+		return (-1);
 	now += SECSPERDAY * ((DayNumber - tm->tm_wday + 7) % 7);
 	now += 7 * SECSPERDAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
 	return DSTcorrect(Start, now);
@@ -624,13 +634,14 @@ RelativeDate(time_t Start, time_t DayOrdinal, time_t DayNumber)
 static time_t
 RelativeMonth(time_t Start, time_t RelMonth)
 {
-	struct tm	*tm;
+	struct tm value, *tm = &value;
 	time_t	Month;
 	time_t	Year;
 
 	if (RelMonth == 0)
 		return (0);
-	tm = localtime(&Start);
+	if (localtime_r(&Start, tm) == NULL)
+		return (-1);
 	Month = 12 * (tm->tm_year + 1900) + tm->tm_mon + RelMonth;
 	Year = Month / 12;
 	Month = Month % 12 + 1;
