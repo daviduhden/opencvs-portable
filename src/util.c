@@ -667,38 +667,49 @@ cvs_mkpath(const char *path, char *tag)
 void
 cvs_mkdir(const char *path, mode_t mode)
 {
-	size_t len;
-	char *sp, *dp, *dir, rpath[PATH_MAX];
+	char *dir, *cursor, *separator;
+	struct stat st;
 
 	if (cvsroot_is_remote() || cvs_server_active == 1)
 		cvs_validate_directory(path);
 
 	dir = xstrdup(path);
-
 	STRIP_SLASH(dir);
-
 	if (cvs_server_active == 0)
 		cvs_log(LP_TRACE, "cvs_mkdir(%s)", dir);
 
-	rpath[0] = '\0';
+	cursor = dir;
+#ifdef _WIN32
+	if (dir[0] == '/' && dir[1] == '/') {
+		/* The UNC server and share must already exist. */
+		separator = strchr(dir + 2, '/');
+		if (separator == NULL || separator == dir + 2 ||
+		    separator[1] == '\0' || separator[1] == '/')
+			fatal("cvs_mkdir: invalid UNC share");
+		separator = strchr(separator + 1, '/');
+		cursor = separator != NULL ? separator + 1 : dir + strlen(dir);
+	} else if (pc_native_absolute(dir) && dir[1] == ':')
+		cursor = dir + 3;
+#endif
 
-	for (sp = dir; sp != NULL; sp = dp) {
-		dp = strchr(sp, '/');
-		if (dp != NULL)
-			*(dp++) = '\0';
-
-		len = strlcat(rpath, "/", sizeof(rpath));
-		if (len >= (int)sizeof(rpath))
-			fatal("cvs_mkdir: overflow");
-
-		len = strlcat(rpath, sp, sizeof(rpath));
-		if (len >= (int)sizeof(rpath))
-			fatal("cvs_mkdir: overflow");
-		if (1 == len)
-			continue;
-
-		if (mkdir(rpath, mode) == -1 && errno != EEXIST)
-			fatal("cvs_mkdir: %s: %s", rpath, strerror(errno));
+	while (*cursor == '/')
+		cursor++;
+	while (*cursor != '\0') {
+		separator = strchr(cursor, '/');
+		if (separator != NULL)
+			*separator = '\0';
+		if (mkdir(dir, mode) == -1) {
+			if (errno != EEXIST)
+				fatal("cvs_mkdir: %s: %s", dir, strerror(errno));
+			if (lstat(dir, &st) == -1 || !S_ISDIR(st.st_mode))
+				fatal("cvs_mkdir: %s is not a directory", dir);
+		}
+		if (separator == NULL)
+			break;
+		*separator = '/';
+		cursor = separator + 1;
+		while (*cursor == '/')
+			cursor++;
 	}
 
 	free(dir);
