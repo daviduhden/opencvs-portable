@@ -790,7 +790,9 @@ test_case interop => opencvs_client_gnu_server_wire => sub {
         checkout($s, 'wire-gnu-reader', executable => $gnu_cvs), 'sample.txt'));
     equal($readback, $updated, 'GNU checkout after the wire commit differs (actual SHA-256 '
         . sha256_hex($readback) . ', expected ' . sha256_hex($updated)
-        . ")\nWire commit output:\n" . substr($commit->{text}, 0, 1024));
+        . '), commit opened a protocol session: '
+        . (-f $wire_log . '-1.in' ? 'yes' : 'no')
+        . "\nWire commit output:\n" . substr($commit->{text}, 0, 1024));
 };
 test_case interop => gnu_client_opencvs_server_wire => sub {
     my ($s) = @_;
