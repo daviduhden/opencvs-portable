@@ -126,21 +126,21 @@ typedef struct {
 } cset;
 
 static inline void
-CHadd(cset *cs, char c)
+CHadd(cset *cs, int c)
 {
 	cs->ptr[(uch)c] |= cs->mask;
-	cs->hash += c;
+	cs->hash = (uch)(cs->hash + (uch)c);
 }
 
 static inline void
-CHsub(cset *cs, char c)
+CHsub(cset *cs, int c)
 {
 	cs->ptr[(uch)c] &= ~cs->mask;
-	cs->hash -= c;
+	cs->hash = (uch)(cs->hash - (uch)c);
 }
 
 static inline int
-CHIN(const cset *cs, char c)
+CHIN(const cset *cs, int c)
 {
 	return (cs->ptr[(uch)c] & cs->mask) != 0;
 }

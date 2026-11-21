@@ -95,7 +95,7 @@ static void p_b_cclass(struct parse *, cset *);
 static void p_b_eclass(struct parse *, cset *);
 static char p_b_symbol(struct parse *);
 static char p_b_coll_elem(struct parse *, int);
-static char othercase(int);
+static int othercase(int);
 static void bothcases(struct parse *, int);
 static void ordinary(struct parse *, int);
 static void backslash(struct parse *, int);
@@ -179,11 +179,15 @@ regcomp(regex_t *preg, const char *pattern, int cflags)
 	} else
 		len = strlen((char *)pattern);
 
+	/* Every strip position/operand must fit the packed representation. */
+	if (len / 2 > ((size_t)OPDMASK - 1) / 3)
+		return(REG_ESPACE);
+
 	/* do the mallocs early so failure handling is easy */
 	g = malloc(sizeof(struct re_guts));
 	if (g == NULL)
 		return(REG_ESPACE);
-	p->ssize = len/(size_t)2*(size_t)3 + (size_t)1;	/* ugh */
+	p->ssize = (sopno)(len / 2 * 3 + 1);	/* ugh */
 	p->strip = reallocarray(NULL, p->ssize, sizeof(sop));
 	p->slen = 0;
 	if (p->strip == NULL) {
@@ -309,8 +313,9 @@ p_ere_exp(struct parse *p)
 	switch (c) {
 	case '(':
 		REQUIRE(MORE(), REG_EPAREN);
+		if (p->g->nsub >= OPDMASK) { SETERROR(REG_ESPACE); return; }
 		p->g->nsub++;
-		subno = p->g->nsub;
+		subno = (sopno)p->g->nsub;
 		if (subno < NPAREN)
 			p->pbegin[subno] = HERE();
 		EMIT(OLPAREN, subno);
@@ -518,8 +523,9 @@ p_simp_re(struct parse *p,
 		SETERROR(REG_BADRPT);
 		break;
 	case BACKSL|'(':
+		if (p->g->nsub >= OPDMASK) { SETERROR(REG_ESPACE); return 0; }
 		p->g->nsub++;
-		subno = p->g->nsub;
+		subno = (sopno)p->g->nsub;
 		if (subno < NPAREN)
 			p->pbegin[subno] = HERE();
 		EMIT(OLPAREN, subno);
@@ -849,7 +855,7 @@ p_b_coll_elem(struct parse *p,
 /*
  - othercase - return the case counterpart of an alphabetic
  */
-static char			/* if no counterpart, return ch */
+static int			/* if no counterpart, return ch */
 othercase(int ch)
 {
 	ch = (uch)ch;
@@ -878,7 +884,7 @@ bothcases(struct parse *p, int ch)
 	assert(othercase(ch) != ch);	/* p_bracket() would recurse */
 	p->next = bracket;
 	p->end = bracket+2;
-	bracket[0] = ch;
+	bracket[0] = (char)(uch)ch;
 	bracket[1] = ']';
 	bracket[2] = '\0';
 	p_bracket(p);
@@ -1083,9 +1089,9 @@ nomem:
 static void
 freeset(struct parse *p, cset *cs)
 {
-	size_t i;
+	int i;
 	cset *top = &p->g->sets[p->g->ncsets];
-	size_t css = (size_t)p->g->csetsize;
+	int css = p->g->csetsize;
 
 	for (i = 0; i < css; i++)
 		CHsub(cs, i);
@@ -1106,10 +1112,10 @@ static int			/* set number */
 freezeset(struct parse *p, cset *cs)
 {
 	uch h = cs->hash;
-	size_t i;
+	int i;
 	cset *top = &p->g->sets[p->g->ncsets];
 	cset *cs2;
-	size_t css = (size_t)p->g->csetsize;
+	int css = p->g->csetsize;
 
 	/* look for an earlier one which is the same */
 	for (cs2 = &p->g->sets[0]; cs2 < top; cs2++)
@@ -1136,8 +1142,8 @@ freezeset(struct parse *p, cset *cs)
 static int			/* character; there is no "none" value */
 firstch(struct parse *p, cset *cs)
 {
-	size_t i;
-	size_t css = (size_t)p->g->csetsize;
+	int i;
+	int css = p->g->csetsize;
 
 	for (i = 0; i < css; i++)
 		if (CHIN(cs, i))
@@ -1152,8 +1158,8 @@ firstch(struct parse *p, cset *cs)
 static int
 nch(struct parse *p, cset *cs)
 {
-	size_t i;
-	size_t css = (size_t)p->g->csetsize;
+	int i;
+	int css = p->g->csetsize;
 	int n = 0;
 
 	for (i = 0; i < css; i++)
@@ -1198,7 +1204,7 @@ doemit(struct parse *p, sop op, size_t opnd)
 		return;
 
 	/* deal with oversize operands ("can't happen", more or less) */
-	assert(opnd < 1<<OPSHIFT);
+	if (opnd > OPDMASK) { SETERROR(REG_ESPACE); return; }
 
 	/* deal with undersized strip */
 	if (p->slen >= p->ssize)
@@ -1206,7 +1212,7 @@ doemit(struct parse *p, sop op, size_t opnd)
 			return;
 
 	/* finally, it's all reduced to the easy case */
-	p->strip[p->slen++] = SOP(op, opnd);
+	p->strip[p->slen++] = SOP(op, (sop)opnd);
 }
 
 /*
@@ -1225,6 +1231,7 @@ doinsert(struct parse *p, sop op, size_t opnd, sopno pos)
 
 	sn = HERE();
 	EMIT(op, opnd);		/* do checks, ensure space */
+	if (p->error != 0) return;
 	assert(HERE() == sn+1);
 	s = p->strip[sn];
 
@@ -1266,6 +1273,10 @@ enlarge(struct parse *p, sopno size)
 {
 	sop *sp;
 
+	if (size < 0 || (size_t)size > OPDMASK) {
+		SETERROR(REG_ESPACE);
+		return 0;
+	}
 	if (p->ssize >= size)
 		return 1;
 
