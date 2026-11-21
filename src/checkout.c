@@ -628,6 +628,8 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 		if (!(co_flags & CO_REMOVE) && cvs_cmdop != CVS_OP_EXPORT) {
 			ent = cvs_ent_open(cf->file_wd);
 			cvs_ent_add(ent, entry);
+			if (cf->file_ent != NULL)
+				cvs_ent_free(cf->file_ent);
 			cf->file_ent = cvs_ent_parse(entry);
 		}
 	} else {
