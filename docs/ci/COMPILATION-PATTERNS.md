@@ -43,3 +43,9 @@ Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-port
 Review both custom resources and generator-created resources when changing Windows linker flags. Check all regex operand packing and byte-class operations together when addressing narrowing diagnostics. Fix generated lexer warnings at the grammar source.
 
 Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.
+
+## Follow-up on 9d03e23
+
+Review declaration initialization together with control-flow exits across compilers. Inspect successful linker jobs separately from CTest outcomes and record cancelled jobs as incomplete.
+
+Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 44918836788](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836788) (cancelled overall), [OpenBSD 44918836951](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836951) (failed, jobs 136890189891 and 136890190132). Local changes await CI.

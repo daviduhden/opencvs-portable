@@ -44,3 +44,9 @@ Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-port
 WARN-401. MSVC C4244 and C4267 identify mismatched representation widths in regex and date parsing. C4701 and C4702 identify the log delimiter and server control-flow diagnostics. Preserve strict flags. The yacc conflict diagnostic remains separate from compiler warnings.
 
 Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.
+
+## Follow-up on 9d03e23
+
+WARN-501. Review reaching definitions on error paths, where compiler dataflow flags potentially uninitialized regex offsets and the date parser pointer. Fix lexer issues in the grammar rather than patching generated C.
+
+Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 44918836788](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836788) (cancelled overall), [OpenBSD 44918836951](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836951) (failed, jobs 136890189891 and 136890190132). Local changes await CI.

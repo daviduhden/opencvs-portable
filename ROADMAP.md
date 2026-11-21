@@ -11,3 +11,6 @@ verification remain open on both configurations.
 
 The b79f865 runs reached CTest on Linux, OpenBSD, and MinGW. Prioritize
 repository setup and cleanup before interpreting downstream CVS results.
+
+Both OpenBSD unit configurations passed at 9d03e23. The next gate is a clean
+functional run with conflict handling, diff status, and archive interchange.

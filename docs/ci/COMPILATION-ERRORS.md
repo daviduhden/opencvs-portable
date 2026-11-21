@@ -77,3 +77,9 @@ Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 449181605
 The workflows used Ninja and strict warnings. The native matrix used byacc
 and OpenBSD used the VM's yacc. Full logs and downloaded artifacts are in
 `/tmp/opencvs-ci/`, including CTest and compiler diagnostics.
+
+## Follow-up on 9d03e23
+
+BUILD-501. MSVC Release and Debug failed with C4701 for regex alternation offsets and the generated date parser local pointer. ClangCL linked and reached CTest, confirming progress on the duplicate manifest. The ClangCL Debug test job was cancelled. Job IDs: MSVC 136890316295/136890316465, ClangCL 136890316308/136890316341.
+
+Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 44918836788](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836788) (cancelled overall), [OpenBSD 44918836951](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836951) (failed, jobs 136890189891 and 136890190132). Local changes await CI.

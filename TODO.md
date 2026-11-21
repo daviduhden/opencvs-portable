@@ -14,3 +14,11 @@
   Windows drive-path and linker fixes on an authorized published revision.
 - Investigate GNU server response path semantics while preserving containment.
 - Reassess remaining individual cases after shared setup succeeds.
+
+- Verify Windows archive replacement and short directory names.
+- Recheck sanitizer diagnostics after diff changes, then trace residual leaks.
+- Verify GNU CVS interoperability as a non-root user and isolate wire failures.
+
+- Validate date arithmetic on both generated parsers and the Windows and
+  POSIX time interfaces. Include normal relative dates and out-of-range input.
+- Verify the Windows read-only replacement contract with native handles.

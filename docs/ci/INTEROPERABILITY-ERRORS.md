@@ -42,3 +42,9 @@ Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-port
 INTEROP-401. OpenCVS client against GNU server rejects a repository path outside the selected root. Preserve the containment check until the expected response shape is established from the protocol. The opposite direction also failed, including setup failures. GNU archive interchange reached the RCS commit-ID ownership leak under LeakSanitizer.
 
 Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.
+
+## Follow-up on 9d03e23
+
+INTEROP-501. GNU server response path rejection persists. GNU client against OpenCVS also reports unexpected EOF. musl GNU CVS reports that root cannot commit. The root restriction is a CI environment issue. The wire failures remain separate and root containment remains in place.
+
+Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 44918836788](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836788) (cancelled overall), [OpenBSD 44918836951](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836951) (failed, jobs 136890189891 and 136890190132). Local changes await CI.

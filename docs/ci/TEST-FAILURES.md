@@ -41,3 +41,9 @@ Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-port
 TEST-401. Unit tests passed on non-sanitized glibc and MinGW. Unit tests failed on musl, the sanitizer job, and both OpenBSD configurations. Core and security suites failed across configurations that reached CTest. Existing repeated-init and import cases cover the common setup failures. Keep independent failures visible after fixing setup.
 
 Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.
+
+## Follow-up on 9d03e23
+
+TEST-501. Both OpenBSD unit jobs passed. Core still reports an incorrect diff exit status and accepts committing an unresolved conflict. Security rejects the intended valid delta fixture before negative cases and the tag fixture assumed that slash was forbidden. The existing RCS symbol grammar permits slash and rejects period, so the rejection fixture now uses a period. The valid fixture now starts with the first delta instruction immediately after its opening quote. Fixture-only rewrites explicitly make sandbox files writable when needed.
+
+Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 44918836788](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836788) (cancelled overall), [OpenBSD 44918836951](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836951) (failed, jobs 136890189891 and 136890190132). Local changes await CI.

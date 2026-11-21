@@ -21,3 +21,13 @@ At b79f865, Linux, MinGW, and OpenBSD linked and reached CTest. Core and
 security tests failed, as did GNU interoperability where enabled. MSVC had
 compile failures and ClangCL hit a duplicate manifest at link. See the
 b79f865 follow-up in [CI diagnostics](docs/ci/COMPILATION-ERRORS.md).
+
+At 9d03e23, both OpenBSD unit jobs passed. Core and security failures
+persisted. ClangCL reached CTest, MSVC still failed compilation, and the
+native matrix was cancelled overall. Linux sanitizers found diff undefined
+behavior and additional leaks. See the 9d03e23 entries in the CI inventories.
+
+The subsequent read-only GitHub inventory found no run newer than 9d03e23.
+Local follow-up expands regression coverage for separated diff hunks,
+rejected conflict commits, and replacement of read-only Windows files.
+These cases have not executed in CI.

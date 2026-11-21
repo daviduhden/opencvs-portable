@@ -42,3 +42,21 @@ Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-port
 DATA-401. Repeated init hits EEXIST opening checkoutlist. Preserve existing repository files instead of truncating or regenerating them. DATA-402. An import source is not a working copy and must not gain Entries during cleanup. Review other read-only archive and directory walks for the same ownership issue.
 
 Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.
+
+## Follow-up on 9d03e23
+
+DATA-501. OpenBSD accepts committing an unresolved merge conflict. Its archive must remain unchanged until the working conflict is resolved. DATA-502. Windows archive rename failures require checking the replacement lifecycle and retaining the old archive on error. No successful Windows archive replacement is inferred.
+
+Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 44918836788](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836788) (cancelled overall), [OpenBSD 44918836951](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836951) (failed, jobs 136890189891 and 136890190132). Local changes await CI.
+
+The local commit check now counts unresolved conflict markers as a blocking
+conflict. The existing lifecycle case exercises rejection followed by a
+resolved commit. Classification now releases earlier Entries and RCS state
+before rebuilding it, and commit releases its module lookup result.
+
+Follow-up static review found that Win32 treats zero file attributes as
+“leave unchanged.” The read-only transition now uses NORMAL when no other
+attributes remain. Rename reports restoration failures. If the move succeeds
+and source metadata restoration fails, the new name already exists and its
+attributes require review. This sequence is not a transactional metadata
+replacement. CI verification remains pending.

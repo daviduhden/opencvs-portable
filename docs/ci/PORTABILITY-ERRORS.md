@@ -40,3 +40,9 @@ Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-port
 PORT-401. MinGW import constructs /D: before its first mkdir. Directory creation now walks native path prefixes and retains drive and UNC roots. PORT-402. OpenBSD may return a child from posix_spawn and report exec failure through its exit status. The test now requires ENOENT from spawn or failure status 127 from the child. Native fgetln EOF is checked with feof rather than using its length output after NULL.
 
 Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.
+
+## Follow-up on 9d03e23
+
+PORT-501. Native Windows import still fails: MinGW reports permission denied replacing RCS archives, while ClangCL Release rejects an existing directory reached via a short name. The local backend accepts verified short aliases for directories and handles the source read-only attribute across rename. The exact cause of the reported permission error still requires CI confirmation. Linux musl runs GNU CVS as root, which GNU CVS explicitly rejects for commits. CI and release now run musl CTest as an unprivileged account.
+
+Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 44918836788](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836788) (cancelled overall), [OpenBSD 44918836951](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836951) (failed, jobs 136890189891 and 136890190132). Local changes await CI.
