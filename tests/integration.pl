@@ -188,12 +188,14 @@ sub invoke {
     my ( $pid, $spawn_error );
     {
         local %ENV = %{ $options{env} // $s->{env} };
-        local *CHILD_IN;
-        local *CHILD_OUT;
-        local *CHILD_ERR;
-        open CHILD_IN,  '<:raw', $in_name  or die "open input: $!\n";
-        open CHILD_OUT, '>:raw', $out_name or die "open output: $!\n";
-        open CHILD_ERR, '>:raw', $err_name or die "open error: $!\n";
+        open my $child_in,  '<:raw', $in_name  or die "open input: $!\n";
+        open my $child_out, '>:raw', $out_name or die "open output: $!\n";
+        open my $child_err, '>:raw', $err_name or die "open error: $!\n";
+
+        # open3 accepts named handles for direct redirection and closes stdin.
+        local *CHILD_IN  = $child_in;
+        local *CHILD_OUT = $child_out;
+        local *CHILD_ERR = $child_err;
         chdir bytes_path($working) or die "chdir $working: $!\n";
         eval {
             $pid = open3(

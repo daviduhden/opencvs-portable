@@ -139,3 +139,6 @@ For native Windows deletion-sharing tests, use a data handle to deny delete
 sharing. Attribute-only handles do not model the same sharing contract.
 Allow a contender at least one full lock retry interval before the regression
 driver times it out. Keep the timeout override specific to the concurrency case.
+
+When `validate-perl` applies formatting, rerun it to verify a clean pass. Keep
+the integration runner's direct file redirection when changing handle syntax.

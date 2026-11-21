@@ -39,6 +39,10 @@ local to that case and report how long the contender waited.
 
 ## Maintenance & Continuous Learning
 
+After `validate-perl` rewrites files, rerun it for the final static result.
+Use lexical Perl handles and bind them to localized names for `open3` direct
+file redirection. Preserve binary mode and separate stdout and stderr capture.
+
 Run Agent Knowledge Validation against the full change range. When code and
 guidance land in separate commits, select the commit before both so the
 validator can see the implementation and its corresponding instruction updates.
