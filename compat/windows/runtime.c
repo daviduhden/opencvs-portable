@@ -27,6 +27,8 @@ struct environment_value { char *name; char *value; struct environment_value *ne
 static struct environment_value *environment_values;
 static int environment_cleanup_registered;
 static HANDLE memory_job;
+static struct passwd cached_account;
+static char *cached_account_name;
 
 static void
 free_environment(void)
@@ -148,27 +150,25 @@ pc_getuid(void)
 struct passwd *
 getpwuid(uid_t uid)
 {
-	static struct passwd account;
-	static char *name;
 	DWORD len = 0;
 	wchar_t *wide;
 	uid_t current = pc_getuid();
 	if (current == UINT32_MAX || uid != current) { errno = ENOTSUP; return NULL; }
-	if (name == NULL) {
+	if (cached_account_name == NULL) {
 		(void)GetUserNameW(NULL, &len);
 		if (len == 0) { pc_windows_errno(GetLastError()); return NULL; }
 		wide = malloc((size_t)len * sizeof(*wide));
 		if (wide == NULL) return NULL;
 		if (!GetUserNameW(wide, &len)) { pc_windows_errno(GetLastError()); free(wide); return NULL; }
-		name = pc_windows_utf8(wide); free(wide);
-		if (name == NULL) return NULL;
+		cached_account_name = pc_windows_utf8(wide); free(wide);
+		if (cached_account_name == NULL) return NULL;
 	}
-	account.pw_name = name; account.pw_uid = current; account.pw_gid = UINT32_MAX;
-	account.pw_passwd = "*"; account.pw_gecos = name;
-	account.pw_dir = pc_getenv("USERPROFILE");
-	if (account.pw_dir == NULL) { errno = ENOENT; return NULL; }
-	account.pw_shell = ""; /* No shell execution is implied by native account data. */
-	return &account;
+	cached_account.pw_name = cached_account_name; cached_account.pw_uid = current; cached_account.pw_gid = UINT32_MAX;
+	cached_account.pw_passwd = "*"; cached_account.pw_gecos = cached_account_name;
+	cached_account.pw_dir = pc_getenv("USERPROFILE");
+	if (cached_account.pw_dir == NULL) { errno = ENOENT; return NULL; }
+	cached_account.pw_shell = ""; /* No shell execution is implied by native account data. */
+	return &cached_account;
 }
 
 struct passwd *
@@ -177,6 +177,15 @@ getpwnam(const char *name)
 	struct passwd *account = getpwuid(pc_getuid());
 	if (account != NULL && !_stricmp(account->pw_name, name)) return account;
 	errno = ENOTSUP; return NULL;
+}
+
+void
+endpwent(void)
+{
+	/* Only the current account is supported; release its cached allocation. */
+	free(cached_account_name);
+	cached_account_name = NULL;
+	memset(&cached_account, 0, sizeof(cached_account));
 }
 
 int
