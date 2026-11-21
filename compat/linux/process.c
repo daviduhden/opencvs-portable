@@ -16,12 +16,14 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /* POSIX process backend. SPDX-License-Identifier: ISC */
-#include "portable.h"
-#include "pc_process.h"
-#include <spawn.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <sys/wait.h>
+
+#include <fcntl.h>
+#include <signal.h>
+#include <spawn.h>
+
+#include "pc_process.h"
+#include "portable.h"
 extern char **environ;
 
 int
@@ -43,7 +45,8 @@ pc_pipe(int fds[2])
 	if (fcntl(fds[0], F_SETFD, FD_CLOEXEC) == -1 ||
 	    fcntl(fds[1], F_SETFD, FD_CLOEXEC) == -1) {
 		int saved = errno;
-		close(fds[0]); close(fds[1]);
+		close(fds[0]);
+		close(fds[1]);
 		fds[0] = fds[1] = -1;
 		errno = saved;
 		return -1;
@@ -52,15 +55,15 @@ pc_pipe(int fds[2])
 }
 
 int
-pc_spawn(pc_process *process, const char *const argv[], int input,
-    int output, int error)
+pc_spawn(pc_process *process, const char *const argv[], int input, int output,
+    int error)
 {
 	posix_spawn_file_actions_t actions;
-	pid_t pid;
-	char **mutable;
-	size_t count = 0, copied;
-	int result, i, j, fd[3] = {input, output, error};
-	int duplicate[3] = {-1, -1, -1};
+	pid_t			   pid;
+	char			 **mutable;
+	size_t			   count = 0, copied;
+	int			   result, i, j, fd[3] = {input, output, error};
+	int			   duplicate[3] = {-1, -1, -1};
 
 	if (process == NULL || argv == NULL || argv[0] == NULL ||
 	    argv[0][0] == '\0') {
@@ -68,7 +71,8 @@ pc_spawn(pc_process *process, const char *const argv[], int input,
 		return -1;
 	}
 	process->handle = 0;
-	/* Validate before allocating: a duplicate must not fill a bad source fd. */
+	/* Validate before allocating: a duplicate must not fill a bad source
+	 * fd. */
 	for (i = 0; i < 3; i++) {
 		if (fd[i] < -1) {
 			errno = EINVAL;
@@ -115,29 +119,34 @@ pc_spawn(pc_process *process, const char *const argv[], int input,
 			result = errno;
 			goto out;
 		}
-		result = posix_spawn_file_actions_adddup2(&actions, duplicate[i], i);
+		result =
+		    posix_spawn_file_actions_adddup2(&actions, duplicate[i], i);
 		if (result != 0)
 			goto out;
 	}
 	for (i = 0; i < 3; i++) {
 		if (duplicate[i] == -1)
 			continue;
-		result = posix_spawn_file_actions_addclose(&actions, duplicate[i]);
+		result =
+		    posix_spawn_file_actions_addclose(&actions, duplicate[i]);
 		if (result != 0)
 			goto out;
-		/* Redirect sources are borrowed in the parent, not child pass-throughs. */
+		/* Redirect sources are borrowed in the parent, not child
+		 * pass-throughs. */
 		if (fd[i] <= STDERR_FILENO)
 			continue;
 		for (j = 0; j < i; j++)
 			if (fd[j] == fd[i])
 				break;
 		if (j == i) {
-			result = posix_spawn_file_actions_addclose(&actions, fd[i]);
+			result =
+			    posix_spawn_file_actions_addclose(&actions, fd[i]);
 			if (result != 0)
 				goto out;
 		}
 	}
-	result = posix_spawnp(&pid, mutable[0], &actions, NULL, mutable, environ);
+	result =
+	    posix_spawnp(&pid, mutable[0], &actions, NULL, mutable, environ);
 out:
 	posix_spawn_file_actions_destroy(&actions);
 	for (i = 0; i < 3; i++)
@@ -152,7 +161,8 @@ out:
 	return 0;
 }
 
-/* Reject process-group and wildcard waitpid values; this handle owns one PID. */
+/* Reject process-group and wildcard waitpid values; this handle owns one PID.
+ */
 static int
 pc_process_pid(const pc_process *process, pid_t *pid)
 {
@@ -171,21 +181,23 @@ pc_process_pid(const pc_process *process, pid_t *pid)
 int
 pc_wait(pc_process *process, int *exit_code)
 {
-	int status;
+	int   status;
 	pid_t result, pid;
 	if (exit_code == NULL || pc_process_pid(process, &pid) == -1) {
 		errno = EINVAL;
 		return -1;
 	}
-	do { result = waitpid(pid, &status, 0); }
-	while (result == -1 && errno == EINTR);
+	do {
+		result = waitpid(pid, &status, 0);
+	} while (result == -1 && errno == EINTR);
 	if (result == -1) {
 		if (errno == ECHILD)
 			process->handle = 0;
 		return -1;
 	}
 	process->handle = 0;
-	*exit_code = WIFEXITED(status) ? WEXITSTATUS(status) :
+	*exit_code = WIFEXITED(status) ?
+	    WEXITSTATUS(status) :
 	    (WIFSIGNALED(status) ? 128 + WTERMSIG(status) : 1);
 	return 0;
 }
@@ -193,20 +205,21 @@ pc_wait(pc_process *process, int *exit_code)
 /* Only registered detached children are reaped; pc_wait retains its child. */
 #define PC_DETACHED_MAX 64
 static volatile sig_atomic_t pc_detached[PC_DETACHED_MAX];
-static int pc_reaper_installed;
+static int		     pc_reaper_installed;
 
 static void
 pc_reap(int signal_number)
 {
-	int i, saved = errno;
+	int   i, saved = errno;
 	pid_t pid, result;
 	(void)signal_number;
 	for (i = 0; i < PC_DETACHED_MAX; i++) {
 		pid = (pid_t)pc_detached[i];
 		if (pid == 0)
 			continue;
-		do { result = waitpid(pid, NULL, WNOHANG); }
-		while (result == -1 && errno == EINTR);
+		do {
+			result = waitpid(pid, NULL, WNOHANG);
+		} while (result == -1 && errno == EINTR);
 		if (result == pid || (result == -1 && errno == ECHILD))
 			pc_detached[i] = 0;
 	}
@@ -217,9 +230,9 @@ void
 pc_detach(pc_process *process)
 {
 	struct sigaction action;
-	sigset_t block, old;
-	int i, result;
-	pid_t pid;
+	sigset_t	 block, old;
+	int		 i, result;
+	pid_t		 pid;
 
 	if (pc_process_pid(process, &pid) == -1)
 		return;

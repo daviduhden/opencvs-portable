@@ -16,10 +16,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /* Portable OpenCVS compatibility functions. SPDX-License-Identifier: ISC */
-#include "portable.h"
-#include "pc_process.h"
 #include <ctype.h>
 #include <fcntl.h>
+
+#include "pc_process.h"
+#include "portable.h"
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -69,9 +70,9 @@ pc_sync_parent_directory(const char *path)
 	return (1);
 #else
 	const char *base;
-	char *parent;
-	size_t length;
-	int fd, result, saved;
+	char	   *parent;
+	size_t	    length;
+	int	    fd, result, saved;
 
 	base = strrchr(path, '/');
 	if (base == NULL)
@@ -111,8 +112,8 @@ int
 vasprintf(char **out, const char *fmt, va_list ap)
 {
 	va_list copy;
-	int length, result;
-	char *buf;
+	int	length, result;
+	char   *buf;
 	*out = NULL;
 	va_copy(copy, ap);
 	length = vsnprintf(NULL, 0, fmt, copy);
@@ -141,7 +142,7 @@ int
 asprintf(char **out, const char *fmt, ...)
 {
 	va_list ap;
-	int result;
+	int	result;
 	va_start(ap, fmt);
 	result = vasprintf(out, fmt, ap);
 	va_end(ap);
@@ -149,7 +150,8 @@ asprintf(char **out, const char *fmt, ...)
 }
 #endif
 
-/* Retain the descriptor anchor on POSIX; Win32 validates native path handles. */
+/* Retain the descriptor anchor on POSIX; Win32 validates native path handles.
+ */
 DIR *
 pc_directory_open(int fd, const char *path)
 {
@@ -158,7 +160,7 @@ pc_directory_open(int fd, const char *path)
 	return opendir(path);
 #else
 	DIR *directory;
-	int duplicate, saved;
+	int  duplicate, saved;
 	(void)path;
 	duplicate = dup(fd);
 	if (duplicate == -1)
@@ -182,9 +184,9 @@ pc_directory_open(int fd, const char *path)
 
 /* Each fallback stream owns its buffer until the next fgetln or fclose. */
 struct line_buffer {
-	FILE *stream;
-	char *data;
-	size_t capacity;
+	FILE		   *stream;
+	char		   *data;
+	size_t		    capacity;
 	struct line_buffer *next;
 };
 static struct line_buffer *line_buffers;
@@ -196,9 +198,9 @@ pc_fgetln(FILE *stream, size_t *length)
 	return fgetln(stream, length);
 #else
 	struct line_buffer *line;
-	size_t used = 0, capacity;
-	int ch;
-	char *next;
+	size_t		    used = 0, capacity;
+	int		    ch;
+	char		   *next;
 	for (line = line_buffers; line != NULL; line = line->next)
 		if (line->stream == stream)
 			break;
@@ -262,9 +264,9 @@ pc_free_argv(char **argv)
 char **
 pc_command_argv(const char *command, const char *last_argument)
 {
-	char **argv, **next, *word;
-	size_t count = 0, used;
-	int quote, c;
+	char		   **argv, **next, *word;
+	size_t		     count = 0, used;
+	int		     quote, c;
 	const unsigned char *s = (const unsigned char *)command;
 	argv = calloc(1, sizeof(*argv));
 	if (argv == NULL)
@@ -284,26 +286,47 @@ pc_command_argv(const char *command, const char *last_argument)
 				break;
 			s++;
 			if (c == '\'' || c == '"') {
-				if (quote == 0) { quote = c; continue; }
-				if (quote == c) { quote = 0; continue; }
+				if (quote == 0) {
+					quote = c;
+					continue;
+				}
+				if (quote == c) {
+					quote = 0;
+					continue;
+				}
 			}
-			if (c == '\\' && quote != '\'' && (*s == '\\' || *s == '"' || *s == '\'' || isspace(*s)))
+			if (c == '\\' && quote != '\'' &&
+			    (*s == '\\' || *s == '"' || *s == '\'' ||
+				isspace(*s)))
 				c = *s++;
-			/* Shell syntax must be explicitly placed in a trusted script. */
+			/* Shell syntax must be explicitly placed in a trusted
+			 * script. */
 			if (quote == 0 && strchr("|;&<>`$", c) != NULL) {
-				free(word); errno = EINVAL; goto fail;
+				free(word);
+				errno = EINVAL;
+				goto fail;
 			}
 			word[used++] = (char)c;
 		}
-		if (quote != 0) { free(word); errno = EINVAL; goto fail; }
+		if (quote != 0) {
+			free(word);
+			errno = EINVAL;
+			goto fail;
+		}
 		word[used] = '\0';
 		next = reallocarray(argv, count + 2, sizeof(*argv));
-		if (next == NULL) { free(word); goto fail; }
+		if (next == NULL) {
+			free(word);
+			goto fail;
+		}
 		argv = next;
 		argv[count++] = word;
 		argv[count] = NULL;
 	}
-	if (count == 0) { errno = EINVAL; goto fail; }
+	if (count == 0) {
+		errno = EINVAL;
+		goto fail;
+	}
 	if (last_argument != NULL) {
 		next = reallocarray(argv, count + 2, sizeof(*argv));
 		if (next == NULL)
@@ -324,7 +347,7 @@ int
 pc_run(const char *const argv[])
 {
 	pc_process process;
-	int result;
+	int	   result;
 	if (pc_spawn(&process, argv, -1, -1, -1) == -1 ||
 	    pc_wait(&process, &result) == -1)
 		return -1;
@@ -334,10 +357,10 @@ pc_run(const char *const argv[])
 int
 pc_any_absolute(const char *path)
 {
-	return path != NULL && (path[0] == '/' ||
-	    (path[0] == '\\' && path[1] == '\\') ||
-	    (isalpha((unsigned char)path[0]) && path[1] == ':' &&
-	    (path[2] == '/' || path[2] == '\\')));
+	return path != NULL &&
+	    (path[0] == '/' || (path[0] == '\\' && path[1] == '\\') ||
+		(isalpha((unsigned char)path[0]) && path[1] == ':' &&
+		    (path[2] == '/' || path[2] == '\\')));
 }
 
 int
@@ -354,7 +377,7 @@ void
 pc_strip_slash(char *path)
 {
 	size_t length = strlen(path);
-	char *cursor;
+	char  *cursor;
 	if ((length > 1 && path[1] == ':') || path[0] == '\\') {
 		for (cursor = path; *cursor != '\0'; cursor++)
 			if (*cursor == '\\')
@@ -366,7 +389,8 @@ pc_strip_slash(char *path)
 			*cursor = '/';
 #endif
 	while (length > 1 && path[length - 1] == '/') {
-		if (length == 3 && isalpha((unsigned char)path[0]) && path[1] == ':')
+		if (length == 3 && isalpha((unsigned char)path[0]) &&
+		    path[1] == ':')
 			break;
 		path[--length] = '\0';
 	}
@@ -394,9 +418,9 @@ metadata_error(const char *reason)
 char *
 pc_metadata_getln(FILE *stream, size_t *length)
 {
-	size_t used = 0, capacity;
-	int ch;
-	char *next;
+	size_t		    used = 0, capacity;
+	int		    ch;
+	char		   *next;
 	struct line_buffer *line;
 	for (line = line_buffers; line != NULL; line = line->next)
 		if (line->stream == stream)
@@ -441,14 +465,15 @@ char *
 pc_metadata_fgets(char *line, int capacity, FILE *stream)
 {
 	size_t used = 0;
-	int ch;
+	int    ch;
 	if (capacity < 2)
 		metadata_error("invalid line buffer capacity");
 	while ((ch = getc(stream)) != EOF) {
 		if (ch == 0)
 			metadata_error("embedded NUL");
 		if (used == (size_t)capacity - 1)
-			metadata_error("administrative line exceeds buffer capacity");
+			metadata_error(
+			    "administrative line exceeds buffer capacity");
 		line[used++] = (char)ch;
 		if (ch == '\n')
 			break;

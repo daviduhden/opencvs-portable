@@ -20,7 +20,11 @@
 #include "windows_compat.h"
 #define POLLIN 1
 #define POLLOUT 2
-struct pollfd { int fd; short events; short revents; };
+struct pollfd {
+	int   fd;
+	short events;
+	short revents;
+};
 int pc_poll(struct pollfd *, unsigned long, int);
 #define poll pc_poll
 #endif

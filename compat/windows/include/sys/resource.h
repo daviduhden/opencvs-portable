@@ -19,7 +19,9 @@
 #define OPENCVS_WINDOWS_RESOURCE_H
 #include "windows_compat.h"
 typedef uint64_t rlim_t;
-struct rlimit { rlim_t rlim_cur, rlim_max; };
+struct rlimit {
+	rlim_t rlim_cur, rlim_max;
+};
 #define RLIMIT_DATA 1
 #define RLIM_INFINITY UINT64_MAX
 int getrlimit(int, struct rlimit *);

@@ -16,20 +16,23 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /* Native path splitting with POSIX storage semantics. ISC license. */
-#include "windows_compat.h"
-#include <libgen.h>
 #include <ctype.h>
+#include <libgen.h>
+
+#include "windows_compat.h"
 
 static size_t
 root_length(const char *path)
 {
 	const char *end;
-	if (isalpha((unsigned char)path[0]) && path[1] == ':' && path[2] == '/') return 3;
+	if (isalpha((unsigned char)path[0]) && path[1] == ':' && path[2] == '/')
+		return 3;
 	if (path[0] == '/' && path[1] == '/' && path[2] != '\0') {
 		end = strchr(path + 2, '/');
 		if (end != NULL && end[1] != '\0') {
 			end = strchr(end + 1, '/');
-			return end != NULL ? (size_t)(end - path) : strlen(path);
+			return end != NULL ? (size_t)(end - path) :
+					     strlen(path);
 		}
 	}
 	return path[0] == '/' ? 1 : 0;
@@ -38,18 +41,25 @@ root_length(const char *path)
 static void
 forward_slashes(char *path)
 {
-	for (; *path; path++) if (*path == '\\') *path = '/';
+	for (; *path; path++)
+		if (*path == '\\')
+			*path = '/';
 }
 
 char *
 pc_basename(char *path)
 {
 	size_t len, root;
-	char *last;
-	if (path == NULL || *path == '\0') return ".";
-	forward_slashes(path); len = strlen(path); root = root_length(path);
-	while (len > root && path[len - 1] == '/') path[--len] = '\0';
-	if (len == root && root != 0) return "/";
+	char  *last;
+	if (path == NULL || *path == '\0')
+		return ".";
+	forward_slashes(path);
+	len = strlen(path);
+	root = root_length(path);
+	while (len > root && path[len - 1] == '/')
+		path[--len] = '\0';
+	if (len == root && root != 0)
+		return "/";
 	last = strrchr(path, '/');
 	return last != NULL ? last + 1 : path;
 }
@@ -58,15 +68,24 @@ char *
 pc_dirname(char *path)
 {
 	size_t len, root;
-	char *last;
-	if (path == NULL || *path == '\0') return ".";
-	forward_slashes(path); len = strlen(path); root = root_length(path);
-	while (len > root && path[len - 1] == '/') path[--len] = '\0';
-	if (len == root && root != 0) return path;
+	char  *last;
+	if (path == NULL || *path == '\0')
+		return ".";
+	forward_slashes(path);
+	len = strlen(path);
+	root = root_length(path);
+	while (len > root && path[len - 1] == '/')
+		path[--len] = '\0';
+	if (len == root && root != 0)
+		return path;
 	last = strrchr(path, '/');
-	if (last == NULL) return ".";
-	while (last > path + root && last[-1] == '/') last--;
-	if ((size_t)(last - path) < root) path[root] = '\0';
-	else *last = '\0';
+	if (last == NULL)
+		return ".";
+	while (last > path + root && last[-1] == '/')
+		last--;
+	if ((size_t)(last - path) < root)
+		path[root] = '\0';
+	else
+		*last = '\0';
 	return path;
 }

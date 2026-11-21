@@ -18,22 +18,24 @@
 /* Portable OpenCVS compatibility declarations. SPDX-License-Identifier: ISC */
 #ifndef PC_PORTABLE_H
 #define PC_PORTABLE_H
-#include "portable_config.h"
-#include <stddef.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <limits.h>
-#include <errno.h>
-#include <string.h>
 #include <assert.h>
 #include <dirent.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "portable_config.h"
 #ifdef _WIN32
 #include "windows_compat.h"
 #else
 #include <sys/types.h>
+
 #include <unistd.h>
 #endif
 #ifdef _MSC_VER
@@ -71,7 +73,8 @@
 #define __END_DECLS
 #endif
 #ifndef DEF_WEAK
-/* libc symbol interposition metadata is not needed by this standalone target. */
+/* libc symbol interposition metadata is not needed by this standalone target.
+ */
 #define DEF_WEAK(name) typedef int pc_weak_marker_##name
 #endif
 #ifndef _DIAGASSERT
@@ -124,14 +127,14 @@ char *strsep(char **, const char *);
 #ifndef PC_HAVE_VASPRINTF
 #define vasprintf pc_vasprintf
 #endif
-int asprintf(char **, const char *, ...) PC_PRINTF(2, 3);
-int vasprintf(char **, const char *, va_list) PC_PRINTF(2, 0);
+int   asprintf(char **, const char *, ...) PC_PRINTF(2, 3);
+int   vasprintf(char **, const char *, va_list) PC_PRINTF(2, 0);
 char *pc_fgetln(FILE *, size_t *);
 char *pc_metadata_getln(FILE *, size_t *);
 char *pc_metadata_fgets(char *, int, FILE *);
-int pc_fclose(FILE *);
-void pc_set_metadata_error_handler(void (*)(const char *));
-DIR *pc_directory_open(int, const char *);
+int   pc_fclose(FILE *);
+void  pc_set_metadata_error_handler(void (*)(const char *));
+DIR  *pc_directory_open(int, const char *);
 /* 0 synced, 1 unsupported, -1 failed with errno. */
 int pc_sync_parent_directory(const char *);
 #ifndef PC_HAVE_FGETLN
@@ -141,16 +144,16 @@ int pc_sync_parent_directory(const char *);
 extern char *pc_progname;
 #define __progname pc_progname
 const char *pc_getprogname(void);
-void pc_platform_startup(int *, char ***);
-char *pc_default_tmpdir(void);
-int pc_native_absolute(const char *);
-int pc_any_absolute(const char *);
-void pc_strip_slash(char *);
+void	    pc_platform_startup(int *, char ***);
+char	   *pc_default_tmpdir(void);
+int	    pc_native_absolute(const char *);
+int	    pc_any_absolute(const char *);
+void	    pc_strip_slash(char *);
 /* Namespaced BSD getopt preserves optreset on every supported libc. */
 #ifndef PC_HAVE_BSD_GETOPT
-int pc_getopt(int, char *const *, const char *);
+int	     pc_getopt(int, char *const *, const char *);
 extern char *pc_optarg;
-extern int pc_opterr, pc_optind, pc_optopt, pc_optreset;
+extern int   pc_opterr, pc_optind, pc_optopt, pc_optreset;
 #define getopt pc_getopt
 #define optarg pc_optarg
 #define opterr pc_opterr

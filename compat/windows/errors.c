@@ -16,31 +16,40 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /* Native diagnostic functions used by OpenCVS. ISC license; see LICENSE. */
-#include "windows_compat.h"
 #include <err.h>
 #include <stdarg.h>
+
+#include "windows_compat.h"
 
 static void
 message(const char *format, va_list ap)
 {
 	int saved = errno;
 	fprintf(stderr, "%s", pc_getprogname());
-	if (format != NULL) { fputs(": ", stderr); vfprintf(stderr, format, ap); }
-	fputc('\n', stderr); errno = saved;
+	if (format != NULL) {
+		fputs(": ", stderr);
+		vfprintf(stderr, format, ap);
+	}
+	fputc('\n', stderr);
+	errno = saved;
 }
 
 void
 pc_warnx(const char *format, ...)
 {
 	va_list ap;
-	va_start(ap, format); message(format, ap); va_end(ap);
+	va_start(ap, format);
+	message(format, ap);
+	va_end(ap);
 }
 
 void
 pc_errx(int status, const char *format, ...)
 {
 	va_list ap;
-	va_start(ap, format); message(format, ap); va_end(ap);
+	va_start(ap, format);
+	message(format, ap);
+	va_end(ap);
 	exit(status);
 }
 

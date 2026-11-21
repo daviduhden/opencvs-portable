@@ -19,14 +19,16 @@
 #ifndef PC_PROCESS_H
 #define PC_PROCESS_H
 #include <stdint.h>
-typedef struct pc_process { intptr_t handle; } pc_process;
+typedef struct pc_process {
+	intptr_t handle;
+} pc_process;
 /* -1 means inherit the corresponding standard stream. No shell is invoked. */
-int pc_spawn(pc_process *, const char *const [], int, int, int);
-int pc_wait(pc_process *, int *);
+int  pc_spawn(pc_process *, const char *const[], int, int, int);
+int  pc_wait(pc_process *, int *);
 void pc_detach(pc_process *);
-int pc_pipe(int [2]);
-int pc_run(const char *const []);
+int  pc_pipe(int[2]);
+int  pc_run(const char *const[]);
 /* Parse quoting/escaping only, never shell operators or substitutions. */
 char **pc_command_argv(const char *, const char *);
-void pc_free_argv(char **);
+void   pc_free_argv(char **);
 #endif

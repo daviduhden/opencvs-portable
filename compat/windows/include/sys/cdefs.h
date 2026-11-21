@@ -15,7 +15,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-/* BSD declaration wrappers for native Windows C. SPDX-License-Identifier: ISC */
+/* BSD declaration wrappers for native Windows C. SPDX-License-Identifier: ISC
+ */
 #ifndef PC_WINDOWS_CDEFS_H
 #define PC_WINDOWS_CDEFS_H
 #ifndef __BSD_VISIBLE

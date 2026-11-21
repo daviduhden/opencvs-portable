@@ -30,21 +30,22 @@
 #ifndef NTDDI_VERSION
 #define NTDDI_VERSION 0x0A000004 /* Windows 10, version 1709. */
 #endif
-#include <windows.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdint.h>
+
+#include <direct.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <io.h>
+#include <process.h>
+#include <signal.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <fcntl.h>
-#include <io.h>
-#include <process.h>
-#include <direct.h>
-#include <signal.h>
-#include <errno.h>
+#include <windows.h>
 #ifndef ENOTSUP
 #define ENOTSUP EINVAL
 #endif
@@ -80,28 +81,37 @@ typedef int pid_t;
 #endif
 #endif
 #ifndef PC_HAVE_STRUCT_TIMESPEC
-struct timespec { time_t tv_sec; long tv_nsec; };
+struct timespec {
+	time_t tv_sec;
+	long   tv_nsec;
+};
 #endif
 #ifndef _TIMEVAL_DEFINED
 #define _TIMEVAL_DEFINED
-struct timeval { long tv_sec; long tv_usec; };
+struct timeval {
+	long tv_sec;
+	long tv_usec;
+};
 #endif
 typedef unsigned char u_char;
-typedef unsigned int u_int;
+typedef unsigned int  u_int;
 typedef unsigned long u_long;
-typedef uint16_t u_int16_t;
-typedef uint32_t u_int32_t;
-typedef uint64_t u_int64_t;
-typedef int64_t pc_off_t;
-struct pc_timeval { time_t tv_sec; long tv_usec; };
+typedef uint16_t      u_int16_t;
+typedef uint32_t      u_int32_t;
+typedef uint64_t      u_int64_t;
+typedef int64_t	      pc_off_t;
+struct pc_timeval {
+	time_t tv_sec;
+	long   tv_usec;
+};
 struct pc_stat {
-	uint64_t st_dev, st_ino, st_nlink;
-	mode_t st_mode;
-	uid_t st_uid;
-	gid_t st_gid;
-	uint64_t st_rdev;
-	pc_off_t st_size;
-	long st_blksize;
+	uint64_t	st_dev, st_ino, st_nlink;
+	mode_t		st_mode;
+	uid_t		st_uid;
+	gid_t		st_gid;
+	uint64_t	st_rdev;
+	pc_off_t	st_size;
+	long		st_blksize;
 	struct timespec st_atim, st_mtim, st_ctim;
 };
 #ifndef S_IFMT
@@ -189,52 +199,52 @@ struct pc_stat {
 #define F_OK 0
 #endif
 wchar_t *pc_windows_utf16(const char *);
-char *pc_windows_utf8(const wchar_t *);
+char	*pc_windows_utf8(const wchar_t *);
 wchar_t *pc_windows_path(const char *);
-int pc_windows_errno(DWORD);
-void pc_windows_startup(int *, char ***);
-char *pc_windows_tempdir(void);
+int	 pc_windows_errno(DWORD);
+void	 pc_windows_startup(int *, char ***);
+char	*pc_windows_tempdir(void);
 #ifdef _MSC_VER
 char *pc_strerror(int);
 #endif
-char *pc_strptime(const char *, const char *, struct tm *);
-int pc_open(const char *, int, ...);
-FILE *pc_fopen(const char *, const char *);
-FILE *pc_fdopen(int, const char *);
-int pc_stat(const char *, struct pc_stat *);
-int pc_lstat(const char *, struct pc_stat *);
-int pc_fstat(int, struct pc_stat *);
-int pc_unlink(const char *);
-int pc_rename(const char *, const char *);
-const char *pc_windows_rename_error_stage(void);
-int pc_mkdir(const char *, mode_t);
-int pc_rmdir(const char *);
-int pc_chdir(const char *);
-char *pc_getcwd(char *, size_t);
-int pc_chmod(const char *, mode_t);
-int pc_fchmod(int, mode_t);
-int pc_access(const char *, int);
-mode_t pc_umask(mode_t);
-int pc_mkstemp(char *);
-int pc_futimes(int, const struct pc_timeval [2]);
-int pc_futimens(int, const struct timespec [2]);
-pc_off_t pc_lseek(int, pc_off_t, int);
-ssize_t pc_pread(int, void *, size_t, pc_off_t);
-ssize_t pc_read(int, void *, size_t);
-ssize_t pc_write(int, const void *, size_t);
-int pc_fsync(int);
-int pc_ftruncate(int, pc_off_t);
+char	    *pc_strptime(const char *, const char *, struct tm *);
+int	     pc_open(const char *, int, ...);
+FILE	    *pc_fopen(const char *, const char *);
+FILE	    *pc_fdopen(int, const char *);
+int	     pc_stat(const char *, struct pc_stat *);
+int	     pc_lstat(const char *, struct pc_stat *);
+int	     pc_fstat(int, struct pc_stat *);
+int	     pc_unlink(const char *);
+int	     pc_rename(const char *, const char *);
+const char  *pc_windows_rename_error_stage(void);
+int	     pc_mkdir(const char *, mode_t);
+int	     pc_rmdir(const char *);
+int	     pc_chdir(const char *);
+char	    *pc_getcwd(char *, size_t);
+int	     pc_chmod(const char *, mode_t);
+int	     pc_fchmod(int, mode_t);
+int	     pc_access(const char *, int);
+mode_t	     pc_umask(mode_t);
+int	     pc_mkstemp(char *);
+int	     pc_futimes(int, const struct pc_timeval[2]);
+int	     pc_futimens(int, const struct timespec[2]);
+pc_off_t     pc_lseek(int, pc_off_t, int);
+ssize_t	     pc_pread(int, void *, size_t, pc_off_t);
+ssize_t	     pc_read(int, void *, size_t);
+ssize_t	     pc_write(int, const void *, size_t);
+int	     pc_fsync(int);
+int	     pc_ftruncate(int, pc_off_t);
 unsigned int pc_sleep(unsigned int);
-int pc_gethostname(char *, size_t);
-uid_t pc_getuid(void);
-char *pc_getenv(const char *);
-int pc_setenv(const char *, const char *, int);
-int pc_unsetenv(const char *);
-struct tm *pc_gmtime_r(const time_t *, struct tm *);
-struct tm *pc_localtime_r(const time_t *, struct tm *);
-char *pc_ctime_r(const time_t *, char *);
-char *pc_asctime_r(const struct tm *, char *);
-time_t pc_timegm(struct tm *);
+int	     pc_gethostname(char *, size_t);
+uid_t	     pc_getuid(void);
+char	    *pc_getenv(const char *);
+int	     pc_setenv(const char *, const char *, int);
+int	     pc_unsetenv(const char *);
+struct tm   *pc_gmtime_r(const time_t *, struct tm *);
+struct tm   *pc_localtime_r(const time_t *, struct tm *);
+char	    *pc_ctime_r(const time_t *, char *);
+char	    *pc_asctime_r(const struct tm *, char *);
+time_t	     pc_timegm(struct tm *);
 #ifndef OPENCVS_WINDOWS_NO_ALIASES
 #define off_t pc_off_t
 #define timeval pc_timeval

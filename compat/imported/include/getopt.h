@@ -55,9 +55,9 @@
 /*
  * GNU-like getopt_long()
  */
-#define no_argument        0
-#define required_argument  1
-#define optional_argument  2
+#define no_argument 0
+#define required_argument 1
+#define optional_argument 2
 
 struct option {
 	/* name of long option */
@@ -74,20 +74,19 @@ struct option {
 };
 
 __BEGIN_DECLS
-int	 getopt_long(int, char * const *, const char *,
-	    const struct option *, int *);
-int	 getopt_long_only(int, char * const *, const char *,
-	    const struct option *, int *);
+int getopt_long(int, char *const *, const char *, const struct option *, int *);
+int getopt_long_only(
+    int, char *const *, const char *, const struct option *, int *);
 #ifndef _GETOPT_DEFINED_
 #define _GETOPT_DEFINED_
-int	 getopt(int, char * const *, const char *);
+int getopt(int, char *const *, const char *);
 
-extern   char *optarg;                  /* getopt(3) external variables */
-extern   int opterr;
-extern   int optind;
-extern   int optopt;
-extern   int optreset;
+extern char *optarg; /* getopt(3) external variables */
+extern int   opterr;
+extern int   optind;
+extern int   optopt;
+extern int   optreset;
 #endif
 __END_DECLS
- 
+
 #endif /* !_GETOPT_H_ */
