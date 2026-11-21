@@ -404,7 +404,7 @@ p_ere_exp(struct parse *p)
 				count2 = p_count(p);
 				REQUIRE(count <= count2, REG_BADBR);
 			} else		/* single number with comma */
-				count2 = INFINITY;
+				count2 = PC_REGEX_INFINITY;
 		} else		/* just a single number */
 			count2 = count;
 		repeat(p, pos, count, count2);
@@ -583,7 +583,7 @@ p_simp_re(struct parse *p,
 				count2 = p_count(p);
 				REQUIRE(count <= count2, REG_BADBR);
 			} else		/* single number with comma */
-				count2 = INFINITY;
+				count2 = PC_REGEX_INFINITY;
 		} else		/* just a single number */
 			count2 = count;
 		repeat(p, pos, count, count2);
@@ -945,13 +945,13 @@ static void
 repeat(struct parse *p,
     sopno start,		/* operand from here to end of strip */
     int from,			/* repeated from this number */
-    int to)			/* to this number of times (maybe INFINITY) */
+    int to)			/* to this number of times (maybe PC_REGEX_INFINITY) */
 {
 	sopno finish = HERE();
 #	define	N	2
 #	define	INF	3
 #	define	REP(f, t)	((f)*8 + (t))
-#	define	MAP(n)	(((n) <= 1) ? (n) : ((n) == INFINITY) ? INF : N)
+#	define	MAP(n)	(((n) <= 1) ? (n) : ((n) == PC_REGEX_INFINITY) ? INF : N)
 	sopno copy;
 
 	if (p->error != 0)	/* head off possible runaway recursion */
@@ -1083,7 +1083,7 @@ nomem:
 static void
 freeset(struct parse *p, cset *cs)
 {
-	int i;
+	size_t i;
 	cset *top = &p->g->sets[p->g->ncsets];
 	size_t css = (size_t)p->g->csetsize;
 
@@ -1106,7 +1106,7 @@ static int			/* set number */
 freezeset(struct parse *p, cset *cs)
 {
 	uch h = cs->hash;
-	int i;
+	size_t i;
 	cset *top = &p->g->sets[p->g->ncsets];
 	cset *cs2;
 	size_t css = (size_t)p->g->csetsize;
@@ -1136,7 +1136,7 @@ freezeset(struct parse *p, cset *cs)
 static int			/* character; there is no "none" value */
 firstch(struct parse *p, cset *cs)
 {
-	int i;
+	size_t i;
 	size_t css = (size_t)p->g->csetsize;
 
 	for (i = 0; i < css; i++)
@@ -1152,7 +1152,7 @@ firstch(struct parse *p, cset *cs)
 static int
 nch(struct parse *p, cset *cs)
 {
-	int i;
+	size_t i;
 	size_t css = (size_t)p->g->csetsize;
 	int n = 0;
 
@@ -1306,8 +1306,8 @@ static void
 findmust(struct parse *p, struct re_guts *g)
 {
 	sop *scan;
-	sop *start;    /* start initialized in the default case, after that */
-	sop *newstart; /* newstart was initialized in the OCHAR case */
+	sop *start = NULL;
+	sop *newstart = NULL;
 	sopno newlen;
 	sop s;
 	char *cp;
@@ -1358,6 +1358,10 @@ findmust(struct parse *p, struct re_guts *g)
 
 	if (g->mlen == 0)		/* there isn't one */
 		return;
+	if (start == NULL) { /* No literal run was recorded; omit this optimization. */
+		g->mlen = 0;
+		return;
+	}
 
 	/* turn it into a character string */
 	g->must = malloc((size_t)g->mlen + 1);

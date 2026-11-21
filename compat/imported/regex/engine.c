@@ -152,7 +152,7 @@ matcher(struct re_guts *g, const char *string, size_t nmatch,
     regmatch_t pmatch[], int eflags)
 {
 	const char *endp;
-	int i;
+	size_t i;
 	struct match mv;
 	struct match *m = &mv;
 	const char *dp;
@@ -324,7 +324,6 @@ dissect(struct match *m, const char *start, const char *stop, sopno startst,
 	const char *ssp;	/* start of string matched by subsubRE */
 	const char *sep;	/* end of string matched by subsubRE */
 	const char *oldssp;	/* previous ssp */
-	const char *dp;
 
 	AT("diss", start, stop, startst, stopst);
 	sp = start;
@@ -383,8 +382,8 @@ dissect(struct match *m, const char *start, const char *stop, sopno startst,
 			esub = es - 1;
 			/* did innards match? */
 			if (slow(m, sp, rest, ssub, esub) != NULL) {
-				dp = dissect(m, sp, rest, ssub, esub);
-				assert(dp == rest);
+				if (dissect(m, sp, rest, ssub, esub) != rest)
+					return NULL;
 			} else		/* no */
 				assert(sp == rest);
 			sp = rest;
@@ -421,8 +420,8 @@ dissect(struct match *m, const char *start, const char *stop, sopno startst,
 			}
 			assert(sep == rest);	/* must exhaust substring */
 			assert(slow(m, ssp, sep, ssub, esub) == rest);
-			dp = dissect(m, ssp, sep, ssub, esub);
-			assert(dp == sep);
+			if (dissect(m, ssp, sep, ssub, esub) != sep)
+				return NULL;
 			sp = rest;
 			break;
 		case OCH_:
@@ -456,8 +455,8 @@ dissect(struct match *m, const char *start, const char *stop, sopno startst,
 				else
 					assert(OP(m->g->strip[esub]) == O_CH);
 			}
-			dp = dissect(m, sp, rest, ssub, esub);
-			assert(dp == rest);
+			if (dissect(m, sp, rest, ssub, esub) != rest)
+				return NULL;
 			sp = rest;
 			break;
 		case O_PLUS:

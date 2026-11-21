@@ -26,6 +26,7 @@
 #include "pc_process.h"
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <regex.h>
 
 static int failures;
 
@@ -239,7 +240,7 @@ processes(const char *self)
 	int fds[2], status;
 	char buffer[64];
 	size_t used = 0;
-	ssize_t n;
+	ssize_t n = -1;
 
 	if (pc_pipe(fds) != 0) {
 		expect(0, "create native child output pipe");
@@ -428,6 +429,27 @@ directory_descriptors(void)
 	free(path);
 }
 
+static void
+regex_contracts(void)
+{
+	regex_t regex;
+	regmatch_t match[2];
+	int result;
+
+	result = regcomp(&regex, "^([[:alpha:]]{2})[0-9]+$",
+	    REG_EXTENDED | REG_ICASE);
+	expect(result == 0, "compile a quantified expression with a capture");
+	if (result != 0)
+		return;
+	result = regexec(&regex, "Ab123", 2, match, 0);
+	expect(result == 0 && match[0].rm_so == 0 && match[0].rm_eo == 5 &&
+	    match[1].rm_so == 0 && match[1].rm_eo == 2,
+	    "match and capture use byte offsets");
+	expect(regexec(&regex, "A123", 2, match, 0) == REG_NOMATCH,
+	    "reject a nonmatching input");
+	regfree(&regex);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -453,6 +475,7 @@ main(int argc, char **argv)
 	strings();
 	numbers_and_memory();
 	formatting();
+	regex_contracts();
 	stream_lines();
 	directory_descriptors();
 	positional_reads();
