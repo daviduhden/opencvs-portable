@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: getlog.c,v 1.101 2017/06/01 08:08:24 joris Exp $	*/
 /*
  * Copyright (c) 2005, 2006 Xavier Santolaria <xsa@openbsd.org>
@@ -421,7 +438,8 @@ push_date(char *dest, const char *src)
 static u_int
 date_select(RCSFILE *file, char *date)
 {
-	int i, nrev, flags;
+	int i, flags;
+	u_int nrev;
 	struct rcs_delta *rdp;
 	struct cvs_argvector *args;
 	char *first, *last, delim;
@@ -460,7 +478,7 @@ date_select(RCSFILE *file, char *date)
 		if (last == NULL) {
 			flags |= LDATE_SINGLE;
 			if ((firstdate = date_parse(first)) == -1)
-				return -1;
+				goto invalid;
 			delim = '\0';
 			last = "\0";
 		} else {
@@ -471,25 +489,25 @@ date_select(RCSFILE *file, char *date)
 		if (delim == '>' && *last == '\0') {
 			flags |= LDATE_EARLIER;
 			if ((firstdate = date_parse(first)) == -1)
-				return -1;
+				goto invalid;
 		}
 
 		if (delim == '>' && *first == '\0' && *last != '\0') {
 			flags |= LDATE_LATER;
 			if ((firstdate = date_parse(last)) == -1)
-				return -1;
+				goto invalid;
 		}
 
 		if (delim == '<' && *last == '\0') {
 			flags |= LDATE_LATER;
 			if ((firstdate = date_parse(first)) == -1)
-				return -1;
+				goto invalid;
 		}
 
 		if (delim == '<' && *first == '\0' && *last != '\0') {
 			flags |= LDATE_EARLIER;
 			if ((firstdate = date_parse(last)) == -1)
-				return -1;
+				goto invalid;
 		}
 
 		if (*first != '\0' && *last != '\0') {
@@ -503,7 +521,7 @@ date_select(RCSFILE *file, char *date)
 				lastdate = date_parse(first);
 			}
 			if (firstdate == -1 || lastdate == -1)
-				return -1;
+				goto invalid;
 		}
 
 		TAILQ_FOREACH(rdp, &(file->rf_delta), rd_list) {
@@ -512,6 +530,8 @@ date_select(RCSFILE *file, char *date)
 			if (flags & LDATE_SINGLE) {
 				if (rcsdate <= firstdate) {
 					rdp->rd_flags |= RCS_RD_SELECT;
+					if (nrev == UINT_MAX - 1)
+						goto invalid;
 					nrev++;
 					break;
 				}
@@ -520,6 +540,8 @@ date_select(RCSFILE *file, char *date)
 			if (flags & LDATE_EARLIER) {
 				if (rcsdate < firstdate) {
 					rdp->rd_flags |= RCS_RD_SELECT;
+					if (nrev == UINT_MAX - 1)
+						goto invalid;
 					nrev++;
 					continue;
 				}
@@ -527,6 +549,8 @@ date_select(RCSFILE *file, char *date)
 				if (flags & LDATE_INCLUSIVE &&
 				    (rcsdate <= firstdate)) {
 					rdp->rd_flags |= RCS_RD_SELECT;
+					if (nrev == UINT_MAX - 1)
+						goto invalid;
 					nrev++;
 					continue;
 				}
@@ -535,6 +559,8 @@ date_select(RCSFILE *file, char *date)
 			if (flags & LDATE_LATER) {
 				if (rcsdate > firstdate) {
 					rdp->rd_flags |= RCS_RD_SELECT;
+					if (nrev == UINT_MAX - 1)
+						goto invalid;
 					nrev++;
 					continue;
 				}
@@ -542,6 +568,8 @@ date_select(RCSFILE *file, char *date)
 				if (flags & LDATE_INCLUSIVE &&
 				    (rcsdate >= firstdate)) {
 					rdp->rd_flags |= RCS_RD_SELECT;
+					if (nrev == UINT_MAX - 1)
+						goto invalid;
 					nrev++;
 					continue;
 				}
@@ -551,6 +579,8 @@ date_select(RCSFILE *file, char *date)
 				if ((rcsdate > firstdate) &&
 				    (rcsdate < lastdate)) {
 					rdp->rd_flags |= RCS_RD_SELECT;
+					if (nrev == UINT_MAX - 1)
+						goto invalid;
 					nrev++;
 					continue;
 				}
@@ -559,6 +589,8 @@ date_select(RCSFILE *file, char *date)
 				    ((rcsdate >= firstdate) &&
 				    (rcsdate <= lastdate))) {
 					rdp->rd_flags |= RCS_RD_SELECT;
+					if (nrev == UINT_MAX - 1)
+						goto invalid;
 					nrev++;
 					continue;
 				}
@@ -569,4 +601,8 @@ date_select(RCSFILE *file, char *date)
 	cvs_argv_destroy(args);
 
 	return (nrev);
+
+invalid:
+	cvs_argv_destroy(args);
+	return UINT_MAX;
 }
