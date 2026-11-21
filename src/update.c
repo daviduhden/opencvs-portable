@@ -344,6 +344,8 @@ cvs_update_local(struct cvs_file *cf)
 		else
 			cf->file_status = FILE_CHECKOUT;
 
+		free(cf->file_rcsrev);
+		cf->file_rcsrev = NULL;
 		if ((cf->file_rcsrev = rcs_head_get(cf->file_rcs)) == NULL)
 			fatal("no head revision in RCS file for %s",
 			    cf->file_path);
