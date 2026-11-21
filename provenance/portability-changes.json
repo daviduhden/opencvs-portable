@@ -75,6 +75,7 @@
     "src/xmalloc.h"
   ],
   "new_code_files": [
+    ".github/workflows/agent-knowledge-validation.yml",
     ".github/workflows/ci.yml",
     ".github/workflows/openbsd.yml",
     ".github/workflows/release.yml",
@@ -107,11 +108,13 @@
     "platform/windows/opencvs.manifest.rc",
     "platform/windows/process.c",
     "scripts/check-license-notices.pl",
+    "scripts/check-project-guidance.pl",
     "scripts/check-windows-imports.pl",
     "scripts/publish-prerelease.pl",
     "scripts/release-check.pl",
     "scripts/upstream-stage.pl",
     "scripts/validate-agent-knowledge.pl",
+    "tests/agent_knowledge_validator/test_validator.pl",
     "tests/fs_probe.c",
     "tests/integration.pl",
     "tests/ssh_shim.c",
