@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS formatting changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: util.h,v 1.31 2017/08/28 19:33:20 otto Exp $	*/
 /*
  * Copyright (c) 2006 Niall O'Higgins <niallo@openbsd.org>
@@ -27,49 +44,49 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-void	  cvs_get_repository_path(const char *, char *, size_t);
-void	  cvs_get_repository_name(const char *, char *, size_t);
-void	  cvs_modetostr(mode_t, char *, size_t);
-void	  cvs_strtomode(const char *, mode_t *);
-void	  cvs_mkadmin(const char *, const char *, const char *, char *, char *);
-void	  cvs_mkpath(const char *, char *);
-void	  cvs_mkdir(const char *, mode_t);
-int	  cvs_getargv(const char *, char **, int);
-int	  cvs_chdir(const char *, int);
-int	  cvs_rename(const char *, const char *);
-int	  cvs_unlink(const char *);
-int	  cvs_rmdir(const char *);
-char	**cvs_makeargv(const char *, int *);
-void	  cvs_freeargv(char **, int);
-int	  cvs_exec(char *, char *, int);
-u_int	  cvs_revision_select(RCSFILE *, char *);
+void   cvs_get_repository_path(const char *, char *, size_t);
+void   cvs_get_repository_name(const char *, char *, size_t);
+void   cvs_modetostr(mode_t, char *, size_t);
+void   cvs_strtomode(const char *, mode_t *);
+void   cvs_mkadmin(const char *, const char *, const char *, char *, char *);
+void   cvs_mkpath(const char *, char *);
+void   cvs_mkdir(const char *, mode_t);
+int    cvs_getargv(const char *, char **, int);
+int    cvs_chdir(const char *, int);
+int    cvs_rename(const char *, const char *);
+int    cvs_unlink(const char *);
+int    cvs_rmdir(const char *);
+char **cvs_makeargv(const char *, int *);
+void   cvs_freeargv(char **, int);
+int    cvs_exec(char *, char *, int);
+u_int  cvs_revision_select(RCSFILE *, char *);
 
 struct rcs_line {
-	struct rcs_delta	*l_delta;
-	u_char			*l_line;
-	size_t			 l_len;
-	int			 l_lineno;
-	int			 l_lineno_orig;
-	int			 l_needsfree;
-	TAILQ_ENTRY(rcs_line)	 l_list;
+	struct rcs_delta *l_delta;
+	u_char		 *l_line;
+	size_t		  l_len;
+	int		  l_lineno;
+	int		  l_lineno_orig;
+	int		  l_needsfree;
+	TAILQ_ENTRY(rcs_line) l_list;
 };
 
 TAILQ_HEAD(tqh, rcs_line);
 
 struct rcs_lines {
-	int		l_nblines;
-	struct tqh	l_lines;
+	int	   l_nblines;
+	struct tqh l_lines;
 };
 
 struct cvs_argvector {
-	char *str;
+	char  *str;
 	char **argv;
 };
 
-struct rcs_lines	*cvs_splitlines(u_char *, size_t);
-void			cvs_freelines(struct rcs_lines *);
-struct cvs_argvector	*cvs_strsplit(char *, const char *);
-void			cvs_argv_destroy(struct cvs_argvector *);
-int			cvs_yesno(void);
+struct rcs_lines     *cvs_splitlines(u_char *, size_t);
+void		      cvs_freelines(struct rcs_lines *);
+struct cvs_argvector *cvs_strsplit(char *, const char *);
+void		      cvs_argv_destroy(struct cvs_argvector *);
+int		      cvs_yesno(void);
 
-#endif	/* UTIL_H */
+#endif /* UTIL_H */

@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS formatting changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*      $OpenBSD: init.h,v 1.3 2017/08/28 19:33:20 otto Exp $       */
 /*
  * Copyright (c) 2006 Xavier Santolaria <xsa@openbsd.org>
@@ -19,13 +36,8 @@
 #define INIT_H
 
 char *config_contents[] = {
-	"# Set name of the local tag to use in addition to `Id'\n",
-	"#tag=OpenBSD\n",
-	"# Set default file creation mode mask\n",
-	"#umask=002\n",
-	"# Set default data resource limit to use\n",
-	"#dlimit=49152\n",
-	NULL
-};
+    "# Set name of the local tag to use in addition to `Id'\n",
+    "#tag=OpenBSD\n", "# Set default file creation mode mask\n", "#umask=002\n",
+    "# Set default data resource limit to use\n", "#dlimit=49152\n", NULL};
 
-#endif	/* INIT_H */
+#endif /* INIT_H */

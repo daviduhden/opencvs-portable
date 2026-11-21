@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS formatting changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: release.c,v 1.43 2017/06/01 08:08:24 joris Exp $	*/
 /*-
  * Copyright (c) 2005-2007 Xavier Santolaria <xsa@openbsd.org>
@@ -23,28 +40,22 @@
 #include "cvs.h"
 #include "remote.h"
 
-void	cvs_release_local(struct cvs_file *);
+void cvs_release_local(struct cvs_file *);
 
-static void	release_check_files(struct cvs_file *);
+static void release_check_files(struct cvs_file *);
 
-static int	dflag = 0;
-static int	files_altered = 0;
+static int dflag = 0;
+static int files_altered = 0;
 
-struct cvs_cmd cvs_cmd_release = {
-	CVS_OP_RELEASE, CVS_USE_WDIR, "release",
-	{ "re", "rel" },
-	"Indicate that a Module is no longer in use",
-	"[-d] dir...",
-	"d",
-	NULL,
-	cvs_release
-};
+struct cvs_cmd cvs_cmd_release = {CVS_OP_RELEASE, CVS_USE_WDIR, "release",
+    {"re", "rel"}, "Indicate that a Module is no longer in use", "[-d] dir...",
+    "d", NULL, cvs_release};
 
 int
 cvs_release(int argc, char **argv)
 {
-	int ch;
-	int flags;
+	int		     ch;
+	int		     flags;
 	struct cvs_recursion cr;
 
 	flags = CR_REPO;
@@ -94,11 +105,11 @@ cvs_release(int argc, char **argv)
 void
 cvs_release_local(struct cvs_file *cf)
 {
-	struct stat st;
+	struct stat	     st;
 	struct cvs_recursion cr;
-	char *wdir, cwd[PATH_MAX];
-	char *arg = ".";
-	int saved_noexec;
+	char		    *wdir, cwd[PATH_MAX];
+	char		    *arg = ".";
+	int		     saved_noexec;
 
 	if (cf->file_type == CVS_FILE)
 		return;
@@ -153,14 +164,14 @@ cvs_release_local(struct cvs_file *cf)
 
 	cvs_file_run(1, &arg, &cr);
 
-	(void)printf("You have [%d] altered files in this repository.\n",
-	    files_altered);
+	(void)printf(
+	    "You have [%d] altered files in this repository.\n", files_altered);
 	(void)printf("Are you sure you want to release %sdirectory `%s': ",
-		(dflag == 1) ? "(and delete) " : "", cf->file_path);
+	    (dflag == 1) ? "(and delete) " : "", cf->file_path);
 
 	if (cvs_yesno() == -1) {
-		(void)fprintf(stderr,
-		    "** `%s' aborted by user choice.\n", cmdp->cmd_name);
+		(void)fprintf(stderr, "** `%s' aborted by user choice.\n",
+		    cmdp->cmd_name);
 
 		/* change back to original working dir */
 		cvs_chdir(wdir, 0);
@@ -185,9 +196,7 @@ release_check_files(struct cvs_file *cf)
 
 	cvs_file_classify(cf, cvs_directory_tag);
 
-	if (cf->file_status == FILE_MERGE ||
-	    cf->file_status == FILE_ADDED ||
-	    cf->file_status == FILE_PATCH ||
-	    cf->file_status == FILE_CONFLICT)
+	if (cf->file_status == FILE_MERGE || cf->file_status == FILE_ADDED ||
+	    cf->file_status == FILE_PATCH || cf->file_status == FILE_CONFLICT)
 		files_altered++;
 }

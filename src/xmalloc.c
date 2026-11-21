@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS formatting changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /* $OpenBSD: xmalloc.c,v 1.14 2019/06/28 05:44:09 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -32,8 +49,8 @@ xmalloc(size_t size)
 		fatal("xmalloc: zero size");
 	ptr = malloc(size);
 	if (ptr == NULL)
-		fatal("xmalloc: allocating %zu bytes: %s",
-		    size, strerror(errno));
+		fatal(
+		    "xmalloc: allocating %zu bytes: %s", size, strerror(errno));
 	return ptr;
 }
 
@@ -46,8 +63,8 @@ xcalloc(size_t nmemb, size_t size)
 		fatal("xcalloc: zero size");
 	ptr = calloc(nmemb, size);
 	if (ptr == NULL)
-		fatal("xcalloc: allocating %zu * %zu bytes: %s",
-		    nmemb, size, strerror(errno));
+		fatal("xcalloc: allocating %zu * %zu bytes: %s", nmemb, size,
+		    strerror(errno));
 	return ptr;
 }
 
@@ -60,8 +77,8 @@ xreallocarray(void *ptr, size_t nmemb, size_t size)
 		fatal("xreallocarray: zero size");
 	new_ptr = reallocarray(ptr, nmemb, size);
 	if (new_ptr == NULL)
-		fatal("xreallocarray: allocating %zu * %zu bytes: %s",
-		    nmemb, size, strerror(errno));
+		fatal("xreallocarray: allocating %zu * %zu bytes: %s", nmemb,
+		    size, strerror(errno));
 	return new_ptr;
 }
 
@@ -79,7 +96,7 @@ int
 xasprintf(char **ret, const char *fmt, ...)
 {
 	va_list ap;
-	int i;
+	int	i;
 
 	va_start(ap, fmt);
 	i = vasprintf(ret, fmt, ap);
@@ -95,7 +112,7 @@ int
 xsnprintf(char *str, size_t len, const char *fmt, ...)
 {
 	va_list ap;
-	int i;
+	int	i;
 
 	if (len > INT_MAX)
 		fatal("xsnprintf: len > INT_MAX");
