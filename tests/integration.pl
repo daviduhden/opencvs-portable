@@ -749,7 +749,35 @@ test_case interop => opencvs_client_gnu_server_wire => sub {
     import_tree($s, undef, executable => $gnu_cvs);
     my $root = ':ext:test.invalid:' . slash_path($s->{repo});
     my $env = remote_environment($s, $gnu_cvs);
-    my $work = checkout($s, 'wire-opencvs-client', root => $root, env => $env);
+    # Synthetic repository traffic only: identify the metadata response at the
+    # point of failure without dumping file contents or relaxing validation.
+    my $wire_log = path($s->{base}, 'gnu-server-wire');
+    $env->{CVS_CLIENT_LOG} = $wire_log;
+    my $work;
+    my $checkout_ok = eval {
+        $work = checkout($s, 'wire-opencvs-client', root => $root, env => $env);
+        1;
+    };
+    if (!$checkout_ok) {
+        my $error = $@;
+        my $incoming = $wire_log . '-0.in';
+        if (-f $incoming) {
+            my $traffic = read_bytes($incoming);
+            my @lines = split /\n/, $traffic;
+            my $last = @lines ? pop @lines : '';
+            my $context = @lines ? pop @lines : '';
+            my $diagnostic = join "\n", map {
+                my $line = substr($_, 0, 512);
+                $line =~ s/([^\x20-\x7e])/sprintf('\\x%02x', ord($1))/ge;
+                $line;
+            } ($context, $last);
+            push @events, {test => $current_test,
+                purpose => 'last synthetic GNU server metadata context',
+                protocol_context => $diagnostic};
+            $error .= "GNU response context (last two lines, 512 bytes each):\n$diagnostic\n";
+        }
+        die $error;
+    }
     equal(read_bytes(path($work, 'sample.txt')), $TEXT);
     my $updated = "alpha\nOpenCVS client wire commit\nomega\n";
     changed(path($work, 'sample.txt'), $updated);
