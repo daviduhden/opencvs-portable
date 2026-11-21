@@ -115,7 +115,7 @@ jobs:
       - name: Run unit, integration, security, and GNU CVS interoperability tests
         run: ctest --test-dir build --output-on-failure
       - name: Validate agent knowledge
-        run: perl scripts/validate-agent-knowledge.pl
+        run: perl scripts/check-project-guidance.pl
       - name: Create the glibc distribution
         if: matrix.sanitizers == 'OFF'
         env:
@@ -338,7 +338,8 @@ jobs:
           ref: ${{ needs.release-metadata.outputs.sha }}
       - name: Validate the project knowledge and staging tools
         run: |
-          perl scripts/validate-agent-knowledge.pl
+          perl scripts/check-project-guidance.pl
+          perl scripts/validate-agent-knowledge.pl --scope worktree
           perl scripts/check-license-notices.pl
           perl -c scripts/upstream-stage.pl
           perl -c scripts/check-windows-imports.pl

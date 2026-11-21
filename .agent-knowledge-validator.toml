@@ -1,0 +1,4 @@
+[validator]
+contract_version = "1.0.0"
+require_agents_and_skills = true
+exclude_paths = ["docs/ci/diagnostic-index.json"]

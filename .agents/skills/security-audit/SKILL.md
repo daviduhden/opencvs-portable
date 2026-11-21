@@ -13,3 +13,7 @@ For integrity findings, trace the ordering of validation, temporary writes,
 flush, close, rename, and metadata publication across RCS, Entries, checkout,
 and protocol consumers. Use isolated repositories for CI regressions. Track
 remaining races and multi-file consistency limits in `docs/ci/DATA-INTEGRITY.md`.
+
+## Maintenance & Continuous Learning
+
+Update this skill when changes invalidate guidance within its scope.

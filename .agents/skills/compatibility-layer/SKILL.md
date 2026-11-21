@@ -13,3 +13,7 @@ For each new or changed code file, embed the complete `LICENSES/ISC.txt` notice
 in its comment syntax. Scope the added copyright to portability changes in
 imported files and retain original notices. Run `perl scripts/check-license-notices.pl`;
 a short SPDX marker does not replace the full header.
+
+## Maintenance & Continuous Learning
+
+Update this skill when changes invalidate guidance within its scope.

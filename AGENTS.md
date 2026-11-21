@@ -80,6 +80,17 @@ parser output, relevant documentation and test evidence after a reviewed sync.
 
 ## Diagnostic and regression policy
 
+### Continuous Agent & Skills Maintenance
+
+Update this file and at least one relevant `.agents/skills/*/SKILL.md` with
+substantive operational guidance in the same change range as project changes.
+Record reusable platform assumptions, CI evidence, or constraints that the
+change introduces or corrects. Use the manual Agent Knowledge Validation
+workflow with the commit before the change range as its base.
+
+The Perl validator follows the openutils Agent Knowledge Validation 1.0.0
+contract and adds the Portable OpenCVS requirement to update both files.
+
 For every compiler warning, build failure, crash, portability defect, test
 failure, sanitizer report, or data integrity problem, record the originating
 run and SHA (or mark the finding as static). Trace the root cause through

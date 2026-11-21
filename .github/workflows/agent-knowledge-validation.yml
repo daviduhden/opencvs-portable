@@ -1,0 +1,37 @@
+name: Agent Knowledge Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Base commit or tag from before the changes being reviewed
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-agent-knowledge:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run Perl contract tests
+        run: prove tests/agent_knowledge_validator/test_validator.pl
+      - name: Check knowledge updates in the selected range
+        shell: bash
+        env:
+          BASE_REVISION: ${{ inputs.base }}
+        run: |
+          base=$(git rev-parse --verify --end-of-options "${BASE_REVISION}^{commit}")
+          git merge-base --is-ancestor "$base" HEAD
+          if [ "$base" = "$(git rev-parse HEAD)" ]; then
+            echo "Select a base commit before HEAD" >&2
+            exit 1
+          fi
+          perl scripts/validate-agent-knowledge.pl --scope range --base "$base" --head HEAD

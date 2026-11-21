@@ -32,3 +32,9 @@ from protocol and repository failures.
 Record whether failures vary with destination existence, open handles, or
 cleanup order. Compare the smallest existing regression variants before
 making another platform-specific change.
+
+## Maintenance & Continuous Learning
+
+Run Agent Knowledge Validation against the full change range. When code and
+guidance land in separate commits, select the commit before both so the
+validator can see the implementation and its corresponding instruction updates.
