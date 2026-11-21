@@ -410,12 +410,12 @@ positional_reads(void)
 
 #ifdef _WIN32
 static void
-readonly_replacement(void)
+readonly_replacement_case(int source_open, int destination_open, int exists)
 {
 	char *from = NULL, *to = NULL;
 	char byte = '\0';
 	struct stat st;
-	int source = -1, destination = -1, destination_created = 0;
+	int source = -1, destination = -1, destination_created = 0, result;
 
 	if (asprintf(&from, "%s/pc-rename-from-XXXXXXXXXX", pc_default_tmpdir()) < 0 ||
 	    asprintf(&to, "%s/pc-rename-to-XXXXXXXXXX", pc_default_tmpdir()) < 0) {
@@ -434,25 +434,71 @@ readonly_replacement(void)
 		expect(0, "prepare read-only rename fixtures");
 		goto done;
 	}
-	expect(rename(from, to) == 0, "replace a read-only file from a read-only source");
-	expect(stat(to, &st) == 0 && (st.st_mode & S_IWUSR) == 0,
-	    "replacement retains its read-only bit");
-	(void)close(destination);
-	destination = open(to, O_RDONLY);
-	expect(destination != -1 && read(destination, &byte, 1) == 1 && byte == 's',
-	    "replacement retains source bytes");
+	if (!source_open) { (void)close(source); source = -1; }
+	if (!destination_open || !exists) {
+		(void)close(destination);
+		destination = -1;
+	}
+	if (!exists && unlink(to) == -1) {
+		expect(0, "prepare absent rename destination");
+		goto done;
+	}
+	result = rename(from, to);
+	if (result == -1) {
+		/* Preserve diagnostics before stat/open change either error channel. */
+		int saved_errno = errno;
+		DWORD saved_error = GetLastError();
+		const char *stage = pc_windows_rename_error_stage();
+		fprintf(stderr, "readonly rename source-open=%d destination-open=%d exists=%d errno=%d winerror=%lu stage=%s\n",
+		    source_open, destination_open, exists, saved_errno,
+		    (unsigned long)saved_error, stage);
+	}
+	expect(result == 0, "replace a read-only file from a read-only source");
+	if (destination != -1) { (void)close(destination); destination = -1; }
+	if (result == -1) {
+		int fd = open(from, O_RDONLY);
+		expect(fd != -1 && read(fd, &byte, 1) == 1 && byte == 's',
+		    "failed rename preserves source bytes");
+		if (fd != -1) (void)close(fd);
+		expect(stat(from, &st) == 0 && (st.st_mode & S_IWUSR) == 0,
+		    "failed rename preserves source read-only attribute");
+		if (exists) {
+			fd = open(to, O_RDONLY);
+			expect(fd != -1 && read(fd, &byte, 1) == 1 && byte == 'd',
+			    "failed rename preserves destination bytes");
+			if (fd != -1) (void)close(fd);
+			expect(stat(to, &st) == 0 && (st.st_mode & S_IWUSR) == 0,
+			    "failed rename preserves destination read-only attribute");
+		} else {
+			expect(stat(to, &st) == -1 && errno == ENOENT,
+			    "failed rename leaves absent destination absent");
+		}
+	} else {
+		expect(stat(to, &st) == 0 && (st.st_mode & S_IWUSR) == 0,
+		    "replacement retains its read-only bit");
+		destination = open(to, O_RDONLY);
+		expect(destination != -1 && read(destination, &byte, 1) == 1 && byte == 's',
+		    "replacement retains source bytes");
+	}
 
 done:
-	if (source != -1) {
-		(void)close(source);
-		(void)unlink(from);
-	}
-	if (destination != -1)
-		(void)close(destination);
-	if (destination_created)
-		(void)unlink(to);
+	if (source != -1) (void)close(source);
+	if (from != NULL) (void)unlink(from);
+	if (destination != -1) (void)close(destination);
+	if (destination_created) (void)unlink(to);
 	free(from);
 	free(to);
+}
+
+static void
+readonly_replacement(void)
+{
+	int source_open, destination_open;
+	for (source_open = 0; source_open <= 1; source_open++) {
+		readonly_replacement_case(source_open, 0, 0);
+		for (destination_open = 0; destination_open <= 1; destination_open++)
+			readonly_replacement_case(source_open, destination_open, 1);
+	}
 }
 #endif
 

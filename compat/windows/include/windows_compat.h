@@ -203,6 +203,7 @@ int pc_lstat(const char *, struct pc_stat *);
 int pc_fstat(int, struct pc_stat *);
 int pc_unlink(const char *);
 int pc_rename(const char *, const char *);
+const char *pc_windows_rename_error_stage(void);
 int pc_mkdir(const char *, mode_t);
 int pc_rmdir(const char *);
 int pc_chdir(const char *);

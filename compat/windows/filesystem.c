@@ -260,7 +260,12 @@ check_named(const wchar_t *path)
 	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
 	    FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE) return pc_windows_errno(GetLastError());
-	result = check_handle(h, path); CloseHandle(h); return result;
+	result = check_handle(h, path);
+	{
+		DWORD error = GetLastError();
+		CloseHandle(h); SetLastError(error);
+	}
+	return result;
 }
 
 int
@@ -461,13 +466,15 @@ clear_readonly(const wchar_t *path, FILE_BASIC_INFO *original, int *changed)
 	    FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE) { pc_windows_errno(GetLastError()); return NULL; }
 	if (!GetFileInformationByHandleEx(h, FileBasicInfo, original, (DWORD)sizeof(*original))) {
-		pc_windows_errno(GetLastError()); CloseHandle(h); return NULL;
+		DWORD error = GetLastError();
+		pc_windows_errno(error); CloseHandle(h); SetLastError(error); return NULL;
 	}
 	writable = *original; writable.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
 	if (writable.FileAttributes == 0)
 		writable.FileAttributes = FILE_ATTRIBUTE_NORMAL;
 	if (!SetFileInformationByHandle(h, FileBasicInfo, &writable, (DWORD)sizeof(writable))) {
-		pc_windows_errno(GetLastError()); CloseHandle(h); return NULL;
+		DWORD error = GetLastError();
+		pc_windows_errno(error); CloseHandle(h); SetLastError(error); return NULL;
 	}
 	*changed = 1; return h;
 }
@@ -476,13 +483,17 @@ static int
 restore_readonly(HANDLE h, const FILE_BASIC_INFO *original, int changed)
 {
 	int saved = errno, result = 0;
+	DWORD error = GetLastError();
 	if (h != INVALID_HANDLE_VALUE && h != NULL) {
 		if (changed && !SetFileInformationByHandle(h, FileBasicInfo,
-		    (void *)original, (DWORD)sizeof(*original)))
-			result = pc_windows_errno(GetLastError());
+		    (void *)original, (DWORD)sizeof(*original))) {
+			error = GetLastError();
+			result = pc_windows_errno(error);
+		}
 		CloseHandle(h);
 	}
 	if (result == 0) errno = saved;
+	SetLastError(error);
 	return result;
 }
 
@@ -503,48 +514,84 @@ pc_unlink(const char *path)
 	free(wide); return result;
 }
 
+#ifdef _MSC_VER
+static __declspec(thread) const char *rename_error_stage = "not called";
+#else
+static __thread const char *rename_error_stage = "not called";
+#endif
+
+const char *
+pc_windows_rename_error_stage(void)
+{
+	return rename_error_stage;
+}
+
 int
 pc_rename(const char *from, const char *to)
 {
-	wchar_t *a = pc_windows_path(from), *b;
+	wchar_t *a = NULL, *b = NULL;
 	FILE_BASIC_INFO original, source_original;
-	HANDLE h, source_handle;
-	DWORD attrs;
-	int result, changed, source_changed, saved, moved;
-	if (a == NULL) return -1;
+	HANDLE h = INVALID_HANDLE_VALUE, source_handle = INVALID_HANDLE_VALUE;
+	DWORD attrs, native_error = ERROR_SUCCESS;
+	int result = -1, changed = 0, source_changed = 0, saved = 0, moved = 0;
+	const char *stage = "source path";
+
+	SetLastError(ERROR_SUCCESS);
+	a = pc_windows_path(from);
+	if (a == NULL) goto failed;
+	stage = "destination path";
 	b = pc_windows_path(to);
-	if (b == NULL) { free(a); return -1; }
-	if (check_components(a) == -1 || check_components(b) == -1) { free(a); free(b); return -1; }
+	if (b == NULL) goto failed;
+	stage = "source ancestor validation";
+	if (check_components(a) == -1) goto failed;
+	stage = "destination ancestor validation";
+	if (check_components(b) == -1) goto failed;
+	stage = "source reparse validation";
 	attrs = GetFileAttributesW(a);
-	if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) { free(a); free(b); errno = ELOOP; return -1; }
+	if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) {
+		errno = ELOOP; SetLastError(ERROR_SUCCESS); goto failed;
+	}
+	stage = "destination reparse validation";
 	attrs = GetFileAttributesW(b);
-	if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) { free(a); free(b); errno = ELOOP; return -1; }
-	if (check_named(a) == -1) { free(a); free(b); return -1; }
-	if (GetFileAttributesW(b) != INVALID_FILE_ATTRIBUTES && check_named(b) == -1) { free(a); free(b); return -1; }
+	if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) {
+		errno = ELOOP; SetLastError(ERROR_SUCCESS); goto failed;
+	}
+	stage = "source identity validation";
+	if (check_named(a) == -1) goto failed;
+	stage = "destination identity validation";
+	if (GetFileAttributesW(b) != INVALID_FILE_ATTRIBUTES && check_named(b) == -1) goto failed;
 	/* POSIX rename does not require write permission on the source file.
 	 * Windows also treats its readonly attribute as a deletion constraint. */
+	stage = "clear source readonly";
 	source_handle = clear_readonly(a, &source_original, &source_changed);
-	if (source_handle == NULL) { free(a); free(b); return -1; }
+	if (source_handle == NULL) goto failed;
+	stage = "clear destination readonly";
 	h = clear_readonly(b, &original, &changed);
-	if (h == NULL) {
-		saved = errno;
-		if (restore_readonly(source_handle, &source_original, source_changed) == -1)
-			saved = errno;
-		free(a); free(b); errno = saved; return -1;
-	}
+	if (h == NULL) goto failed;
+	stage = "MoveFileExW";
 	moved = MoveFileExW(a, b, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
-	result = moved ? 0 : pc_windows_errno(GetLastError());
-	saved = errno;
-	/* A handle continues to identify the source object after the rename. */
-	if (restore_readonly(source_handle, &source_original, source_changed) == -1) {
-		result = -1; saved = errno;
-	}
-	/* On a successful replacement the old destination can be deleted.
-	 * Only a failed move requires the old name's metadata to be restored. */
-	if (restore_readonly(h, &original, changed) == -1 && !moved)
+	if (!moved) {
+		native_error = GetLastError();
+		(void)pc_windows_errno(native_error);
 		saved = errno;
-	errno = saved;
-	free(a); free(b); return result;
+	} else result = 0;
+	goto cleanup;
+failed:
+	native_error = GetLastError(); saved = errno;
+cleanup:
+	/* Handles continue to identify their objects even after a name changes. */
+	if (restore_readonly(source_handle, &source_original, source_changed) == -1) {
+		result = -1; saved = errno; native_error = GetLastError();
+		stage = moved ? "restore moved source attributes" : "rollback source attributes";
+	}
+	if (restore_readonly(h, &original, changed) == -1 && !moved) {
+		result = -1; saved = errno; native_error = GetLastError();
+		stage = "rollback destination attributes";
+	}
+	free(a); free(b);
+	rename_error_stage = result == 0 ? "success" : stage;
+	if (result != 0) { errno = saved; SetLastError(native_error); }
+	return result;
 }
 
 int
