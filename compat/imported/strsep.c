@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS formatting changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: strsep.c,v 1.8 2015/08/31 02:53:57 guenther Exp $	*/
 
 /*-
@@ -33,7 +50,7 @@
 
 /*
  * Get next token from string *stringp, where tokens are possibly-empty
- * strings separated by characters from delim.  
+ * strings separated by characters from delim.
  *
  * Writes NULs into the string at *stringp to end tokens.
  * delim need not remain constant from call to call.
@@ -45,10 +62,10 @@
 char *
 strsep(char **stringp, const char *delim)
 {
-	char *s;
+	char	   *s;
 	const char *spanp;
-	int c, sc;
-	char *tok;
+	int	    c, sc;
+	char	   *tok;
 
 	if ((s = *stringp) == NULL)
 		return (NULL);

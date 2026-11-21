@@ -12,3 +12,7 @@ Review every added/removed source and auxiliary dependency, including Caldera an
 ## Maintenance & Continuous Learning
 
 Update this skill when changes invalidate guidance within its scope.
+
+Formatting an otherwise unmodified import requires a scoped ISC notice and a
+portability inventory entry. Preserve existing notice bytes and validate the
+staged snapshot so local generated-file edits cannot change recorded provenance.

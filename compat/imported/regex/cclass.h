@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS formatting changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: cclass.h,v 1.7 2020/12/30 08:54:42 tb Exp $	*/
 
 /*-
@@ -39,22 +56,18 @@
 static const struct cclass {
 	const char *name;
 	const char *chars;
-} cclasses[] = {
-	{ "alnum",	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
-0123456789" },
-	{ "alpha",	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" },
-	{ "blank",	" \t" },
-	{ "cntrl",	"\007\b\t\n\v\f\r\1\2\3\4\5\6\16\17\20\21\22\23\24\
-\25\26\27\30\31\32\33\34\35\36\37\177" },
-	{ "digit",	"0123456789" },
-	{ "graph",	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
-0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" },
-	{ "lower",	"abcdefghijklmnopqrstuvwxyz" },
-	{ "print",	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
-0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ " },
-	{ "punct",	"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" },
-	{ "space",	"\t\n\v\f\r " },
-	{ "upper",	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
-	{ "xdigit",	"0123456789ABCDEFabcdef" },
-	{ NULL,		0 }
-};
+} cclasses[] = {{"alnum", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
+0123456789"},
+    {"alpha", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"},
+    {"blank", " \t"},
+    {"cntrl", "\007\b\t\n\v\f\r\1\2\3\4\5\6\16\17\20\21\22\23\24\
+\25\26\27\30\31\32\33\34\35\36\37\177"},
+    {"digit", "0123456789"},
+    {"graph", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
+0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"},
+    {"lower", "abcdefghijklmnopqrstuvwxyz"},
+    {"print", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
+0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ "},
+    {"punct", "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"}, {"space", "\t\n\v\f\r "},
+    {"upper", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"},
+    {"xdigit", "0123456789ABCDEFabcdef"}, {NULL, 0}};

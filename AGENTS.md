@@ -146,3 +146,7 @@ the integration runner's direct file redirection when changing handle syntax.
 Preserve dependency-sensitive include order during C formatting. Load the
 feature configuration before any compatibility shim and the BSD regex utility
 types before the internal regex structures.
+
+For formatting-only changes to imported files, retain the original notice
+blocks byte-for-byte. Check the exact staged tree and update the portability
+inventory without including a separately modified generated parser.
