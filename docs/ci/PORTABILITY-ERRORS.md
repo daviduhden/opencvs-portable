@@ -52,3 +52,11 @@ Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 449188367
 PORT-601. Windows read-only replacement still fails with Permission denied, including the focused unit case. The prior short directory alias error no longer blocks import. Distinguish the stages of rename and restoration before attributing failure to file attributes or share modes. musl no longer reports GNU CVS refusing root commits.
 
 Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 44920499963](https://github.com/daviduhden/opencvs-portable/actions/runs/44920499963) and [OpenBSD 44920500268](https://github.com/daviduhden/opencvs-portable/actions/runs/44920500268). The local changes await CI.
+
+## Follow-up on 4646494
+
+PORT-701. Across all five Windows jobs, renaming to a missing destination succeeds. Replacing an existing destination fails at MoveFileExW with Win32 error 5 and errno 13 regardless of the external test handles. Compare native replacement semantics rather than changing test assertions.
+
+The local Windows backend uses `FileRenameInfoEx` with a validated destination directory handle. It requests replacement and read-only handling in one operation, leaving file attributes intact if the operation fails. Replacement requires an OS and filesystem that support the flags. The fallback for a missing destination uses `FileRenameInfo` with replacement disabled. The existing Windows unit cases cover missing and existing destinations and open handles. Atomic namespace replacement and durability after power loss are separate properties. [Microsoft FILE_RENAME_INFO reference](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info)
+
+Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 44923879403](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879403) and [OpenBSD 44923879331](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879331). Local changes await validation.

@@ -56,3 +56,9 @@ Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 449188367
 WARN-601. The aggregate logs contain an MSYS2 update advisory about other processes, separate from project compiler diagnostics. Require native executable dependency checks after a successful Windows compile even when CTest fails.
 
 Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 44920499963](https://github.com/daviduhden/opencvs-portable/actions/runs/44920499963) and [OpenBSD 44920500268](https://github.com/daviduhden/opencvs-portable/actions/runs/44920500268). The local changes await CI.
+
+## Follow-up on 4646494
+
+WARN-701. The MSYS2 update advisory about other processes is an environment diagnostic. No new project compiler warning was identified in the retrieved logs. This evidence applies to the published SHA.
+
+Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 44923879403](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879403) and [OpenBSD 44923879331](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879331). Local changes await validation.

@@ -53,3 +53,9 @@ Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 449188367
 TEST-601. OpenBSD Debug and Release passed unit and security suites. Their core suite failed on missing output after export -d and an accepted unresolved conflict commit. Non-sanitized Linux also passed unit and security. All Windows unit suites failed the replacement path, and core/security failures include import setup cascades.
 
 Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 44920499963](https://github.com/daviduhden/opencvs-portable/actions/runs/44920499963) and [OpenBSD 44920500268](https://github.com/daviduhden/opencvs-portable/actions/runs/44920500268). The local changes await CI.
+
+## Follow-up on 4646494
+
+TEST-701. OpenBSD passed all three suites in Debug and Release. Ordinary Linux core and security passed. Windows replacement blocks import and downstream cases. The sanitizer matrix and GNU interoperability still fail. Existing regressions cover these cases and remain enabled.
+
+Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 44923879403](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879403) and [OpenBSD 44923879331](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879331). Local changes await validation.

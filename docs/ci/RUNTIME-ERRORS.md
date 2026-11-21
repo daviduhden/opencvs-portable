@@ -65,3 +65,9 @@ The Windows replacement diagnostics now report the failing native stage,
 errno, and Win32 error. Tests vary whether the source and destination
 handles remain open and whether the destination exists. This is diagnostic
 coverage. The underlying permission error has yet to be resolved.
+
+## Follow-up on 4646494
+
+RUN-701. Clang LeakSanitizer (136905780394) reports 36 bytes in one revision from rcs_sym_getrev during sticky reset and 95 bytes in three allocations from module expansion. Local changes release the replaced revision and the transient module result. Earlier Entries classification leak signatures were absent from the retrieved logs.
+
+Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 44923879403](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879403) and [OpenBSD 44923879331](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879331). Local changes await validation.

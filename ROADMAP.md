@@ -17,3 +17,6 @@ functional run with conflict handling, diff status, and archive interchange.
 
 The ba0ad43 matrix compiled through CTest on all current targets. Complete
 functional and interoperability verification before expanding support claims.
+
+OpenBSD's two configurations passed at 4646494. Keep that regression
+coverage while pursuing a clean native matrix and GNU interoperability.

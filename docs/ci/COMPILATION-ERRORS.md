@@ -100,3 +100,20 @@ Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 449204999
 The workflows use Ninja with strict warnings. Native builds consume byacc
 output and OpenBSD regenerates with its native yacc. Full logs and available
 diagnostic artifacts are under `/tmp/opencvs-ci/`.
+
+## Follow-up on 4646494
+
+BUILD-701. Parser (136905614853) and audit (136905615019) passed. No compiler or linker blocker was identified in the new native or OpenBSD runs. The native jobs reached their runtime stages.
+
+Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 44923879403](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879403) and [OpenBSD 44923879331](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879331). Local changes await validation.
+
+| Group | Job IDs | Result |
+| --- | --- | --- |
+| OpenBSD Clang Debug and Release | 136905614771, 136905615008 | All three suites passed |
+| GCC glibc x86-64 Release and Debug, ARM64 Debug, Clang Release | 136905780423, 136905780387, 136905780384, 136905780381 | Unit, core, and security passed. Interoperability failed |
+| Alpine musl and Clang ASan/UBSan | 136905780415, 136905780394 | Runtime diagnostics remain |
+| Windows MSVC, ClangCL and MinGW | 136905780323, 136905780372, 136905780377, 136905780431, 136905780333 | Linked, then failed runtime tests |
+
+Both workflows used Ninja and strict warnings. OpenBSD used native yacc
+and the native matrix used byacc. Retrieved logs and available artifacts
+are in `/tmp/opencvs-ci/`.

@@ -70,3 +70,9 @@ Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 449204999
 Local export now keeps a translation from the selected repository module to
 its output directory, including renamed output. A nested export regression
 checks file bytes and the absence of CVS administrative directories.
+
+## Follow-up on 4646494
+
+DATA-701. The failing Win32 replacement must keep the old archive. Continue checking bytes and read-only attributes in all handle variants. DATA-702. Server cleanup deleted its private tree before flushing the cached Entries list. Local cleanup discards that private cache before removal and preserves ordinary working-copy synchronization.
+
+Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 44923879403](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879403) and [OpenBSD 44923879331](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879331). Local changes await validation.

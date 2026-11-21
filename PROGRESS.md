@@ -36,3 +36,7 @@ At ba0ad43 all Windows configurations reached CTest. Linux without
 sanitizers and OpenBSD passed unit and security suites. Core and GNU CVS
 interoperability remain open. Windows replacement and residual Entries
 leaks have actionable follow-up in the CI inventories.
+
+At 4646494, OpenBSD Debug and Release passed all three suites. Linux core
+progressed, while GNU wire interoperability, Windows replacement, and
+sanitizer leaks still require verification. The native run remains failed.

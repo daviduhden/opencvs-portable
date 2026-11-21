@@ -54,3 +54,9 @@ Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 449188367
 INTEROP-601. GNU-to-OpenCVS wire setup passes the remote command as a single argument while the fixture shim expected split arguments. The local harness accepts both forms with strict validation of the configured fixture executable and server verb. OpenCVS-to-GNU still rejects a repository path outside the selected root. Containment remains unchanged pending the exact protocol path semantics.
 
 Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 44920499963](https://github.com/daviduhden/opencvs-portable/actions/runs/44920499963) and [OpenBSD 44920500268](https://github.com/daviduhden/opencvs-portable/actions/runs/44920500268). The local changes await CI.
+
+## Follow-up on 4646494
+
+INTEROP-701. GNU client checkout against OpenCVS now succeeds with the corrected fixture, then commit reports EOF after the server fails to flush Entries. Local Entries paths are anchored against cwd changes and the private server cache is discarded before deleting its sandbox. The opposite direction still rejects a server repository path outside the selected root. Keep containment pending protocol evidence.
+
+Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 44923879403](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879403) and [OpenBSD 44923879331](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879331). Local changes await validation.

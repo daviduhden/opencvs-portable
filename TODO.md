@@ -28,3 +28,8 @@
 - Verify both GNU CVS wire directions with the corrected transport fixture.
 - Diagnose the Windows Debug server timeouts with native process evidence.
   Keep the current time limits and separate this from the import failures.
+
+- Recheck Windows replacement with both open and closed fixture handles.
+- Verify GNU-to-OpenCVS commit cleanup and the remaining repository path
+  mismatch in the opposite direction.
+- Recheck the sticky revision and server module leaks under LeakSanitizer.
