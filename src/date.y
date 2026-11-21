@@ -32,6 +32,8 @@
 /* SUPPRESS 288 on yyerrlab *//* Label unused */
 
 #include <ctype.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <string.h>
 #include <time.h>
 
@@ -87,12 +89,80 @@ static time_t	yyYear;
 static MERIDIAN	yyMeridian;
 static time_t	yyRelMonth;
 static time_t	yyRelSeconds;
+static int yyDateError;
 
 
 static int	yyerror(const char *);
 static int	yylex(void);
 static int	yyparse(void);
 static int	lookup(char *);
+
+/* All supported targets provide a signed integral time_t no wider than intmax_t. */
+typedef char pc_date_signed_time[((time_t)-1 < 0) ? 1 : -1];
+typedef char pc_date_time_width[(sizeof(time_t) <= sizeof(intmax_t)) ? 1 : -1];
+#define DATE_TIME_MAX ((intmax_t)(UINTMAX_MAX >> \
+    ((sizeof(uintmax_t) - sizeof(time_t)) * CHAR_BIT + 1)))
+#define DATE_TIME_MIN (-DATE_TIME_MAX - 1)
+
+static time_t
+date_failure(void)
+{
+	yyDateError = 1;
+	return 0;
+}
+
+static time_t
+date_add(time_t left, time_t right)
+{
+	intmax_t a = (intmax_t)left, b = (intmax_t)right;
+
+	if ((b > 0 && a > DATE_TIME_MAX - b) ||
+	    (b < 0 && a < DATE_TIME_MIN - b))
+		return date_failure();
+	return (time_t)(a + b);
+}
+
+static time_t
+date_subtract(time_t left, time_t right)
+{
+	intmax_t a = (intmax_t)left, b = (intmax_t)right;
+
+	if ((b > 0 && a < DATE_TIME_MIN + b) ||
+	    (b < 0 && a > DATE_TIME_MAX + b))
+		return date_failure();
+	return (time_t)(a - b);
+}
+
+static time_t
+date_multiply(time_t left, time_t right)
+{
+	intmax_t a = (intmax_t)left, b = (intmax_t)right;
+
+	if ((a > 0 && ((b > 0 && a > DATE_TIME_MAX / b) ||
+	    (b < 0 && b < DATE_TIME_MIN / a))) ||
+	    (a < 0 && ((b > 0 && a < DATE_TIME_MIN / b) ||
+	    (b < 0 && a < DATE_TIME_MAX / b))))
+		return date_failure();
+	return (time_t)(a * b);
+}
+
+static time_t
+date_negate(time_t value)
+{
+	return date_subtract(0, value);
+}
+
+/* Signed numeric zones are HHMM; reject invalid minute/hour components. */
+static time_t
+date_zone(time_t value)
+{
+	time_t magnitude = value < 0 ? date_negate(value) : value;
+
+	if (yyDateError || magnitude > 2359 || magnitude % 100 > 59)
+		return date_failure();
+	return date_negate(date_add(value % 100,
+	    date_multiply(value / 100, 60)));
+}
 
 %}
 
@@ -115,19 +185,19 @@ spec	: /* NULL */
 	;
 
 item	: time {
-		yyHaveTime++;
+		yyHaveTime = 1 + (yyHaveTime != 0);
 	}
 	| zone {
-		yyHaveZone++;
+		yyHaveZone = 1 + (yyHaveZone != 0);
 	}
 	| date {
-		yyHaveDate++;
+		yyHaveDate = 1 + (yyHaveDate != 0);
 	}
 	| day {
-		yyHaveDay++;
+		yyHaveDay = 1 + (yyHaveDay != 0);
 	}
 	| rel {
-		yyHaveRel++;
+		yyHaveRel = 1;
 	}
 	| number
 	;
@@ -149,7 +219,7 @@ time	: tUNUMBER tMERIDIAN {
 		yyMinutes = $3;
 		yyMeridian = MER24;
 		yyDSTmode = DSToff;
-		yyTimezone = - ($4 % 100 + ($4 / 100) * 60);
+		yyTimezone = date_zone($4);
 	}
 	| tUNUMBER ':' tUNUMBER ':' tUNUMBER o_merid {
 		yyHour = $1;
@@ -163,7 +233,7 @@ time	: tUNUMBER tMERIDIAN {
 		yySeconds = $5;
 		yyMeridian = MER24;
 		yyDSTmode = DSToff;
-		yyTimezone = - ($6 % 100 + ($6 / 100) * 60);
+		yyTimezone = date_zone($6);
 	}
 	;
 
@@ -213,14 +283,14 @@ date	: tUNUMBER '/' tUNUMBER {
 	| tUNUMBER tSNUMBER tSNUMBER {
 		/* ISO 8601 format.  yyyy-mm-dd.  */
 		yyYear = $1;
-		yyMonth = -$2;
-		yyDay = -$3;
+		yyMonth = date_negate($2);
+		yyDay = date_negate($3);
 	}
 	| tUNUMBER tMONTH tSNUMBER {
 		/* e.g. 17-JUN-1992.  */
 		yyDay = $1;
 		yyMonth = $2;
-		yyYear = -$3;
+		yyYear = date_negate($3);
 	}
 	| tMONTH tUNUMBER {
 		yyMonth = $1;
@@ -243,38 +313,40 @@ date	: tUNUMBER '/' tUNUMBER {
 	;
 
 rel	: relunit tAGO {
-		yyRelSeconds = -yyRelSeconds;
-		yyRelMonth = -yyRelMonth;
+		yyRelSeconds = date_negate(yyRelSeconds);
+		yyRelMonth = date_negate(yyRelMonth);
 	}
 	| relunit
 	;
 
 relunit	: tUNUMBER tMINUTE_UNIT {
-		yyRelSeconds += $1 * $2 * 60L;
+		yyRelSeconds = date_add(yyRelSeconds,
+		    date_multiply(date_multiply($1, $2), 60));
 	}
 	| tSNUMBER tMINUTE_UNIT {
-		yyRelSeconds += $1 * $2 * 60L;
+		yyRelSeconds = date_add(yyRelSeconds,
+		    date_multiply(date_multiply($1, $2), 60));
 	}
 	| tMINUTE_UNIT {
-		yyRelSeconds += $1 * 60L;
+		yyRelSeconds = date_add(yyRelSeconds, date_multiply($1, 60));
 	}
 	| tSNUMBER tSEC_UNIT {
-		yyRelSeconds += $1;
+		yyRelSeconds = date_add(yyRelSeconds, $1);
 	}
 	| tUNUMBER tSEC_UNIT {
-		yyRelSeconds += $1;
+		yyRelSeconds = date_add(yyRelSeconds, $1);
 	}
 	| tSEC_UNIT {
-		yyRelSeconds++;
+		yyRelSeconds = date_add(yyRelSeconds, 1);
 	}
 	| tSNUMBER tMONTH_UNIT {
-		yyRelMonth += $1 * $2;
+		yyRelMonth = date_add(yyRelMonth, date_multiply($1, $2));
 	}
 	| tUNUMBER tMONTH_UNIT {
-		yyRelMonth += $1 * $2;
+		yyRelMonth = date_add(yyRelMonth, date_multiply($1, $2));
 	}
 	| tMONTH_UNIT {
-		yyRelMonth += $1;
+		yyRelMonth = date_add(yyRelMonth, $1);
 	}
 	;
 
@@ -283,12 +355,12 @@ number	: tUNUMBER {
 			yyYear = $1;
 		else {
 			if ($1 > 10000) {
-				yyHaveDate++;
+				yyHaveDate = 1 + (yyHaveDate != 0);
 				yyDay= ($1)%100;
 				yyMonth= ($1/100)%100;
 				yyYear = $1/10000;
 			} else {
-				yyHaveTime++;
+				yyHaveTime = 1 + (yyHaveTime != 0);
 				if ($1 < 100) {
 					yyHour = $1;
 					yyMinutes = 0;
@@ -557,7 +629,7 @@ Convert(time_t Month, time_t Day, time_t Year, time_t Hours, time_t Minutes,
 	time_t	tod;
 	time_t	julian;
 	int	i;
-	struct tm local;
+	struct tm local = { 0 };
 
 	/* Bound the supported calendar before negation and year iteration. */
 	if (Year < -9999 || Year > 9999)
@@ -586,17 +658,17 @@ Convert(time_t Month, time_t Day, time_t Year, time_t Hours, time_t Minutes,
 
 	for (i = YEAR_EPOCH; i < Year; i++)
 		julian += 365 + (i % 4 == 0 && (i % 100 != 0 || i % 400 == 0));
-	julian *= SECSPERDAY;
-	julian += yyTimezone * 60L;
+	julian = date_multiply(julian, SECSPERDAY);
+	julian = date_add(julian, date_multiply(yyTimezone, 60));
 
 	if ((tod = ToSeconds(Hours, Minutes, Seconds, Meridian)) < 0)
 		return (-1);
-	julian += tod;
+	julian = date_add(julian, tod);
 	if (DSTmode == DSTmaybe && localtime_r(&julian, &local) == NULL)
 		return (-1);
 	if (DSTmode == DSTon || (DSTmode == DSTmaybe && local.tm_isdst))
-		julian -= 60 * 60;
-	return (julian);
+		julian = date_subtract(julian, 60 * 60);
+	return (yyDateError ? (time_t)-1 : julian);
 }
 
 
@@ -609,10 +681,11 @@ DSTcorrect(time_t Start, time_t Future)
 
 	if (localtime_r(&Start, &start_tm) == NULL ||
 	    localtime_r(&Future, &future_tm) == NULL)
-		return (-1);
+		return date_failure();
 	StartDay = (start_tm.tm_hour + 1) % 24;
 	FutureDay = (future_tm.tm_hour + 1) % 24;
-	return (Future - Start) + (StartDay - FutureDay) * 60L * 60L;
+	return date_add(date_subtract(Future, Start),
+	    date_multiply(StartDay - FutureDay, 60 * 60));
 }
 
 
@@ -624,9 +697,11 @@ RelativeDate(time_t Start, time_t DayOrdinal, time_t DayNumber)
 
 	now = Start;
 	if (localtime_r(&now, tm) == NULL)
-		return (-1);
-	now += SECSPERDAY * ((DayNumber - tm->tm_wday + 7) % 7);
-	now += 7 * SECSPERDAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
+		return date_failure();
+	now = date_add(now,
+	    date_multiply(SECSPERDAY, (DayNumber - tm->tm_wday + 7) % 7));
+	now = date_add(now, date_multiply(7 * SECSPERDAY,
+	    DayOrdinal <= 0 ? DayOrdinal : date_subtract(DayOrdinal, 1)));
 	return DSTcorrect(Start, now);
 }
 
@@ -636,19 +711,22 @@ RelativeMonth(time_t Start, time_t RelMonth)
 {
 	struct tm value, *tm = &value;
 	time_t	Month;
-	time_t	Year;
+	time_t	Year, future;
 
 	if (RelMonth == 0)
 		return (0);
 	if (localtime_r(&Start, tm) == NULL)
-		return (-1);
-	Month = 12 * (tm->tm_year + 1900) + tm->tm_mon + RelMonth;
+		return date_failure();
+	Month = date_add(date_add(date_multiply(12,
+	    date_add((time_t)tm->tm_year, 1900)), (time_t)tm->tm_mon), RelMonth);
 	Year = Month / 12;
 	Month = Month % 12 + 1;
-	return DSTcorrect(Start,
-	    Convert(Month, (time_t)tm->tm_mday, Year,
+	future = Convert(Month, (time_t)tm->tm_mday, Year,
 	    (time_t)tm->tm_hour, (time_t)tm->tm_min, (time_t)tm->tm_sec,
-	    MER24, DSTmaybe));
+	    MER24, DSTmaybe);
+	if (future < 0 || yyDateError)
+		return date_failure();
+	return DSTcorrect(Start, future);
 }
 
 
@@ -777,31 +855,45 @@ yylex(void)
 				sign = 0;
 
 			for (yylval.Number = 0; isdigit((unsigned char)(c = *yyInput++)); )
-				yylval.Number = 10 * yylval.Number + c - '0';
+				yylval.Number = date_add(date_multiply(yylval.Number, 10),
+				    (time_t)(c - '0'));
 			yyInput--;
 			if (sign < 0)
-				yylval.Number = -yylval.Number;
+				yylval.Number = date_negate(yylval.Number);
 			return sign ? tSNUMBER : tUNUMBER;
 		}
 
 		if (isalpha((unsigned char)c)) {
-			for (p = buff; isalpha((unsigned char)(c = *yyInput++)) || c == '.'; )
+			for (p = buff; isalpha((unsigned char)(c = *yyInput++)) || c == '.'; ) {
 				if (p < &buff[sizeof buff - 1])
 					*p++ = c;
+				else
+					yyDateError = 1;
+			}
 			*p = '\0';
 			yyInput--;
 			return lookup(buff);
 		}
+		if (c == '\0')
+			return 0;
 		if (c != '(')
-			return *yyInput++;
+			return (unsigned char)*yyInput++;
 
 		count = 0;
 		do {
 			c = *yyInput++;
-			if (c == '\0')
-				return (c);
-			if (c == '(')
+			if (c == '\0') {
+				yyInput--;
+				yyDateError = 1;
+				return 0;
+			}
+			if (c == '(') {
+				if (count == INT_MAX) {
+					yyDateError = 1;
+					return 0;
+				}
 				count++;
+			}
 			else if (c == ')')
 				count--;
 		} while (count > 0);
@@ -809,22 +901,24 @@ yylex(void)
 }
 
 /* Yield A - B, measured in seconds.  */
-static long
+static time_t
 difftm(struct tm *a, struct tm *b)
 {
-	int ay = a->tm_year + (YEAR_TMORIGIN - 1);
-	int by = b->tm_year + (YEAR_TMORIGIN - 1);
-	int days = (
-	    /* difference in day of year */
-	    a->tm_yday - b->tm_yday
-	    /* + intervening leap days */
-	    +  ((ay >> 2) - (by >> 2))
-	    -  (ay/100 - by/100)
-	    +  ((ay/100 >> 2) - (by/100 >> 2))
-	    /* + difference in years * 365 */
-	    +  (long)(ay-by) * 365);
-	return (60 * (60 * (24 * days + (a->tm_hour - b->tm_hour))
-	    + (a->tm_min - b->tm_min)) + (a->tm_sec - b->tm_sec));
+	time_t ay, by, days, seconds;
+
+	ay = date_add((time_t)a->tm_year, YEAR_TMORIGIN - 1);
+	by = date_add((time_t)b->tm_year, YEAR_TMORIGIN - 1);
+	days = date_subtract((time_t)a->tm_yday, (time_t)b->tm_yday);
+	days = date_add(days, date_subtract(ay / 4, by / 4));
+	days = date_subtract(days, date_subtract(ay / 100, by / 100));
+	days = date_add(days, date_subtract(ay / 400, by / 400));
+	days = date_add(days, date_multiply(date_subtract(ay, by), 365));
+	seconds = date_add(date_multiply(days, 24),
+	    (time_t)(a->tm_hour - b->tm_hour));
+	seconds = date_add(date_multiply(seconds, 60),
+	    (time_t)(a->tm_min - b->tm_min));
+	return date_add(date_multiply(seconds, 60),
+	    (time_t)(a->tm_sec - b->tm_sec));
 }
 
 /*
@@ -838,6 +932,9 @@ date_parse(const char *p)
 	struct tm	gmt, tm;
 	time_t		Start, tod, nowtime, tz;
 
+	yyDateError = 0;
+	if (p == NULL)
+		return -1;
 	yyInput = p;
 
 	if (time(&nowtime) == -1 || !gmtime_r(&nowtime, &gmt) ||
@@ -847,9 +944,9 @@ date_parse(const char *p)
 	tz = difftm(&gmt, &tm) / 60;
 
 	if (tm.tm_isdst)
-		tz += 60;
+		tz = date_add(tz, 60);
 
-	yyYear = tm.tm_year + 1900;
+	yyYear = date_add((time_t)tm.tm_year, 1900);
 	yyMonth = tm.tm_mon + 1;
 	yyDay = tm.tm_mday;
 	yyTimezone = tz;
@@ -866,7 +963,7 @@ date_parse(const char *p)
 	yyHaveTime = 0;
 	yyHaveZone = 0;
 
-	if (yyparse() || yyHaveTime > 1 || yyHaveZone > 1 ||
+	if (yyparse() || yyDateError || yyHaveTime > 1 || yyHaveZone > 1 ||
 	    yyHaveDate > 1 || yyHaveDay > 1)
 		return (-1);
 
@@ -878,19 +975,19 @@ date_parse(const char *p)
 	} else {
 		Start = nowtime;
 		if (!yyHaveRel)
-			Start -= ((tm.tm_hour * 60L + tm.tm_min) * 60L) +
-			    tm.tm_sec;
+			Start = date_subtract(Start,
+			    ((tm.tm_hour * 60L + tm.tm_min) * 60L) + tm.tm_sec);
 	}
 
-	Start += yyRelSeconds;
-	Start += RelativeMonth(Start, yyRelMonth);
+	Start = date_add(Start, yyRelSeconds);
+	Start = date_add(Start, RelativeMonth(Start, yyRelMonth));
 
 	if (yyHaveDay && !yyHaveDate) {
 		tod = RelativeDate(Start, yyDayOrdinal, yyDayNumber);
-		Start += tod;
+		Start = date_add(Start, tod);
 	}
 
-	return Start;
+	return yyDateError ? (time_t)-1 : Start;
 }
 
 #if defined(TEST)

@@ -413,6 +413,9 @@ test_case core => sticky_tag_reset_and_date => sub {
     my $future = (gmtime)[5] + 1901;
     cvs($s, ['checkout', '-D', "$future-01-01 00:00:00 UTC", '-d', 'date-work', 'module']);
     equal(read_bytes(path($s->{base}, 'date-work', 'sample.txt')), $newer);
+    cvs($s, ['checkout', '-D', '1 day', '-d', 'relative-work', 'module']);
+    equal(read_bytes(path($s->{base}, 'relative-work', 'sample.txt')), $newer,
+        'Relative day selects the expected revision');
 };
 test_case core => missing_repository_is_explicit_error => sub {
     my ($s) = @_;
