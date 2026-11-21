@@ -878,14 +878,14 @@ sub split_url {
 
 sub default_config {
     return {
-        exclude_paths            => [],
-        instruction_globs        => [],
-        required_headings        => {},
-        required_phrases         => {},
-        strict_text              => {},
-        skill_reference_prefixes => [],
-        inline_path_checks       => 0,
-        minimum_changed_lines    => 1,
+        exclude_paths             => [],
+        instruction_globs         => [],
+        required_headings         => {},
+        required_phrases          => {},
+        strict_text               => {},
+        skill_reference_prefixes  => [],
+        inline_path_checks        => 0,
+        minimum_changed_lines     => 1,
         require_agents_and_skills => 0,
     };
 }
@@ -1077,7 +1077,8 @@ sub parse_config {
     }
     $parsed_config{inline_path_checks} = $inline_checks->value();
 
-    my $require_both = $settings->{require_agents_and_skills} // toml_boolean(0);
+    my $require_both = $settings->{require_agents_and_skills}
+      // toml_boolean(0);
     config_error('require_agents_and_skills must be a boolean')
       unless is_boolean_value($require_both);
     $parsed_config{require_agents_and_skills} = $require_both->value();
@@ -1780,18 +1781,23 @@ sub run_validation {
     }
 
     my $updated_agents = grep { $_ eq 'AGENTS.md' } @substantive_files;
-    my $updated_skill = grep { m{^\.agents/skills/[^/]+/SKILL\.md$} } @substantive_files;
+    my $updated_skill =
+      grep { m{^\.agents/skills/[^/]+/SKILL\.md$} } @substantive_files;
     my $sync;
     if ( !@considered || $infrastructure_only ) {
         $sync = make_result( 'AK001', 'PASS', 'Agent knowledge synchronization',
             [], undef );
     }
-    elsif (@project_changes && $config->{require_agents_and_skills}
-        && (!$updated_agents || !$updated_skill)) {
+    elsif (@project_changes
+        && $config->{require_agents_and_skills}
+        && ( !$updated_agents || !$updated_skill ) )
+    {
         $sync = make_result(
-            'AK001', 'FAIL', 'Missing required AGENTS.md or skill update',
+            'AK001',
+            'FAIL',
+            'Missing required AGENTS.md or skill update',
             \@project_changes,
-            'Update AGENTS.md and at least one relevant .agents/skills/*/SKILL.md with substantive guidance.',
+'Update AGENTS.md and at least one relevant .agents/skills/*/SKILL.md with substantive guidance.',
         );
     }
     elsif (@substantive_files) {

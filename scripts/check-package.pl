@@ -23,23 +23,27 @@ use Digest::SHA;
 use File::Basename qw(basename dirname);
 use File::Find;
 use File::Spec;
-use File::Temp qw(tempdir);
+use File::Temp   qw(tempdir);
 use Getopt::Long qw(GetOptions);
 
-my ($archive, $binary, $source);
-GetOptions('archive=s' => \$archive, 'binary=s' => \$binary, 'source' => \$source)
-    or die "invalid arguments\n";
+my ( $archive, $binary, $source );
+GetOptions(
+    'archive=s' => \$archive,
+    'binary=s'  => \$binary,
+    'source'    => \$source
+) or die "invalid arguments\n";
 die "usage: $0 --archive FILE (--binary TESTED_EXECUTABLE | --source)\n"
-    unless defined($archive) && (defined($binary) xor $source);
+  unless defined($archive) && ( defined($binary) xor $source );
 die "missing archive: $archive\n" unless -s $archive;
 $archive = abs_path($archive);
-if (defined $binary) {
+
+if ( defined $binary ) {
     die "missing tested executable: $binary\n" unless -s $binary;
     $binary = abs_path($binary);
 }
 
 sub run {
-    my ($exe, @args) = @_;
+    my ( $exe, @args ) = @_;
     system {$exe} $exe, @args;
     die "$exe failed (process status $?)\n" unless $? == 0;
 }
@@ -53,45 +57,57 @@ sub digest {
 }
 
 sub find_member {
-    my ($dir, $name) = @_;
+    my ( $dir, $name ) = @_;
     my @matches;
-    find({no_chdir => 1, wanted => sub {
-        push @matches, $File::Find::name if -f $_ && basename($_) eq $name;
-    }}, $dir);
+    find(
+        {
+            no_chdir => 1,
+            wanted   => sub {
+                push @matches, $File::Find::name
+                  if -f $_ && basename($_) eq $name;
+            }
+        },
+        $dir
+    );
     die "expected one $name in $archive, found " . scalar(@matches) . "\n"
-        unless @matches == 1;
+      unless @matches == 1;
     return $matches[0];
 }
 
 my $cwd = getcwd();
-my $dir = tempdir('opencvs-package-XXXXXXXX', TMPDIR => 1, CLEANUP => 1);
+my $dir = tempdir( 'opencvs-package-XXXXXXXX', TMPDIR => 1, CLEANUP => 1 );
 chdir $dir or die "cannot enter extraction directory: $!\n";
 my $ok = eval {
-    run('cmake', '-E', 'tar', 'xf', $archive);
+    run( 'cmake', '-E', 'tar', 'xf', $archive );
     if ($source) {
-        my $root = dirname(find_member($dir, 'CMakeLists.txt'));
-        my $build = File::Spec->catdir($dir, 'source-build');
-        run($^X, File::Spec->catfile($root, 'scripts', 'check-license-notices.pl'));
-        run('cmake', '-S', $root, '-B', $build, '-G', 'Ninja',
+        my $root  = dirname( find_member( $dir, 'CMakeLists.txt' ) );
+        my $build = File::Spec->catdir( $dir, 'source-build' );
+        run( $^X,
+            File::Spec->catfile( $root, 'scripts', 'check-license-notices.pl' )
+        );
+        run( 'cmake', '-S', $root, '-B', $build, '-G', 'Ninja',
             '-DCMAKE_BUILD_TYPE=Release', '-DPC_BUILD_TESTS=OFF',
-            '-DPC_STRICT_WARNINGS=ON');
-        run('cmake', '--build', $build, '--parallel', '2');
-        run(File::Spec->catfile($build, 'opencvs'), '-v');
-    } else {
-        my $packaged = find_member($dir, basename($binary));
-        find_member($dir, 'Upstream-notices.txt');
-        find_member($dir, 'UPSTREAM');
-        my $build_info = find_member($dir, 'build-info.txt');
-        my $tested_info = File::Spec->catfile(dirname($binary), 'build-info.txt');
+            '-DPC_STRICT_WARNINGS=ON' );
+        run( 'cmake', '--build', $build, '--parallel', '2' );
+        run( File::Spec->catfile( $build, 'opencvs' ), '-v' );
+    }
+    else {
+        my $packaged = find_member( $dir, basename($binary) );
+        find_member( $dir, 'Upstream-notices.txt' );
+        find_member( $dir, 'UPSTREAM' );
+        my $build_info = find_member( $dir, 'build-info.txt' );
+        my $tested_info =
+          File::Spec->catfile( dirname($binary), 'build-info.txt' );
         die "packaged executable differs from the tested executable\n"
-            unless digest($packaged) eq digest($binary);
+          unless digest($packaged) eq digest($binary);
         die "packaged build metadata differs from the tested build metadata\n"
-            unless digest($build_info) eq digest($tested_info);
-        run($packaged, '-v');
+          unless digest($build_info) eq digest($tested_info);
+        run( $packaged, '-v' );
     }
     1;
 };
 my $error = $@;
 chdir $cwd or die "cannot restore working directory: $!\n";
 die $error unless $ok;
-print "PASS: inspected and ran the extracted package ", basename($archive), "\n";
+print "PASS: inspected and ran the extracted package ", basename($archive),
+  "\n";

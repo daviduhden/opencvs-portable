@@ -273,23 +273,36 @@ sub test_code_change_with_skill_update_passes {
 
 sub test_strict_synchronization_requires_both_updates {
     my $fixture = new_repository();
-    my $repo = $fixture->{repo};
-    write_file( $repo, '.agent-knowledge-validator.toml',
-        "[validator]\nrequire_agents_and_skills = true\n" );
+    my $repo    = $fixture->{repo};
+    write_file(
+        $repo,
+        '.agent-knowledge-validator.toml',
+        "[validator]\nrequire_agents_and_skills = true\n"
+    );
     write_file( $repo, 'src/example.txt', "VALUE = 2\n" );
     my $skill = '.agents/skills/example/SKILL.md';
     write_file( $repo, $skill,
-        $SKILL_TEXT . "\nKeep compatibility examples when the parser changes.\n" );
+        $SKILL_TEXT
+          . "\nKeep compatibility examples when the parser changes.\n" );
     my $result = run_validator( $repo, '--scope', 'worktree' );
-    like( $result->{stdout}, qr/\[FAIL\] AK001/, 'a skill alone is insufficient' );
+    like(
+        $result->{stdout},
+        qr/\[FAIL\] AK001/,
+        'a skill alone is insufficient'
+    );
 
     write_file( $repo, $skill, $SKILL_TEXT );
     update_agent($repo);
     $result = run_validator( $repo, '--scope', 'worktree' );
-    like( $result->{stdout}, qr/\[FAIL\] AK001/, 'AGENTS.md alone is insufficient' );
+    like(
+        $result->{stdout},
+        qr/\[FAIL\] AK001/,
+        'AGENTS.md alone is insufficient'
+    );
 
     write_file( $repo, $skill,
-        $SKILL_TEXT . "\nKeep compatibility examples when the parser changes.\n" );
+        $SKILL_TEXT
+          . "\nKeep compatibility examples when the parser changes.\n" );
     commit_all( $repo, 'Update code and agent knowledge' );
     $result = run_validator( $repo, '--scope', 'range',
         '--base', $fixture->{base}, '--head', 'HEAD' );
