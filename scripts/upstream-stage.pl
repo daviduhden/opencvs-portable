@@ -69,10 +69,11 @@ sub run {
     die "command failed (@args): $stderr\n" if $exit;
     return $stdout;
 }
+use constant PRIVATE_DIRECTORY_MODE => oct('700');
 
 sub write_file {
     my ( $path, $data ) = @_;
-    make_path( dirname($path), { mode => 0700 } );
+    make_path( dirname($path), { mode => PRIVATE_DIRECTORY_MODE } );
     open my $fh, '>:raw', $path or die "cannot create $path: $!\n";
     print {$fh} $data or die "cannot write $path: $!\n";
     close $fh         or die "cannot close $path: $!\n";
@@ -110,7 +111,7 @@ if ( defined $output ) {
     die "staging inside the project is not permitted\n"
       if index( lc($normalized_candidate), lc( $normalized_root . '/' ) ) == 0
       || lc($normalized_candidate) eq lc($normalized_root);
-    mkdir $output, 0700 or die "cannot create output: $!\n";
+    mkdir $output, PRIVATE_DIRECTORY_MODE or die "cannot create output: $!\n";
 }
 else {
     $output = tempdir( 'opencvs-upstream-XXXXXXXX', TMPDIR => 1, CLEANUP => 0 );
