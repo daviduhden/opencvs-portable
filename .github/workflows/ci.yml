@@ -203,12 +203,14 @@ jobs:
           BUILD_CONFIGURATION: ${{ matrix.configuration }}
         run: cmake -S . -B build -G Ninja "-DCMAKE_BUILD_TYPE=$env:BUILD_CONFIGURATION" "-DCMAKE_C_COMPILER=$env:NATIVE_CC" -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
       - name: Compile
+        id: compile
         run: |
           cmake --build build --parallel 2 -- -k 0 2>&1 | Tee-Object -FilePath build/compile.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run native Windows tests
         run: ctest --test-dir build --output-on-failure
       - name: Check native executable dependencies
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool "C:/Program Files/LLVM/bin/llvm-readobj.exe" --exe build/opencvs.exe
       - name: Create the Windows ZIP
         if: matrix.configuration == 'Release'
@@ -257,12 +259,14 @@ jobs:
       - name: Configure the native MinGW executable
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
       - name: Compile
+        id: compile
         run: |
           set -o pipefail
           cmake --build build --parallel 2 -- -k 0 2>&1 | tee build/compile.log
       - name: Run tests using native Windows Perl
         run: ctest --test-dir build --output-on-failure
       - name: Reject POSIX and compiler runtime dependencies
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool objdump --exe build/opencvs.exe
       - name: Create the native Windows ZIP
         env:
