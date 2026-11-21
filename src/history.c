@@ -46,50 +46,33 @@
 #include "cvs.h"
 #include "remote.h"
 
-static void	history_compress(char *, const char *);
+static void history_compress(char *, const char *);
 
-struct cvs_cmd		cvs_cmd_history = {
-	CVS_OP_HISTORY, CVS_USE_WDIR, "history",
-	{ "hi", "his" },			/* omghi2you */
-	"Display history of actions done in the base repository",
-	"[-ac]",
-	"ac",
-	NULL,
-	cvs_history
-};
+struct cvs_cmd cvs_cmd_history = {CVS_OP_HISTORY, CVS_USE_WDIR, "history",
+    {"hi", "his"}, /* omghi2you */
+    "Display history of actions done in the base repository", "[-ac]", "ac",
+    NULL, cvs_history};
 
 /* keep in sync with the defines for history stuff in cvs.h */
 const char historytab[] = {
-	'T',
-	'O',
-	'E',
-	'F',
-	'W',
-	'U',
-	'G',
-	'C',
-	'M',
-	'A',
-	'R',
-	'\0'
-};
+    'T', 'O', 'E', 'F', 'W', 'U', 'G', 'C', 'M', 'A', 'R', '\0'};
 
-#define HISTORY_ALL_USERS		0x01
-#define HISTORY_DISPLAY_ARCHIVED	0x02
+#define HISTORY_ALL_USERS 0x01
+#define HISTORY_DISPLAY_ARCHIVED 0x02
 
 void
 cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 {
-	BUF *buf;
-	FILE *fp;
-	RCSNUM *hrev;
-	size_t len;
-	int fd;
-	char *cwd, *p, *rev, *login;
+	BUF	      *buf;
+	FILE	      *fp;
+	RCSNUM	      *hrev;
+	size_t	       len;
+	int	       fd;
+	char	      *cwd, *p, *rev, *login;
 	struct passwd *password;
-	char revbuf[CVS_REV_BUFSZ], repo[PATH_MAX], fpath[PATH_MAX];
-	char timebuf[CVS_TIME_BUFSZ];
-	struct tm datetm;
+	char	       revbuf[CVS_REV_BUFSZ], repo[PATH_MAX], fpath[PATH_MAX];
+	char	       timebuf[CVS_TIME_BUFSZ];
+	struct tm      datetm;
 
 	if (cvs_nolog == 1)
 		return;
@@ -97,19 +80,18 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 		fatal("history: invalid event type");
 
 	if (cvs_cmdop == CVS_OP_CHECKOUT || cvs_cmdop == CVS_OP_EXPORT) {
-		if (type != CVS_HISTORY_CHECKOUT &&
-		    type != CVS_HISTORY_EXPORT)
+		if (type != CVS_HISTORY_CHECKOUT && type != CVS_HISTORY_EXPORT)
 			return;
 	}
 
-	cvs_log(LP_TRACE, "cvs_history_add(`%c', `%s', `%s')",
-	    historytab[type], (cf != NULL) ? cf->file_name : "",
+	cvs_log(LP_TRACE, "cvs_history_add(`%c', `%s', `%s')", historytab[type],
+	    (cf != NULL) ? cf->file_name : "",
 	    argument != NULL ? argument : "");
 
 	/* construct repository field */
 	if (cvs_cmdop != CVS_OP_CHECKOUT && cvs_cmdop != CVS_OP_EXPORT) {
-		cvs_get_repository_name((cf != NULL) ? cf->file_wd : ".",
-		    repo, sizeof(repo));
+		cvs_get_repository_name(
+		    (cf != NULL) ? cf->file_wd : ".", repo, sizeof(repo));
 	} else {
 		cvs_get_repository_name(argument, repo, sizeof(repo));
 	}
@@ -123,8 +105,9 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 		if (cvs_cmdop == CVS_OP_CHECKOUT ||
 		    cvs_cmdop == CVS_OP_EXPORT) {
 			if (strlcat(fpath, "/", sizeof(fpath)) >=
-			    sizeof(fpath) || strlcat(fpath, argument,
-			    sizeof(fpath)) >= sizeof(fpath))
+				sizeof(fpath) ||
+			    strlcat(fpath, argument, sizeof(fpath)) >=
+				sizeof(fpath))
 				fatal("cvs_history_add: string truncation");
 		}
 		if (cvs_homedir != NULL && cvs_homedir[0] != '\0') {
@@ -162,8 +145,8 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 		}
 		if (cvs_specified_date != -1) {
 			gmtime_r(&cvs_specified_date, &datetm);
-			strftime(timebuf, sizeof(timebuf),
-			    "%Y.%m.%d.%H.%M.%S", &datetm);
+			strftime(timebuf, sizeof(timebuf), "%Y.%m.%d.%H.%M.%S",
+			    &datetm);
 			buf_puts(buf, timebuf);
 		}
 		rev = buf_release(buf);
@@ -181,10 +164,10 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 		break;
 	}
 
-	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
-	    current_cvsroot->cr_dir, CVS_PATH_HISTORY);
+	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s", current_cvsroot->cr_dir,
+	    CVS_PATH_HISTORY);
 
-	if ((fd = open(fpath, O_WRONLY|O_APPEND)) == -1) {
+	if ((fd = open(fpath, O_WRONLY | O_APPEND)) == -1) {
 		if (errno != ENOENT)
 			cvs_log(LP_ERR, "failed to open history file");
 	} else {
@@ -197,13 +180,13 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 			if (login == NULL) {
 				password = getpwuid(getuid());
 				if (password == NULL)
-					fatal("history: cannot determine account name");
+					fatal("history: cannot determine "
+					      "account name");
 				login = password->pw_name;
 			}
 			fprintf(fp, "%c%08llx|%s|%s|%s|%s|%s\n",
-			    historytab[type], (long long)time(NULL),
-			    login, cwd, repo, rev,
-			    (cf != NULL) ? cf->file_name : argument);
+			    historytab[type], (long long)time(NULL), login, cwd,
+			    repo, rev, (cf != NULL) ? cf->file_name : argument);
 			(void)fclose(fp);
 		} else {
 			cvs_log(LP_ERR, "failed to add entry to history file");
@@ -220,9 +203,9 @@ cvs_history_add(int type, struct cvs_file *cf, const char *argument)
 static void
 history_compress(char *wdir, const char *repo)
 {
-	char offset[2 * sizeof(size_t) + 2];
+	char   offset[2 * sizeof(size_t) + 2];
 	size_t repo_len, wdir_len, common;
-	int count;
+	int    count;
 
 	repo_len = strlen(repo);
 	wdir_len = strlen(wdir);
@@ -255,7 +238,8 @@ cvs_history(int argc, char **argv)
 		}
 	}
 
-	/* Upstream has no history-report implementation; never report false success. */
+	/* Upstream has no history-report implementation; never report false
+	 * success. */
 	cvs_log(LP_ERR, "history reporting is not implemented");
 	return (1);
 }

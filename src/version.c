@@ -36,15 +36,8 @@
 #include "cvs.h"
 #include "remote.h"
 
-struct cvs_cmd cvs_cmd_version = {
-	CVS_OP_VERSION, 0, "version",
-	{ "ve", "ver" },
-	"Show current CVS version(s)",
-	"",
-	"",
-	NULL,
-	cvs_version
-};
+struct cvs_cmd cvs_cmd_version = {CVS_OP_VERSION, 0, "version", {"ve", "ver"},
+    "Show current CVS version(s)", "", "", NULL, cvs_version};
 
 int
 cvs_version(int argc, char **argv)

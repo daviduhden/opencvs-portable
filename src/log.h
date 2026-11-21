@@ -45,22 +45,22 @@
 #include <stdarg.h>
 
 /* log priority levels */
-#define LP_NOTICE	0
-#define LP_ERR		1
-#define LP_ERRNO	2
-#define LP_ABORT	3
-#define LP_TRACE	4
-#define LP_RCS		5
+#define LP_NOTICE 0
+#define LP_ERR 1
+#define LP_ERRNO 2
+#define LP_ABORT 3
+#define LP_TRACE 4
+#define LP_RCS 5
 
-#define LOG_REVSEP \
-"----------------------------"
+#define LOG_REVSEP "----------------------------"
 
-#define LOG_REVEND \
- "============================================================================="
+#define LOG_REVEND                                                             \
+	"====================================================================" \
+	"========="
 
-void	cvs_log(u_int, const char *, ...) PC_PRINTF(2, 3);
-void	cvs_vlog(u_int, const char *, va_list) PC_PRINTF(2, 0);
-int	cvs_printf(const char *, ...) PC_PRINTF(1, 2);
-PC_NORETURN void	fatal(const char *, ...) PC_PRINTF(1, 2);
+void		 cvs_log(u_int, const char *, ...) PC_PRINTF(2, 3);
+void		 cvs_vlog(u_int, const char *, va_list) PC_PRINTF(2, 0);
+int		 cvs_printf(const char *, ...) PC_PRINTF(1, 2);
+PC_NORETURN void fatal(const char *, ...) PC_PRINTF(1, 2);
 
-#endif	/* LOG_H */
+#endif /* LOG_H */

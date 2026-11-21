@@ -52,21 +52,21 @@
 #include <unistd.h>
 
 #include "atomicio.h"
-#include "cvs.h"
 #include "buf.h"
+#include "cvs.h"
 
-#define BUF_INCR	128
+#define BUF_INCR 128
 
 struct buf {
 	/* buffer handle, buffer size, and data length */
-	u_char	*cb_buf;
-	size_t	 cb_size;
-	size_t	 cb_len;
+	u_char *cb_buf;
+	size_t	cb_size;
+	size_t	cb_len;
 };
 
-#define SIZE_LEFT(b)	(b->cb_size - b->cb_len)
+#define SIZE_LEFT(b) (b->cb_size - b->cb_len)
 
-static void	buf_grow(BUF *, size_t);
+static void buf_grow(BUF *, size_t);
 
 /*
  * Create a new buffer structure and return a pointer to it.  This structure
@@ -99,7 +99,7 @@ buf_alloc(size_t len)
 BUF *
 buf_load(const char *path)
 {
-	int fd;
+	int  fd;
 	BUF *bp;
 
 	if ((fd = open(path, O_RDONLY)) == -1)
@@ -115,7 +115,7 @@ BUF *
 buf_load_fd(int fd)
 {
 	struct stat st;
-	BUF *buf;
+	BUF	   *buf;
 
 	if (fstat(fd, &st) == -1)
 		fatal("buf_load_fd: fstat: %s", strerror(errno));
@@ -188,7 +188,7 @@ buf_puts(BUF *b, const char *str)
 void
 buf_append(BUF *b, const void *data, size_t len)
 {
-	size_t left;
+	size_t	left;
 	u_char *bp;
 
 	if (len == 0)
@@ -230,7 +230,7 @@ buf_write_fd(BUF *b, int fd)
 int
 buf_write(BUF *b, const char *path, mode_t mode)
 {
-	int fd, saved;
+	int   fd, saved;
 	char *temporary;
 	xasprintf(&temporary, "%s.XXXXXXXX", path);
 	if ((fd = mkstemp(temporary)) == -1)
@@ -299,8 +299,8 @@ buf_differ(const BUF *b1, const BUF *b2)
 	if (b1->cb_len != b2->cb_len)
 		return (1);
 
-	return (b1->cb_len == 0 ? 0 :
-	    memcmp(b1->cb_buf, b2->cb_buf, b1->cb_len));
+	return (
+	    b1->cb_len == 0 ? 0 : memcmp(b1->cb_buf, b2->cb_buf, b1->cb_len));
 }
 
 /*

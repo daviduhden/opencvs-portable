@@ -58,11 +58,11 @@
 u_int32_t
 hash4(const char *key, size_t len)
 {
-	u_int32_t h;
-	size_t loop;
+	u_int32_t   h;
+	size_t	    loop;
 	const char *k;
 
-#define HASH4   h = (h << 5) + h + *k++;
+#define HASH4 h = (h << 5) + h + *k++;
 
 	h = 0;
 	k = key;
@@ -71,32 +71,31 @@ hash4(const char *key, size_t len)
 
 		switch (len & (8 - 1)) {
 		case 0:
-			do {	/* All fall throughs */
+			do { /* All fall throughs */
 				HASH4;
 				/* FALLTHROUGH */
-		case 7:
+			case 7:
 				HASH4;
 				/* FALLTHROUGH */
-		case 6:
+			case 6:
 				HASH4;
 				/* FALLTHROUGH */
-		case 5:
+			case 5:
 				HASH4;
 				/* FALLTHROUGH */
-		case 4:
+			case 4:
 				HASH4;
 				/* FALLTHROUGH */
-		case 3:
+			case 3:
 				HASH4;
 				/* FALLTHROUGH */
-		case 2:
+			case 2:
 				HASH4;
 				/* FALLTHROUGH */
-		case 1:
+			case 1:
 				HASH4;
 			} while (--loop);
 		}
-
 	}
 	return (h);
 }

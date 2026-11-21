@@ -33,20 +33,20 @@
  */
 
 #include <sys/types.h>
-#include <dirent.h>
 #include <sys/resource.h>
 
 #include <ctype.h>
+#include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "cvs.h"
 #include "config.h"
+#include "cvs.h"
 
-TAILQ_HEAD(, module_info)	modules;
+TAILQ_HEAD(, module_info) modules;
 
 struct module_checkout *current_module = NULL;
-char *module_repo_root = NULL;
+char		       *module_repo_root = NULL;
 
 void
 cvs_parse_modules(void)
@@ -63,16 +63,16 @@ cvs_modules_list(void)
 	struct module_info *mi;
 
 	TAILQ_FOREACH(mi, &modules, m_list)
-		cvs_printf("%s\n", mi->mi_str);
+	cvs_printf("%s\n", mi->mi_str);
 }
 
 int
 modules_parse_line(char *line, int lineno)
 {
-	int flags;
+	int		    flags;
 	struct module_info *mi;
-	char *bline, *val, *p, *module, *sp, *dp;
-	char *dirname, fpath[PATH_MAX], *prog;
+	char		   *bline, *val, *p, *module, *sp, *dp;
+	char		   *dirname, fpath[PATH_MAX], *prog;
 
 	prog = NULL;
 	bline = xstrdup(line);
@@ -151,7 +151,7 @@ modules_parse_line(char *line, int lineno)
 				goto bad;
 			}
 
-			if ((val = strchr(p, ' ' )) == NULL)
+			if ((val = strchr(p, ' ')) == NULL)
 				goto bad;
 
 			*(val++) = '\0';
@@ -190,11 +190,9 @@ modules_parse_line(char *line, int lineno)
 			if (sp[0] == '!') {
 				if (strlen(sp) < 2)
 					fatal("invalid ! pattern");
-				cvs_file_get((sp + 1), 0,
-				    &(mi->mi_ignores), 0);
+				cvs_file_get((sp + 1), 0, &(mi->mi_ignores), 0);
 			} else {
-				cvs_file_get(sp, 0,
-				    &(mi->mi_modules), 0);
+				cvs_file_get(sp, 0, &(mi->mi_modules), 0);
 			}
 		} else if (sp == val) {
 			dirname = sp;
@@ -204,15 +202,13 @@ modules_parse_line(char *line, int lineno)
 					fatal("invalid ! pattern");
 
 				sp++;
-				(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
-				    dirname, sp);
-				cvs_file_get(fpath, 0,
-				    &(mi->mi_ignores), 0);
+				(void)xsnprintf(
+				    fpath, sizeof(fpath), "%s/%s", dirname, sp);
+				cvs_file_get(fpath, 0, &(mi->mi_ignores), 0);
 			} else {
-				(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
-				    dirname, sp);
-				cvs_file_get(fpath, 0,
-				    &(mi->mi_modules), 0);
+				(void)xsnprintf(
+				    fpath, sizeof(fpath), "%s/%s", dirname, sp);
+				cvs_file_get(fpath, 0, &(mi->mi_modules), 0);
 			}
 		}
 	}
@@ -234,11 +230,12 @@ struct module_checkout *
 cvs_module_lookup(char *name)
 {
 	struct module_checkout *mc;
-	struct module_info *mi;
+	struct module_info     *mi;
 
 	mc = xmalloc(sizeof(*mc));
 
-	TAILQ_FOREACH(mi, &modules, m_list) {
+	TAILQ_FOREACH(mi, &modules, m_list)
+	{
 		if (!strcmp(name, mi->mi_name)) {
 			mc->mc_modules = mi->mi_modules;
 			mc->mc_ignores = mi->mi_ignores;

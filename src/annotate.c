@@ -34,8 +34,8 @@
  */
 
 #include <sys/types.h>
-#include <dirent.h>
 
+#include <dirent.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,44 +45,34 @@
 #include "cvs.h"
 #include "remote.h"
 
-void	cvs_annotate_local(struct cvs_file *);
+void cvs_annotate_local(struct cvs_file *);
 
-extern char	*cvs_specified_tag;
+extern char *cvs_specified_tag;
 
-static int	 force_head = 0;
+static int force_head = 0;
 
-struct cvs_cmd cvs_cmd_annotate = {
-	CVS_OP_ANNOTATE, CVS_USE_WDIR, "annotate",
-	{ "ann", "blame" },
-	"Show last revision where each line was modified",
-	"[-flR] [-D date | -r rev] [file ...]",
-	"D:flRr:",
-	NULL,
-	cvs_annotate
-};
+struct cvs_cmd cvs_cmd_annotate = {CVS_OP_ANNOTATE, CVS_USE_WDIR, "annotate",
+    {"ann", "blame"}, "Show last revision where each line was modified",
+    "[-flR] [-D date | -r rev] [file ...]", "D:flRr:", NULL, cvs_annotate};
 
-struct cvs_cmd cvs_cmd_rannotate = {
-	CVS_OP_RANNOTATE, 0, "rannotate",
-	{ "rann", "ra" },
-	"Show last revision where each line was modified",
-	"[-flR] [-D date | -r rev] module ...",
-	"D:flRr:",
-	NULL,
-	cvs_annotate
-};
+struct cvs_cmd cvs_cmd_rannotate = {CVS_OP_RANNOTATE, 0, "rannotate",
+    {"rann", "ra"}, "Show last revision where each line was modified",
+    "[-flR] [-D date | -r rev] module ...", "D:flRr:", NULL, cvs_annotate};
 
 int
 cvs_annotate(int argc, char **argv)
 {
-	int ch, flags;
-	char *arg = ".";
-	char *dateflag = NULL;
+	int		     ch, flags;
+	char		    *arg = ".";
+	char		    *dateflag = NULL;
 	struct cvs_recursion cr;
 
 	flags = CR_RECURSE_DIRS;
 
-	while ((ch = getopt(argc, argv, cvs_cmdop == CVS_OP_ANNOTATE ?
-	    cvs_cmd_annotate.cmd_opts : cvs_cmd_rannotate.cmd_opts)) != -1) {
+	while ((ch = getopt(argc, argv,
+		    cvs_cmdop == CVS_OP_ANNOTATE ?
+			cvs_cmd_annotate.cmd_opts :
+			cvs_cmd_rannotate.cmd_opts)) != -1) {
 		switch (ch) {
 		case 'D':
 			dateflag = optarg;
@@ -102,9 +92,10 @@ cvs_annotate(int argc, char **argv)
 			cvs_specified_tag = optarg;
 			break;
 		default:
-			fatal("%s", cvs_cmdop == CVS_OP_ANNOTATE ?
-			    cvs_cmd_annotate.cmd_synopsis :
-			    cvs_cmd_rannotate.cmd_synopsis);
+			fatal("%s",
+			    cvs_cmdop == CVS_OP_ANNOTATE ?
+				cvs_cmd_annotate.cmd_synopsis :
+				cvs_cmd_rannotate.cmd_synopsis);
 		}
 	}
 
@@ -135,8 +126,8 @@ cvs_annotate(int argc, char **argv)
 			cvs_client_send_request("Argument -l");
 
 		if (cvs_specified_tag != NULL)
-			cvs_client_send_request("Argument -r%s",
-			    cvs_specified_tag);
+			cvs_client_send_request(
+			    "Argument -r%s", cvs_specified_tag);
 	} else {
 		if (cvs_cmdop == CVS_OP_RANNOTATE &&
 		    chdir(current_cvsroot->cr_dir) == -1)
@@ -158,8 +149,8 @@ cvs_annotate(int argc, char **argv)
 		cvs_client_send_files(argv, argc);
 		cvs_client_senddir(".");
 
-		cvs_client_send_request((cvs_cmdop == CVS_OP_RANNOTATE) ?
-		    "rannotate" : "annotate");
+		cvs_client_send_request(
+		    (cvs_cmdop == CVS_OP_RANNOTATE) ? "rannotate" : "annotate");
 
 		cvs_client_get_responses();
 	}
@@ -170,12 +161,12 @@ cvs_annotate(int argc, char **argv)
 void
 cvs_annotate_local(struct cvs_file *cf)
 {
-	int i, year;
-	size_t date_length;
-	u_char *p;
-	char date[32], rnum[13];
-	RCSNUM *bnum, *rev;
-	struct rcs_line *line;
+	int		  i, year;
+	size_t		  date_length;
+	u_char		 *p;
+	char		  date[32], rnum[13];
+	RCSNUM		 *bnum, *rev;
+	struct rcs_line	 *line;
 	struct rcs_line **alines;
 
 	cvs_log(LP_TRACE, "cvs_annotate_local(%s)", cf->file_path);
@@ -186,8 +177,8 @@ cvs_annotate_local(struct cvs_file *cf)
 		return;
 
 	if (cvs_specified_tag != NULL) {
-		if ((rev = rcs_translate_tag(cvs_specified_tag,
-		    cf->file_rcs)) == NULL) {
+		if ((rev = rcs_translate_tag(
+			 cvs_specified_tag, cf->file_rcs)) == NULL) {
 			if (!force_head)
 				/* Stick at weird GNU cvs, ignore error. */
 				return;
@@ -227,9 +218,11 @@ cvs_annotate_local(struct cvs_file *cf)
 		}
 		free(rev);
 	} else {
-		rcs_rev_getlines(cf->file_rcs, (cvs_specified_date != -1 ||
-		    cvs_directory_date != -1) ? cf->file_rcsrev :
-		    cf->file_rcs->rf_head, &alines);
+		rcs_rev_getlines(cf->file_rcs,
+		    (cvs_specified_date != -1 || cvs_directory_date != -1) ?
+			cf->file_rcsrev :
+			cf->file_rcs->rf_head,
+		    &alines);
 	}
 
 	/* Stick at weird GNU cvs, ignore error. */
@@ -243,9 +236,10 @@ cvs_annotate_local(struct cvs_file *cf)
 		line = alines[i];
 
 		rcsnum_tostr(line->l_delta->rd_num, rnum, sizeof(rnum));
-		/* CVS annotation deliberately uses a two-digit year, not a date parser. */
-		date_length = strftime(date, sizeof(date), "%d-%b-",
-		    &(line->l_delta->rd_date));
+		/* CVS annotation deliberately uses a two-digit year, not a date
+		 * parser. */
+		date_length = strftime(
+		    date, sizeof(date), "%d-%b-", &(line->l_delta->rd_date));
 		if (date_length == 0 || date_length > sizeof(date) - 3)
 			fatal("annotate: date representation is too long");
 		year = line->l_delta->rd_date.tm_year % 100;

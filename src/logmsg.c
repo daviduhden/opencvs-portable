@@ -32,8 +32,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include <errno.h>
@@ -46,25 +46,26 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "cvs.h"
 #include "atomicio.h"
+#include "cvs.h"
 #include "pc_process.h"
 
-#define CVS_LOGMSG_PREFIX		"CVS:"
-#define CVS_LOGMSG_LINE		\
-"----------------------------------------------------------------------"
+#define CVS_LOGMSG_PREFIX "CVS:"
+#define CVS_LOGMSG_LINE                                                        \
+	"--------------------------------------------------------------------" \
+	"--"
 
-int	cvs_logmsg_edit(const char *);
+int cvs_logmsg_edit(const char *);
 
 char *
 cvs_logmsg_read(const char *path)
 {
-	int fd;
-	BUF *bp;
-	FILE *fp;
-	size_t len;
+	int	    fd;
+	BUF	   *bp;
+	FILE	   *fp;
+	size_t	    len;
 	struct stat st;
-	char *buf, *lbuf;
+	char	   *buf, *lbuf;
 
 	if ((fd = open(path, O_RDONLY)) == -1)
 		fatal("cvs_logmsg_read: open %s", strerror(errno));
@@ -94,8 +95,8 @@ cvs_logmsg_read(const char *path)
 			buf = lbuf;
 		}
 
-		if (!strncmp(buf, CVS_LOGMSG_PREFIX,
-		    sizeof(CVS_LOGMSG_PREFIX) - 1))
+		if (!strncmp(
+			buf, CVS_LOGMSG_PREFIX, sizeof(CVS_LOGMSG_PREFIX) - 1))
 			continue;
 
 		buf_append(bp, buf, len);
@@ -114,19 +115,19 @@ char *
 cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
     struct cvs_flisthead *removed, struct cvs_flisthead *modified)
 {
-	FILE *fp, *rp;
-	int c, fd, rd, saved_errno;
+	FILE		    *fp, *rp;
+	int		     c, fd, rd, saved_errno;
 	struct cvs_filelist *cf;
-	struct stat st1, st2;
-	char *fpath, *logmsg, repo[PATH_MAX];
-	char *f, path[PATH_MAX];
-	unsigned char block[65536];
-	size_t count;
-	struct stat st;
+	struct stat	     st1, st2;
+	char		    *fpath, *logmsg, repo[PATH_MAX];
+	char		    *f, path[PATH_MAX];
+	unsigned char	     block[65536];
+	size_t		     count;
+	struct stat	     st;
 	struct trigger_list *line_list;
 	struct trigger_line *line;
-	static int reuse = 0;
-	static char *prevmsg = NULL;
+	static int	     reuse = 0;
+	static char	    *prevmsg = NULL;
 
 	if (reuse)
 		return xstrdup(prevmsg);
@@ -152,7 +153,8 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 	cvs_get_repository_name(dir != NULL ? dir : ".", repo, sizeof(repo));
 	line_list = cvs_trigger_getlines(CVS_PATH_RCSINFO, repo);
 	if (line_list != NULL) {
-		TAILQ_FOREACH(line, line_list, flist) {
+		TAILQ_FOREACH(line, line_list, flist)
+		{
 			if ((rd = open(line->line, O_RDONLY)) == -1)
 				fatal("cvs_logmsg_create: open %s",
 				    strerror(errno));
@@ -161,14 +163,17 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 				    strerror(errno));
 			if (!S_ISREG(st.st_mode))
 				fatal("cvs_logmsg_create: file is not a "
-				    "regular file");
+				      "regular file");
 			if ((rp = fdopen(rd, "r")) == NULL)
 				fatal("cvs_logmsg_create: fdopen %s",
 				    strerror(errno));
-			/* Stream templates: stat sizes can become stale while reading. */
-			while ((count = fread(block, 1, sizeof(block), rp)) != 0)
+			/* Stream templates: stat sizes can become stale while
+			 * reading. */
+			while (
+			    (count = fread(block, 1, sizeof(block), rp)) != 0)
 				if (fwrite(block, 1, count, fp) != count)
-					fatal("cvs_logmsg_create: template write: %s",
+					fatal("cvs_logmsg_create: template "
+					      "write: %s",
 					    strerror(errno));
 			if (ferror(rp))
 				fatal("cvs_logmsg_create: template read: %s",
@@ -180,9 +185,11 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 		cvs_trigger_freelist(line_list);
 	}
 
-	fprintf(fp, "%s %s\n%s Enter Log.  Lines beginning with `%s' are "
-	    "removed automatically\n%s \n", CVS_LOGMSG_PREFIX, CVS_LOGMSG_LINE,
-	    CVS_LOGMSG_PREFIX, CVS_LOGMSG_PREFIX, CVS_LOGMSG_PREFIX);
+	fprintf(fp,
+	    "%s %s\n%s Enter Log.  Lines beginning with `%s' are "
+	    "removed automatically\n%s \n",
+	    CVS_LOGMSG_PREFIX, CVS_LOGMSG_LINE, CVS_LOGMSG_PREFIX,
+	    CVS_LOGMSG_PREFIX, CVS_LOGMSG_PREFIX);
 
 	if (cvs_cmdop == CVS_OP_COMMIT) {
 		fprintf(fp, "%s Committing in %s\n%s\n", CVS_LOGMSG_PREFIX,
@@ -191,7 +198,8 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 
 	if (added != NULL && !RB_EMPTY(added)) {
 		fprintf(fp, "%s Added Files:", CVS_LOGMSG_PREFIX);
-		RB_FOREACH(cf, cvs_flisthead, added) {
+		RB_FOREACH(cf, cvs_flisthead, added)
+		{
 			f = cf->file_path;
 			if (dir != NULL) {
 				if (strlcpy(path, f, sizeof(path)) >=
@@ -206,7 +214,8 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 
 	if (removed != NULL && !RB_EMPTY(removed)) {
 		fprintf(fp, "%s Removed Files:", CVS_LOGMSG_PREFIX);
-		RB_FOREACH(cf, cvs_flisthead, removed) {
+		RB_FOREACH(cf, cvs_flisthead, removed)
+		{
 			f = cf->file_path;
 			if (dir != NULL) {
 				if (strlcpy(path, f, sizeof(path)) >=
@@ -221,7 +230,8 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 
 	if (modified != NULL && !RB_EMPTY(modified)) {
 		fprintf(fp, "%s Modified Files:", CVS_LOGMSG_PREFIX);
-		RB_FOREACH(cf, cvs_flisthead, modified) {
+		RB_FOREACH(cf, cvs_flisthead, modified)
+		{
 			f = cf->file_path;
 			if (dir != NULL) {
 				if (strlcpy(path, f, sizeof(path)) >=
@@ -265,8 +275,8 @@ cvs_logmsg_create(char *dir, struct cvs_flisthead *added,
 		}
 
 		printf("\nLog message unchanged or not specified\n"
-		    "a)bort, c)ontinue, e)dit, !)reuse this message "
-		    "unchanged for remaining dirs\nAction: (abort) ");
+		       "a)bort, c)ontinue, e)dit, !)reuse this message "
+		       "unchanged for remaining dirs\nAction: (abort) ");
 		(void)fflush(stdout);
 
 		c = getc(stdin);
@@ -309,7 +319,7 @@ int
 cvs_logmsg_edit(const char *pathname)
 {
 	char **arguments;
-	int result;
+	int    result;
 
 	arguments = pc_command_argv(cvs_editor, pathname);
 	if (arguments == NULL)
@@ -322,12 +332,12 @@ cvs_logmsg_edit(const char *pathname)
 int
 cvs_logmsg_verify(char *logmsg)
 {
-	int fd, saved, ret = 0;
-	size_t len;
-	char *fpath;
-	struct trigger_list *line_list;
+	int		      fd, saved, ret = 0;
+	size_t		      len;
+	char		     *fpath;
+	struct trigger_list  *line_list;
 	struct file_info_list files_info;
-	struct file_info *fi;
+	struct file_info     *fi;
 
 	line_list = cvs_trigger_getlines(CVS_PATH_VERIFYMSG, "DEFAULT");
 	if (line_list != NULL) {
@@ -353,7 +363,7 @@ cvs_logmsg_verify(char *logmsg)
 		TAILQ_INSERT_TAIL(&files_info, fi, flist);
 
 		if (cvs_trigger_handle(CVS_TRIGGER_VERIFYMSG, NULL, NULL,
-		    line_list, &files_info)) {
+			line_list, &files_info)) {
 			cvs_log(LP_ERR, "Log message check failed");
 			ret = 1;
 		}
@@ -366,4 +376,3 @@ cvs_logmsg_verify(char *logmsg)
 
 	return ret;
 }
-

@@ -46,42 +46,37 @@
 #include "diff.h"
 #include "remote.h"
 
-int	prune_dirs = 0;
-int	print_stdout = 0;
-int	build_dirs = 0;
-int	reset_option = 0;
-int	reset_tag = 0;
-int 	backup_local_changes = 0;
+int   prune_dirs = 0;
+int   print_stdout = 0;
+int   build_dirs = 0;
+int   reset_option = 0;
+int   reset_tag = 0;
+int   backup_local_changes = 0;
 char *cvs_specified_tag = NULL;
 char *cvs_join_rev1 = NULL;
 char *cvs_join_rev2 = NULL;
 
 static char *koptstr;
 static char *dateflag = NULL;
-static int Aflag = 0;
+static int   Aflag = 0;
 
 static void update_clear_conflict(struct cvs_file *);
 static void update_join_file(struct cvs_file *);
 
 extern CVSENTRIES *current_list;
 
-struct cvs_cmd cvs_cmd_update = {
-	CVS_OP_UPDATE, CVS_USE_WDIR, "update",
-	{ "up", "upd" },
-	"Bring work tree in sync with repository",
-	"[-ACdflPpR] [-D date | -r rev] [-I ign] [-j rev] [-k mode] "
-	"[-t id] ...",
-	"ACD:dfI:j:k:lPpQqRr:t:u",
-	NULL,
-	cvs_update
-};
+struct cvs_cmd cvs_cmd_update = {CVS_OP_UPDATE, CVS_USE_WDIR, "update",
+    {"up", "upd"}, "Bring work tree in sync with repository",
+    "[-ACdflPpR] [-D date | -r rev] [-I ign] [-j rev] [-k mode] "
+    "[-t id] ...",
+    "ACD:dfI:j:k:lPpQqRr:t:u", NULL, cvs_update};
 
 int
 cvs_update(int argc, char **argv)
 {
-	int ch;
-	char *arg = ".";
-	int flags;
+	int		     ch;
+	char		    *arg = ".";
+	int		     flags;
 	struct cvs_recursion cr;
 
 	flags = CR_RECURSE_DIRS;
@@ -182,8 +177,8 @@ cvs_update(int argc, char **argv)
 			cvs_client_send_request("Argument -p");
 
 		if (cvs_specified_tag != NULL)
-			cvs_client_send_request("Argument -r%s",
-			    cvs_specified_tag);
+			cvs_client_send_request(
+			    "Argument -r%s", cvs_specified_tag);
 
 		cr.enterdir = NULL;
 		cr.leavedir = NULL;
@@ -211,7 +206,7 @@ void
 cvs_update_enterdir(struct cvs_file *cf)
 {
 	CVSENTRIES *entlist;
-	char *dirtag, *entry, fpath[PATH_MAX];
+	char	   *dirtag, *entry, fpath[PATH_MAX];
 
 	cvs_log(LP_TRACE, "cvs_update_enterdir(%s)", cf->file_path);
 
@@ -219,13 +214,13 @@ cvs_update_enterdir(struct cvs_file *cf)
 
 	if (cf->file_status == DIR_CREATE && build_dirs == 1) {
 		cvs_parse_tagfile(cf->file_wd, &dirtag, NULL, NULL);
-		cvs_mkpath(cf->file_path, cvs_specified_tag != NULL ?
-		    cvs_specified_tag : dirtag);
+		cvs_mkpath(cf->file_path,
+		    cvs_specified_tag != NULL ? cvs_specified_tag : dirtag);
 		free(dirtag);
 
 		if ((cf->fd = open(cf->file_path, O_RDONLY)) == -1)
-			fatal("cvs_update_enterdir: `%s': %s",
-			    cf->file_path, strerror(errno));
+			fatal("cvs_update_enterdir: `%s': %s", cf->file_path,
+			    strerror(errno));
 
 		if (cvs_server_active == 1 && cvs_cmdop != CVS_OP_CHECKOUT)
 			cvs_server_clear_sticky(cf->file_path);
@@ -238,27 +233,27 @@ cvs_update_enterdir(struct cvs_file *cf)
 			free(entry);
 		}
 	} else if ((cf->file_status == DIR_CREATE && build_dirs == 0) ||
-		    cf->file_status == CVS_FILE_UNKNOWN) {
+	    cf->file_status == CVS_FILE_UNKNOWN) {
 		cf->file_status = FILE_SKIP;
 	} else if (reset_tag) {
-		(void)xsnprintf(fpath, PATH_MAX, "%s/%s",
-		    cf->file_path, CVS_PATH_TAG);
+		(void)xsnprintf(
+		    fpath, PATH_MAX, "%s/%s", cf->file_path, CVS_PATH_TAG);
 		(void)unlink(fpath);
 	} else {
 		if (cvs_specified_tag != NULL || cvs_specified_date != -1)
-			cvs_write_tagfile(cf->file_path,
-				    cvs_specified_tag, NULL);
+			cvs_write_tagfile(
+			    cf->file_path, cvs_specified_tag, NULL);
 	}
 }
 
 void
 cvs_update_leavedir(struct cvs_file *cf)
 {
-	int isempty;
-	char admin[PATH_MAX];
-	DIR *directory;
+	int	       isempty;
+	char	       admin[PATH_MAX];
+	DIR	      *directory;
 	struct dirent *dp;
-	CVSENTRIES *entlist;
+	CVSENTRIES    *entlist;
 
 	cvs_log(LP_TRACE, "cvs_update_leavedir(%s)", cf->file_path);
 
@@ -281,7 +276,8 @@ cvs_update_leavedir(struct cvs_file *cf)
 		dp = readdir(directory);
 		if (dp == NULL) {
 			if (errno != 0)
-				fatal("cvs_update_leavedir: %s", strerror(errno));
+				fatal(
+				    "cvs_update_leavedir: %s", strerror(errno));
 			break;
 		}
 		if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, "..") &&
@@ -296,7 +292,8 @@ cvs_update_leavedir(struct cvs_file *cf)
 prune_it:
 	if ((isempty == 1 && prune_dirs == 1) ||
 	    (cvs_server_active == 1 && cvs_cmdop == CVS_OP_CHECKOUT)) {
-		cvs_ent_close(entlist, cvs_server_active ? ENT_NOSYNC : ENT_SYNC);
+		cvs_ent_close(
+		    entlist, cvs_server_active ? ENT_NOSYNC : ENT_SYNC);
 		if (cvs_server_active) {
 			if (cvs_rmdir(cf->file_path) == -1)
 				fatal("could not prune %s", cf->file_path);
@@ -320,8 +317,8 @@ void
 cvs_update_local(struct cvs_file *cf)
 {
 	CVSENTRIES *entlist;
-	int ent_kflag, rcs_kflag, ret, flags;
-	char *tag, rbuf[CVS_REV_BUFSZ];
+	int	    ent_kflag, rcs_kflag, ret, flags;
+	char	   *tag, rbuf[CVS_REV_BUFSZ];
 
 	cvs_log(LP_TRACE, "cvs_update_local(%s)", cf->file_path);
 
@@ -332,8 +329,7 @@ cvs_update_local(struct cvs_file *cf)
 			return;
 		}
 
-		if (cf->file_status != CVS_FILE_UNKNOWN &&
-		    verbosity > 1)
+		if (cf->file_status != CVS_FILE_UNKNOWN && verbosity > 1)
 			cvs_log(LP_ERR, "Updating %s", cf->file_path);
 		return;
 	}
@@ -350,8 +346,8 @@ cvs_update_local(struct cvs_file *cf)
 		rcs_kwexp_set(cf->file_rcs, kflag);
 
 	if ((cf->file_status == FILE_UPTODATE ||
-	    cf->file_status == FILE_MODIFIED) && cf->file_ent != NULL &&
-	    cf->file_ent->ce_tag != NULL && reset_tag) {
+		cf->file_status == FILE_MODIFIED) &&
+	    cf->file_ent != NULL && cf->file_ent->ce_tag != NULL && reset_tag) {
 		if (cf->file_status == FILE_MODIFIED)
 			cf->file_status = FILE_MERGE;
 		else
@@ -369,14 +365,14 @@ cvs_update_local(struct cvs_file *cf)
 	}
 
 	if (print_stdout) {
-		if (cf->file_status != CVS_FILE_UNKNOWN && cf->file_rcs != NULL &&
-		    cf->file_rcsrev != NULL && !cf->file_rcs->rf_dead &&
-		    (cf->file_flags & FILE_HAS_TAG)) {
+		if (cf->file_status != CVS_FILE_UNKNOWN &&
+		    cf->file_rcs != NULL && cf->file_rcsrev != NULL &&
+		    !cf->file_rcs->rf_dead && (cf->file_flags & FILE_HAS_TAG)) {
 			rcsnum_tostr(cf->file_rcsrev, rbuf, sizeof(rbuf));
 			if (verbosity > 1) {
 				cvs_log(LP_RCS, RCS_DIFF_DIV);
-				cvs_log(LP_RCS, "Checking out %s",
-				    cf->file_path);
+				cvs_log(
+				    LP_RCS, "Checking out %s", cf->file_path);
 				cvs_log(LP_RCS, "RCS:  %s", cf->file_rpath);
 				cvs_log(LP_RCS, "VERS: %s", rbuf);
 				cvs_log(LP_RCS, "***************");
@@ -419,7 +415,8 @@ cvs_update_local(struct cvs_file *cf)
 			if (cf->file_ent->ce_conflict != NULL && ret == 1)
 				cvs_printf("C %s\n", cf->file_path);
 			else {
-				if (cf->file_ent->ce_conflict != NULL && ret == 0)
+				if (cf->file_ent->ce_conflict != NULL &&
+				    ret == 0)
 					update_clear_conflict(cf);
 				cvs_printf("M %s\n", cf->file_path);
 			}
@@ -437,13 +434,15 @@ cvs_update_local(struct cvs_file *cf)
 	case FILE_LOST:
 	case FILE_CHECKOUT:
 	case FILE_PATCH:
-		if (!reset_tag && (tag != NULL || cvs_specified_date != -1 ||
-		    cvs_directory_date != -1 || (cf->file_ent != NULL &&
-		    cf->file_ent->ce_tag != NULL)))
+		if (!reset_tag &&
+		    (tag != NULL || cvs_specified_date != -1 ||
+			cvs_directory_date != -1 ||
+			(cf->file_ent != NULL && cf->file_ent->ce_tag != NULL)))
 			flags = CO_SETSTICKY;
 
-		if (cf->file_flags & FILE_ON_DISK && (cf->file_ent == NULL ||
-		    cf->file_ent->ce_type == CVS_ENT_NONE)) {
+		if (cf->file_flags & FILE_ON_DISK &&
+		    (cf->file_ent == NULL ||
+			cf->file_ent->ce_type == CVS_ENT_NONE)) {
 			cvs_log(LP_ERR, "move away %s; it is in the way",
 			    cf->file_path);
 			cvs_printf("C %s\n", cf->file_path);
@@ -460,8 +459,8 @@ cvs_update_local(struct cvs_file *cf)
 
 		if (diff3_conflicts != 0) {
 			cvs_printf("C %s\n", cf->file_path);
-			cvs_history_add(CVS_HISTORY_UPDATE_MERGED_ERR,
-			    cf, NULL);
+			cvs_history_add(
+			    CVS_HISTORY_UPDATE_MERGED_ERR, cf, NULL);
 		} else {
 			update_clear_conflict(cf);
 			cvs_printf("M %s\n", cf->file_path);
@@ -470,7 +469,8 @@ cvs_update_local(struct cvs_file *cf)
 		break;
 	case FILE_UNLINK:
 		if (unlink(cf->file_path) == -1 && errno != ENOENT)
-			fatal("update: unlink %s: %s", cf->file_path, strerror(errno));
+			fatal("update: unlink %s: %s", cf->file_path,
+			    strerror(errno));
 		/* FALLTHROUGH */
 	case FILE_REMOVE_ENTRY:
 		entlist = cvs_ent_open(cf->file_wd);
@@ -490,8 +490,8 @@ cvs_update_local(struct cvs_file *cf)
 
 		if (cf->file_rcs->rf_dead != 1 &&
 		    (cf->file_flags & FILE_HAS_TAG))
-			cvs_checkout_file(cf, cf->file_rcsrev,
-			    tag, CO_SETSTICKY);
+			cvs_checkout_file(
+			    cf, cf->file_rcsrev, tag, CO_SETSTICKY);
 		break;
 	default:
 		break;
@@ -505,8 +505,8 @@ static void
 update_clear_conflict(struct cvs_file *cf)
 {
 	CVSENTRIES *entlist;
-	char *entry, revbuf[CVS_REV_BUFSZ];
-	char sticky[CVS_ENT_MAXLINELEN], opt[4];
+	char	   *entry, revbuf[CVS_REV_BUFSZ];
+	char	    sticky[CVS_ENT_MAXLINELEN], opt[4];
 
 	cvs_log(LP_TRACE, "update_clear_conflict(%s)", cf->file_path);
 
@@ -514,8 +514,8 @@ update_clear_conflict(struct cvs_file *cf)
 
 	sticky[0] = '\0';
 	if (cf->file_ent != NULL && cf->file_ent->ce_tag != NULL)
-		(void)xsnprintf(sticky, sizeof(sticky), "T%s",
-		    cf->file_ent->ce_tag);
+		(void)xsnprintf(
+		    sticky, sizeof(sticky), "T%s", cf->file_ent->ce_tag);
 
 	opt[0] = '\0';
 	if (cf->file_ent != NULL && cf->file_ent->ce_opts != NULL)
@@ -523,8 +523,7 @@ update_clear_conflict(struct cvs_file *cf)
 
 	entry = xmalloc(CVS_ENT_MAXLINELEN);
 	cvs_ent_line_str(cf->file_name, revbuf, "Result of merge",
-	    opt[0] != '\0' ? opt : "", sticky, 0, 0,
-	    entry, CVS_ENT_MAXLINELEN);
+	    opt[0] != '\0' ? opt : "", sticky, 0, 0, entry, CVS_ENT_MAXLINELEN);
 
 	entlist = cvs_ent_open(cf->file_wd);
 	cvs_ent_add(entlist, entry);
@@ -539,12 +538,12 @@ update_clear_conflict(struct cvs_file *cf)
 int
 update_has_conflict_markers(struct cvs_file *cf)
 {
-	BUF *bp;
-	int conflict;
-	char *content;
-	struct rcs_line *lp;
+	BUF		 *bp;
+	int		  conflict;
+	char		 *content;
+	struct rcs_line	 *lp;
 	struct rcs_lines *lines;
-	size_t len;
+	size_t		  len;
 
 	cvs_log(LP_TRACE, "update_has_conflict_markers(%s)", cf->file_path);
 
@@ -560,19 +559,20 @@ update_has_conflict_markers(struct cvs_file *cf)
 		fatal("update_has_conflict_markers: failed to split lines");
 
 	conflict = 0;
-	TAILQ_FOREACH(lp, &(lines->l_lines), l_list) {
+	TAILQ_FOREACH(lp, &(lines->l_lines), l_list)
+	{
 		if (lp->l_line == NULL)
 			continue;
 
 		if ((lp->l_len >= sizeof(RCS_CONFLICT_MARKER1) - 1 &&
-		    !memcmp(lp->l_line, RCS_CONFLICT_MARKER1,
-		    sizeof(RCS_CONFLICT_MARKER1) - 1)) ||
+			!memcmp(lp->l_line, RCS_CONFLICT_MARKER1,
+			    sizeof(RCS_CONFLICT_MARKER1) - 1)) ||
 		    (lp->l_len >= sizeof(RCS_CONFLICT_MARKER2) - 1 &&
-		    !memcmp(lp->l_line, RCS_CONFLICT_MARKER2,
-		    sizeof(RCS_CONFLICT_MARKER2) - 1)) ||
+			!memcmp(lp->l_line, RCS_CONFLICT_MARKER2,
+			    sizeof(RCS_CONFLICT_MARKER2) - 1)) ||
 		    (lp->l_len >= sizeof(RCS_CONFLICT_MARKER3) - 1 &&
-		    !memcmp(lp->l_line, RCS_CONFLICT_MARKER3,
-		    sizeof(RCS_CONFLICT_MARKER3) - 1))) {
+			!memcmp(lp->l_line, RCS_CONFLICT_MARKER3,
+			    sizeof(RCS_CONFLICT_MARKER3) - 1))) {
 			conflict = 1;
 			break;
 		}
@@ -586,10 +586,10 @@ update_has_conflict_markers(struct cvs_file *cf)
 void
 update_join_file(struct cvs_file *cf)
 {
-	time_t told;
-	RCSNUM *rev1, *rev2;
+	time_t	    told;
+	RCSNUM	   *rev1, *rev2;
 	const char *state1, *state2;
-	char rbuf[CVS_REV_BUFSZ], *jrev1, *jrev2, *p;
+	char	    rbuf[CVS_REV_BUFSZ], *jrev1, *jrev2, *p;
 
 	rev1 = rev2 = NULL;
 	jrev1 = jrev2 = NULL;
@@ -694,8 +694,8 @@ update_join_file(struct cvs_file *cf)
 	}
 
 	if (rcs_kwexp_get(cf->file_rcs) & RCS_KWEXP_NONE) {
-		cvs_printf("non-mergable file: %s needs merge!\n",
-		    cf->file_path);
+		cvs_printf(
+		    "non-mergable file: %s needs merge!\n", cf->file_path);
 		goto out;
 	}
 
@@ -726,21 +726,21 @@ out:
 void
 cvs_backup_file(struct cvs_file *cf)
 {
-	char	 backup_name[PATH_MAX];
-	char	 revstr[RCSNUM_MAXSTR];
+	char backup_name[PATH_MAX];
+	char revstr[RCSNUM_MAXSTR];
 
 	if (cf->file_status == FILE_ADDED)
 		(void)xsnprintf(revstr, sizeof(revstr), "0");
 	else
 		rcsnum_tostr(cf->file_ent->ce_rev, revstr, sizeof(revstr));
 
-	(void)xsnprintf(backup_name, PATH_MAX, "%s/.#%s.%s",
-	    cf->file_wd, cf->file_name, revstr);
+	(void)xsnprintf(backup_name, PATH_MAX, "%s/.#%s.%s", cf->file_wd,
+	    cf->file_name, revstr);
 
 	cvs_file_copy(cf->file_path, backup_name);
 
-	(void)xsnprintf(backup_name, PATH_MAX, ".#%s.%s",
-	    cf->file_name, revstr);
-	cvs_printf("(Locally modified %s copied to %s)\n",
-		   cf->file_name, backup_name);
+	(void)xsnprintf(
+	    backup_name, PATH_MAX, ".#%s.%s", cf->file_name, revstr);
+	cvs_printf(
+	    "(Locally modified %s copied to %s)\n", cf->file_name, backup_name);
 }

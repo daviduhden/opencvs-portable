@@ -134,51 +134,52 @@ static struct diff *d23;
  * lines that are different in all three files.
  */
 static struct diff *de;
-static char *overlap;
-static int overlapcnt = 0;
-static FILE *fp[3];
-static int cline[3];		/* # of the last-read line in each file (0-2) */
+static char	   *overlap;
+static int	    overlapcnt = 0;
+static FILE	   *fp[3];
+static int	    cline[3]; /* # of the last-read line in each file (0-2) */
 
 /*
  * the latest known correspondence between line numbers of the 3 files
  * is stored in last[1-3];
  */
-static int last[4];
-static int eflag;
-static int oflag;		/* indicates whether to mark overlaps (-E or -X)*/
-static int debug  = 0;
-static char f1mark[PATH_MAX], f3mark[PATH_MAX];	/* markers for -E and -X */
+static int  last[4];
+static int  eflag;
+static int  oflag; /* indicates whether to mark overlaps (-E or -X)*/
+static int  debug = 0;
+static char f1mark[PATH_MAX], f3mark[PATH_MAX]; /* markers for -E and -X */
 
-static int duplicate(struct range *, struct range *);
-static int edit(struct diff *, int, int);
-static char *getchange(FILE *);
-static char *get_line(FILE *, size_t *);
-static int number(char **);
+static int    duplicate(struct range *, struct range *);
+static int    edit(struct diff *, int, int);
+static char  *getchange(FILE *);
+static char  *get_line(FILE *, size_t *);
+static int    number(char **);
 static size_t readin(int, struct diff **);
-static int skip(int, int, char *);
-static int edscript(int);
-static int merge(size_t, size_t);
-static void change(int, struct range *, int);
-static void keep(int, struct range *);
-static void prange(struct range *);
-static void repos(int);
-static void separate(const char *);
-static void increase(void);
-static int diff3_internal(int, char **, const char *, const char *);
+static int    skip(int, int, char *);
+static int    edscript(int);
+static int    merge(size_t, size_t);
+static void   change(int, struct range *, int);
+static void   keep(int, struct range *);
+static void   prange(struct range *);
+static void   repos(int);
+static void   separate(const char *);
+static void   increase(void);
+static int    diff3_internal(int, char **, const char *, const char *);
 
-int diff3_conflicts = 0;
+int	diff3_conflicts = 0;
 RCSNUM *d3rev1 = NULL;
 RCSNUM *d3rev2 = NULL;
 
 static int fds[5];
 
-/* Text merge scripts cannot represent NUL bytes; reject before replacing data. */
+/* Text merge scripts cannot represent NUL bytes; reject before replacing data.
+ */
 static void
 merge_check_text(int fd)
 {
 	unsigned char block[4096];
-	ssize_t count;
-	off_t position;
+	ssize_t	      count;
+	off_t	      position;
 
 	if ((position = lseek(fd, 0, SEEK_CUR)) == -1 ||
 	    lseek(fd, 0, SEEK_SET) == -1)
@@ -201,14 +202,14 @@ merge_check_text(int fd)
 void
 cvs_merge_file(struct cvs_file *cf, int verbose)
 {
-	int i, argc;
-	char *data, *patch;
-	char *argv[5], r1[CVS_REV_BUFSZ], r2[CVS_REV_BUFSZ];
-	char *dp13, *dp23, *path1, *path2, *path3;
-	BUF *b1, *d1, *d2, *diffb, *merged;
-	struct stat original;
-	size_t dlen, plen;
-	struct rcs_line *lp;
+	int		  i, argc;
+	char		 *data, *patch;
+	char		 *argv[5], r1[CVS_REV_BUFSZ], r2[CVS_REV_BUFSZ];
+	char		 *dp13, *dp23, *path1, *path2, *path3;
+	BUF		 *b1, *d1, *d2, *diffb, *merged;
+	struct stat	  original;
+	size_t		  dlen, plen;
+	struct rcs_line	 *lp;
 	struct rcs_lines *dlines, *plines;
 
 	overlapcnt = 0;
@@ -278,7 +279,8 @@ cvs_merge_file(struct cvs_file *cf, int verbose)
 		cvs_printf("Merging differences between %s and %s into `%s'\n",
 		    r1, r2, cf->file_path);
 
-	/* These owned buffers are byte arrays; line views retain that representation. */
+	/* These owned buffers are byte arrays; line views retain that
+	 * representation. */
 	dlines = cvs_splitlines((u_char *)data, dlen);
 	plines = cvs_splitlines((u_char *)patch, plen);
 
@@ -286,17 +288,20 @@ cvs_merge_file(struct cvs_file *cf, int verbose)
 	cvs_freelines(plines);
 
 	if (verbose == 1 && diff3_conflicts != 0) {
-		cvs_log(LP_ERR, "%d conflict%s found during merge, "
-		    "please correct.", diff3_conflicts,
-		    (diff3_conflicts > 1) ? "s" : "");
+		cvs_log(LP_ERR,
+		    "%d conflict%s found during merge, "
+		    "please correct.",
+		    diff3_conflicts, (diff3_conflicts > 1) ? "s" : "");
 	}
 
 	merged = buf_alloc(128);
-	TAILQ_FOREACH(lp, &(dlines->l_lines), l_list) {
+	TAILQ_FOREACH(lp, &(dlines->l_lines), l_list)
+	{
 		if (lp->l_line != NULL)
 			buf_append(merged, lp->l_line, lp->l_len);
 	}
-	/* Same-directory temporary write, checked sync and rename preserve failure data. */
+	/* Same-directory temporary write, checked sync and rename preserve
+	 * failure data. */
 	if (buf_write(merged, cf->file_path, original.st_mode & 0777) == -1)
 		fatal("merge: replacement failed: %s", strerror(errno));
 	buf_free(merged);
@@ -326,7 +331,7 @@ static int
 diff3_internal(int argc, char **argv, const char *fmark, const char *rmark)
 {
 	size_t m, n;
-	int i;
+	int    i;
 
 	eflag = 3;
 	oflag = 1;
@@ -369,7 +374,7 @@ static int
 ed_number(const u_char **position, const u_char *limit)
 {
 	const u_char *p = *position;
-	int value = 0, digit;
+	int	      value = 0, digit;
 
 	if (p == limit || *p < '0' || *p > '9')
 		fatal("ed_patch_lines: missing decimal line number");
@@ -386,10 +391,10 @@ ed_number(const u_char **position, const u_char *limit)
 int
 ed_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines)
 {
-	const u_char *position, *limit;
-	char op;
+	const u_char	*position, *limit;
+	char		 op;
 	struct rcs_line *sort, *lp, *dlp, *ndlp, *insert_after;
-	int start, end, i, lineno;
+	int		 start, end, i, lineno;
 
 	dlp = TAILQ_FIRST(&(dlines->l_lines));
 	lp = TAILQ_FIRST(&(plines->l_lines));
@@ -429,10 +434,12 @@ ed_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines)
 		if (op == 'c') {
 			insert_after = TAILQ_PREV(dlp, tqh, l_list);
 			if (insert_after == NULL)
-				fatal("ed_patch_lines: cannot replace sentinel");
-			for (i = start; ; i++) {
+				fatal(
+				    "ed_patch_lines: cannot replace sentinel");
+			for (i = start;; i++) {
 				if (dlp == NULL)
-					fatal("ed_patch_lines: incomplete replacement range");
+					fatal("ed_patch_lines: incomplete "
+					      "replacement range");
 				ndlp = TAILQ_NEXT(dlp, l_list);
 				TAILQ_REMOVE(&(dlines->l_lines), dlp, l_list);
 				if (dlp->l_needsfree)
@@ -460,9 +467,11 @@ ed_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines)
 			lp = ndlp;
 		}
 
-		/* Keep coordinates consistent for following reverse-order edits. */
+		/* Keep coordinates consistent for following reverse-order
+		 * edits. */
 		lineno = 0;
-		TAILQ_FOREACH(sort, &(dlines->l_lines), l_list) {
+		TAILQ_FOREACH(sort, &(dlines->l_lines), l_list)
+		{
 			if (lineno == INT_MAX)
 				fatal("ed_patch_lines: too many lines");
 			sort->l_lineno = lineno++;
@@ -481,8 +490,8 @@ ed_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines)
 static size_t
 readin(int fd, struct diff **dd)
 {
-	int a, b, c, d;
-	char kind, *p;
+	int    a, b, c, d;
+	char   kind, *p;
 	size_t i;
 
 	fp[0] = fdopen(fd, "r");
@@ -501,7 +510,7 @@ readin(int fd, struct diff **dd)
 			fatal("readin: invalid diff operation");
 		kind = *p++;
 		c = d = number(&p);
-		if (*p==',') {
+		if (*p == ',') {
 			p++;
 			d = number(&p);
 		}
@@ -520,8 +529,8 @@ readin(int fd, struct diff **dd)
 	}
 
 	if (i) {
-		(*dd)[i].old.from = (*dd)[i-1].old.to;
-		(*dd)[i].new.from = (*dd)[i-1].new.to;
+		(*dd)[i].old.from = (*dd)[i - 1].old.to;
+		(*dd)[i].new.from = (*dd)[i - 1].new.to;
 	}
 
 	(void)fclose(fp[0]);
@@ -539,7 +548,8 @@ number(char **lc)
 	nn = 0;
 	while (isdigit((unsigned char)**lc)) {
 		digit = *(*lc)++ - '0';
-		/* readin stores exclusive ends and increments each parsed number. */
+		/* readin stores exclusive ends and increments each parsed
+		 * number. */
 		if (nn > (INT_MAX - 1 - digit) / 10)
 			fatal("number: diff line number overflow");
 		nn = nn * 10 + digit;
@@ -564,9 +574,9 @@ getchange(FILE *b)
 static char *
 get_line(FILE *b, size_t *n)
 {
-	char *cp;
-	size_t len;
-	static char *buf;
+	char	     *cp;
+	size_t	      len;
+	static char  *buf;
 	static size_t bufsize;
 
 	if ((cp = fgetln(b, &len)) == NULL)
@@ -592,7 +602,7 @@ static int
 merge(size_t m1, size_t m2)
 {
 	struct diff *d1, *d2, *d3;
-	int dpl, j, t1, t2;
+	int	     dpl, j, t1, t2;
 
 	d1 = d13;
 	d2 = d23;
@@ -604,17 +614,15 @@ merge(size_t m1, size_t m2)
 			break;
 
 		if (debug) {
-			printf("%d,%d=%d,%d %d,%d=%d,%d\n",
-			d1->old.from, d1->old.to,
-			d1->new.from, d1->new.to,
-			d2->old.from, d2->old.to,
-			d2->new.from, d2->new.to);
+			printf("%d,%d=%d,%d %d,%d=%d,%d\n", d1->old.from,
+			    d1->old.to, d1->new.from, d1->new.to, d2->old.from,
+			    d2->old.to, d2->new.from, d2->new.to);
 		}
 
 		/* first file is different from others */
 		if (!t2 || (t1 && d1->new.to < d2->new.from)) {
 			/* stuff peculiar to 1st file */
-			if (eflag==0) {
+			if (eflag == 0) {
 				separate("1");
 				change(1, &d1->old, 0);
 				keep(2, &d1->new);
@@ -626,7 +634,7 @@ merge(size_t m1, size_t m2)
 
 		/* second file is different from others */
 		if (!t1 || (t2 && d2->new.to < d1->new.from)) {
-			if (eflag==0) {
+			if (eflag == 0) {
 				separate("2");
 				keep(1, &d2->new);
 				change(2, &d2->old, 0);
@@ -656,7 +664,7 @@ merge(size_t m1, size_t m2)
 		}
 		/* stuff peculiar to third file or different in all */
 		if (d1->new.from == d2->new.from && d1->new.to == d2->new.to) {
-			dpl = duplicate(&d1->old,&d2->old);
+			dpl = duplicate(&d1->old, &d2->old);
 			if (dpl == -1)
 				return (-1);
 
@@ -664,7 +672,7 @@ merge(size_t m1, size_t m2)
 			 * dpl = 0 means all files differ
 			 * dpl = 1 means files 1 and 2 identical
 			 */
-			if (eflag==0) {
+			if (eflag == 0) {
 				separate(dpl ? "3" : "");
 				change(1, &d1->old, dpl);
 				change(2, &d2->old, 0);
@@ -682,10 +690,10 @@ merge(size_t m1, size_t m2)
 		 * appropriately to make them coincide.
 		 */
 		if (d1->new.from < d2->new.from) {
-			d2->old.from -= d2->new.from-d1->new.from;
+			d2->old.from -= d2->new.from - d1->new.from;
 			d2->new.from = d1->new.from;
 		} else if (d2->new.from < d1->new.from) {
-			d1->old.from -= d1->new.from-d2->new.from;
+			d1->old.from -= d1->new.from - d2->new.from;
 			d1->new.from = d2->new.from;
 		}
 		if (d1->new.to > d2->new.to) {
@@ -734,7 +742,7 @@ prange(struct range *rold)
 		diff_output("%da\n", rold->from - 1);
 	else {
 		diff_output("%d", rold->from);
-		if (rold->to > rold->from+1)
+		if (rold->to > rold->from + 1)
 			diff_output(",%d", rold->to - 1);
 		diff_output("c\n");
 	}
@@ -748,7 +756,7 @@ prange(struct range *rold)
 static void
 keep(int i, struct range *rnew)
 {
-	int delta;
+	int	     delta;
 	struct range trange;
 
 	delta = last[3] - last[i];
@@ -765,7 +773,7 @@ static int
 skip(int i, int from, char *pr)
 {
 	size_t j, n;
-	char *line;
+	char  *line;
 
 	for (n = 0; cline[i] < from - 1; n += j) {
 		if ((line = get_line(fp[i], &j)) == NULL)
@@ -776,7 +784,7 @@ skip(int i, int from, char *pr)
 			diff_output("%s%s", pr, line);
 		cline[i]++;
 	}
-	return ((int) n);
+	return ((int)n);
 }
 
 /*
@@ -786,22 +794,22 @@ skip(int i, int from, char *pr)
 static int
 duplicate(struct range *r1, struct range *r2)
 {
-	int c,d;
+	int c, d;
 	int nchar;
 	int nline;
 
-	if (r1->to-r1->from != r2->to-r2->from)
+	if (r1->to - r1->from != r2->to - r2->from)
 		return (0);
 	(void)skip(0, r1->from, NULL);
 	(void)skip(1, r2->from, NULL);
 	nchar = 0;
-	for (nline=0; nline < r1->to - r1->from; nline++) {
+	for (nline = 0; nline < r1->to - r1->from; nline++) {
 		do {
 			c = getc(fp[0]);
 			d = getc(fp[1]);
 			if (c == -1 && d == -1)
 				break;
-			if (c == -1 || d== -1)
+			if (c == -1 || d == -1)
 				return (-1);
 			nchar++;
 			if (c != d) {
@@ -843,9 +851,9 @@ edit(struct diff *diff, int fdup, int j)
 	de[j].old.from = diff->old.from;
 	de[j].old.to = diff->old.to;
 	skipped = skip(2, diff->new.from, NULL);
-	if (skipped < 0 || de[j-1].new.to > INT_MAX - skipped)
+	if (skipped < 0 || de[j - 1].new.to > INT_MAX - skipped)
 		fatal("diff3: edit offset overflow");
-	de[j].new.from = de[j-1].new.to + skipped;
+	de[j].new.from = de[j - 1].new.to + skipped;
 	skipped = skip(2, diff->new.to, NULL);
 	if (skipped < 0 || de[j].new.from > INT_MAX - skipped)
 		fatal("diff3: edit offset overflow");
@@ -857,16 +865,16 @@ edit(struct diff *diff, int fdup, int j)
 static int
 edscript(int n)
 {
-	int j, k;
-	char block[BUFSIZ+1];
+	int  j, k;
+	char block[BUFSIZ + 1];
 
 	for (; n > 0; n--) {
 		if (!oflag || !overlap[n])
 			prange(&de[n].old);
 		else
-			diff_output("%da\n=======\n", de[n].old.to -1);
+			diff_output("%da\n=======\n", de[n].old.to - 1);
 		(void)fseek(fp[2], (long)de[n].new.from, SEEK_SET);
-		for (k = de[n].new.to-de[n].new.from; k > 0; k-= j) {
+		for (k = de[n].new.to - de[n].new.from; k > 0; k -= j) {
 			size_t r;
 			j = k > BUFSIZ ? BUFSIZ : k;
 			r = fread(block, 1, j, fp[2]);
@@ -876,7 +884,8 @@ edscript(int n)
 				return (-1);
 			}
 			if (r != (size_t)j) {
-				/* fread returned at most j <= BUFSIZ, which is representable. */
+				/* fread returned at most j <= BUFSIZ, which is
+				 * representable. */
 				j = (int)r;
 			}
 			block[j] = '\0';

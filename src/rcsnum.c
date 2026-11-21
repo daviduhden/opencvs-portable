@@ -45,10 +45,10 @@
 
 #include "cvs.h"
 
-#define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
+#define MINIMUM(a, b) (((a) < (b)) ? (a) : (b))
 
-static void	 rcsnum_setsize(RCSNUM *, u_int);
-static char	*rcsnum_itoa(u_int16_t, char *, size_t);
+static void  rcsnum_setsize(RCSNUM *, u_int);
+static char *rcsnum_itoa(u_int16_t, char *, size_t);
 
 /*
  * rcsnum_alloc()
@@ -93,7 +93,7 @@ RCSNUM *
 rcsnum_parse(const char *str)
 {
 	const char *ep;
-	RCSNUM *num;
+	RCSNUM	   *num;
 
 	num = rcsnum_alloc();
 	if (rcsnum_aton(str, &ep, num) < 0 || *ep != '\0') {
@@ -117,7 +117,7 @@ char *
 rcsnum_tostr(const RCSNUM *nump, char *buf, size_t blen)
 {
 	u_int i;
-	char tmp[8];
+	char  tmp[8];
 
 	if (blen == 0)
 		return (buf);
@@ -126,7 +126,8 @@ rcsnum_tostr(const RCSNUM *nump, char *buf, size_t blen)
 		return (buf);
 	}
 
-	if (strlcpy(buf, rcsnum_itoa(nump->rn_id[0], tmp, sizeof(tmp)), blen) >= blen)
+	if (strlcpy(buf, rcsnum_itoa(nump->rn_id[0], tmp, sizeof(tmp)), blen) >=
+	    blen)
 		fatal("rcsnum_tostr: truncation");
 	for (i = 1; i < nump->rn_len; i++) {
 		const char *str;
@@ -143,7 +144,7 @@ static char *
 rcsnum_itoa(u_int16_t num, char *buf, size_t len)
 {
 	u_int16_t i;
-	char *p;
+	char	 *p;
 
 	if (num == 0)
 		return "0";
@@ -153,7 +154,7 @@ rcsnum_itoa(u_int16_t num, char *buf, size_t len)
 	memset(buf, 0, len);
 	while (i) {
 		*--p = (char)('0' + (i % 10));
-		i  /= 10;
+		i /= 10;
 	}
 	return (p);
 }
@@ -190,8 +191,8 @@ rcsnum_cpy(const RCSNUM *nsrc, RCSNUM *ndst, u_int depth)
 int
 rcsnum_cmp(RCSNUM *n1, RCSNUM *n2, u_int depth)
 {
-	int res;
-	u_int i;
+	int    res;
+	u_int  i;
 	size_t slen;
 
 	if (!rcsnum_differ(n1, n2))
@@ -234,9 +235,9 @@ rcsnum_cmp(RCSNUM *n1, RCSNUM *n2, u_int depth)
 int
 rcsnum_aton(const char *str, const char **ep, RCSNUM *nump)
 {
-	u_int32_t val;
+	u_int32_t   val;
 	const char *sp;
-	char *s;
+	char	   *s;
 
 	nump->rn_len = 0;
 	nump->rn_id[0] = 0;
@@ -302,7 +303,7 @@ rcsnum_aton(const char *str, const char **ep, RCSNUM *nump)
 			 * so the .0. is removed.
 			 */
 			if (!strncmp(s, RCS_MAGIC_BRANCH,
-			    sizeof(RCS_MAGIC_BRANCH) - 1)) {
+				sizeof(RCS_MAGIC_BRANCH) - 1)) {
 				nump->rn_id[nump->rn_len - 1] =
 				    nump->rn_id[nump->rn_len];
 				nump->rn_len--;

@@ -52,10 +52,10 @@
 /* Fatal messages.  This function never returns. */
 
 void
-fatal(const char *fmt,...)
+fatal(const char *fmt, ...)
 {
 	static int been_here;
-	va_list args;
+	va_list	   args;
 
 	/* Fatal should not loop, (the functions below can fatal). */
 	if (been_here++)

@@ -43,58 +43,40 @@
 #include "cvs.h"
 #include "remote.h"
 
-#define E_COMMIT	0x01
-#define E_EDIT		0x02
-#define E_UNEDIT	0x04
-#define E_ALL		(E_EDIT|E_COMMIT|E_UNEDIT)
+#define E_COMMIT 0x01
+#define E_EDIT 0x02
+#define E_UNEDIT 0x04
+#define E_ALL (E_EDIT | E_COMMIT | E_UNEDIT)
 
-#define BASE_ADD	0x01
-#define BASE_GET	0x02
-#define BASE_REMOVE	0x04
+#define BASE_ADD 0x01
+#define BASE_GET 0x02
+#define BASE_REMOVE 0x04
 
-static void	cvs_edit_local(struct cvs_file *);
-static void	cvs_editors_local(struct cvs_file *);
-static void	cvs_unedit_local(struct cvs_file *);
+static void cvs_edit_local(struct cvs_file *);
+static void cvs_editors_local(struct cvs_file *);
+static void cvs_unedit_local(struct cvs_file *);
 
-static RCSNUM	*cvs_base_handle(struct cvs_file *, int);
+static RCSNUM *cvs_base_handle(struct cvs_file *, int);
 
-static int	edit_aflags = 0;
+static int edit_aflags = 0;
 
-struct cvs_cmd cvs_cmd_edit = {
-	CVS_OP_EDIT, CVS_USE_WDIR, "edit",
-	{ { 0 }, { 0 } },
-	"Get ready to edit a watched file",
-	"[-lR] [-a action] [file ...]",
-	"a:lR",
-	NULL,
-	cvs_edit
-};
+struct cvs_cmd cvs_cmd_edit = {CVS_OP_EDIT, CVS_USE_WDIR, "edit", {{0}, {0}},
+    "Get ready to edit a watched file", "[-lR] [-a action] [file ...]", "a:lR",
+    NULL, cvs_edit};
 
-struct cvs_cmd cvs_cmd_editors = {
-	CVS_OP_EDITORS, CVS_USE_WDIR, "editors",
-	{ { 0 }, { 0 } },
-	"See who is editing a watched file",
-	"[-lR] [file ...]",
-	"lR",
-	NULL,
-	cvs_editors
-};
+struct cvs_cmd cvs_cmd_editors = {CVS_OP_EDITORS, CVS_USE_WDIR, "editors",
+    {{0}, {0}}, "See who is editing a watched file", "[-lR] [file ...]", "lR",
+    NULL, cvs_editors};
 
-struct cvs_cmd cvs_cmd_unedit = {
-	CVS_OP_UNEDIT, CVS_USE_WDIR, "unedit",
-	{ { 0 }, { 0 } },
-	"Undo an edit command",
-	"[-lR] [file ...]",
-	"lR",
-	NULL,
-	cvs_unedit
-};
+struct cvs_cmd cvs_cmd_unedit = {CVS_OP_UNEDIT, CVS_USE_WDIR, "unedit",
+    {{0}, {0}}, "Undo an edit command", "[-lR] [file ...]", "lR", NULL,
+    cvs_unedit};
 
 int
 cvs_edit(int argc, char **argv)
 {
-	int ch;
-	int flags;
+	int		     ch;
+	int		     flags;
 	struct cvs_recursion cr;
 
 	flags = CR_RECURSE_DIRS;
@@ -165,8 +147,8 @@ cvs_edit(int argc, char **argv)
 int
 cvs_editors(int argc, char **argv)
 {
-	int ch;
-	int flags;
+	int		     ch;
+	int		     flags;
 	struct cvs_recursion cr;
 
 	flags = CR_RECURSE_DIRS;
@@ -220,8 +202,8 @@ cvs_editors(int argc, char **argv)
 int
 cvs_unedit(int argc, char **argv)
 {
-	int ch;
-	int flags;
+	int		     ch;
+	int		     flags;
 	struct cvs_recursion cr;
 
 	flags = CR_RECURSE_DIRS;
@@ -275,11 +257,11 @@ cvs_unedit(int argc, char **argv)
 static void
 cvs_edit_local(struct cvs_file *cf)
 {
-	FILE *fp;
+	FILE	 *fp;
 	struct tm t;
-	time_t now;
-	char timebuf[CVS_TIME_BUFSZ], thishost[HOST_NAME_MAX+1];
-	char bfpath[PATH_MAX], wdir[PATH_MAX];
+	time_t	  now;
+	char	  timebuf[CVS_TIME_BUFSZ], thishost[HOST_NAME_MAX + 1];
+	char	  bfpath[PATH_MAX], wdir[PATH_MAX];
 
 	if (cvs_noexec == 1)
 		return;
@@ -289,8 +271,8 @@ cvs_edit_local(struct cvs_file *cf)
 	cvs_file_classify(cf, cvs_directory_tag);
 
 	if ((fp = fopen(CVS_PATH_NOTIFY, "a")) == NULL)
-		fatal("cvs_edit_local: fopen: `%s': %s",
-		    CVS_PATH_NOTIFY, strerror(errno));
+		fatal("cvs_edit_local: fopen: `%s': %s", CVS_PATH_NOTIFY,
+		    strerror(errno));
 
 	(void)time(&now);
 	gmtime_r(&now, &t);
@@ -303,8 +285,8 @@ cvs_edit_local(struct cvs_file *cf)
 	if (getcwd(wdir, sizeof(wdir)) == NULL)
 		fatal("getcwd failed");
 
-	(void)fprintf(fp, "E%s\t%s GMT\t%s\t%s\t",
-	    cf->file_name, timebuf, thishost, wdir);
+	(void)fprintf(fp, "E%s\t%s GMT\t%s\t%s\t", cf->file_name, timebuf,
+	    thishost, wdir);
 
 	if (edit_aflags & E_EDIT)
 		(void)fprintf(fp, "E");
@@ -320,8 +302,8 @@ cvs_edit_local(struct cvs_file *cf)
 	if (fchmod(cf->fd, 0644) == -1)
 		fatal("cvs_edit_local: fchmod %s", strerror(errno));
 
-	(void)xsnprintf(bfpath, PATH_MAX, "%s/%s",
-	    CVS_PATH_BASEDIR, cf->file_name);
+	(void)xsnprintf(
+	    bfpath, PATH_MAX, "%s/%s", CVS_PATH_BASEDIR, cf->file_name);
 
 	if (mkdir(CVS_PATH_BASEDIR, 0755) == -1 && errno != EEXIST)
 		fatal("cvs_edit_local: `%s': %s", CVS_PATH_BASEDIR,
@@ -342,13 +324,13 @@ cvs_editors_local(struct cvs_file *cf)
 static void
 cvs_unedit_local(struct cvs_file *cf)
 {
-	FILE *fp;
+	FILE	   *fp;
 	struct stat st;
-	struct tm t;
-	time_t now;
-	char bfpath[PATH_MAX], timebuf[64], thishost[HOST_NAME_MAX+1];
-	char wdir[PATH_MAX], sticky[CVS_ENT_MAXLINELEN];
-	RCSNUM *ba_rev;
+	struct tm   t;
+	time_t	    now;
+	char	    bfpath[PATH_MAX], timebuf[64], thishost[HOST_NAME_MAX + 1];
+	char	    wdir[PATH_MAX], sticky[CVS_ENT_MAXLINELEN];
+	RCSNUM	   *ba_rev;
 
 	cvs_log(LP_TRACE, "cvs_unedit_local(%s)", cf->file_path);
 
@@ -357,15 +339,15 @@ cvs_unedit_local(struct cvs_file *cf)
 
 	cvs_file_classify(cf, cvs_directory_tag);
 
-	(void)xsnprintf(bfpath, PATH_MAX, "%s/%s",
-	    CVS_PATH_BASEDIR, cf->file_name);
+	(void)xsnprintf(
+	    bfpath, PATH_MAX, "%s/%s", CVS_PATH_BASEDIR, cf->file_name);
 
 	if (stat(bfpath, &st) == -1)
 		return;
 
 	if (cvs_file_cmp(cf->file_path, bfpath) != 0) {
-		cvs_printf("%s has been modified; revert changes? ",
-		    cf->file_name);
+		cvs_printf(
+		    "%s has been modified; revert changes? ", cf->file_name);
 
 		if (cvs_yesno() == -1)
 			return;
@@ -374,8 +356,8 @@ cvs_unedit_local(struct cvs_file *cf)
 	cvs_rename(bfpath, cf->file_path);
 
 	if ((fp = fopen(CVS_PATH_NOTIFY, "a")) == NULL)
-		fatal("cvs_unedit_local: fopen: `%s': %s",
-		    CVS_PATH_NOTIFY, strerror(errno));
+		fatal("cvs_unedit_local: fopen: `%s': %s", CVS_PATH_NOTIFY,
+		    strerror(errno));
 
 	(void)time(&now);
 	gmtime_r(&now, &t);
@@ -388,21 +370,21 @@ cvs_unedit_local(struct cvs_file *cf)
 	if (getcwd(wdir, sizeof(wdir)) == NULL)
 		fatal("getcwd failed");
 
-	(void)fprintf(fp, "U%s\t%s GMT\t%s\t%s\t\n",
-	    cf->file_name, timebuf, thishost, wdir);
+	(void)fprintf(fp, "U%s\t%s GMT\t%s\t%s\t\n", cf->file_name, timebuf,
+	    thishost, wdir);
 
 	(void)fclose(fp);
 
 	if ((ba_rev = cvs_base_handle(cf, BASE_GET)) == NULL) {
-		cvs_log(LP_ERR, "%s not mentioned in %s",
-		    cf->file_name, CVS_PATH_BASEREV);
+		cvs_log(LP_ERR, "%s not mentioned in %s", cf->file_name,
+		    CVS_PATH_BASEREV);
 		return;
 	}
 
 	if (cf->file_ent != NULL) {
-		CVSENTRIES *entlist;
+		CVSENTRIES     *entlist;
 		struct cvs_ent *ent;
-		char *entry, rbuf[CVS_REV_BUFSZ];
+		char	       *entry, rbuf[CVS_REV_BUFSZ];
 
 		entlist = cvs_ent_open(cf->file_wd);
 
@@ -420,9 +402,9 @@ cvs_unedit_local(struct cvs_file *cf)
 			(void)xsnprintf(sticky, sizeof(sticky), "T%s",
 			    cf->file_ent->ce_tag);
 
-		(void)xasprintf(&entry, "/%s/%s/%s/%s/%s",
-		    cf->file_name, rbuf, timebuf, cf->file_ent->ce_opts ? 
-		    cf->file_ent->ce_opts : "", sticky);
+		(void)xasprintf(&entry, "/%s/%s/%s/%s/%s", cf->file_name, rbuf,
+		    timebuf, cf->file_ent->ce_opts ? cf->file_ent->ce_opts : "",
+		    sticky);
 
 		cvs_ent_add(entlist, entry);
 
@@ -442,11 +424,11 @@ cvs_unedit_local(struct cvs_file *cf)
 static RCSNUM *
 cvs_base_handle(struct cvs_file *cf, int flags)
 {
-	FILE *fp, *tfp;
+	FILE   *fp, *tfp;
 	RCSNUM *ba_rev;
-	int i;
-	char *dp, *sp;
-	char buf[PATH_MAX], *fields[2], rbuf[CVS_REV_BUFSZ];
+	int	i;
+	char   *dp, *sp;
+	char	buf[PATH_MAX], *fields[2], rbuf[CVS_REV_BUFSZ];
 
 	cvs_log(LP_TRACE, "cvs_base_handle(%s)", cf->file_path);
 
@@ -458,7 +440,7 @@ cvs_base_handle(struct cvs_file *cf, int flags)
 		goto out;
 	}
 
-	if (flags & (BASE_ADD|BASE_REMOVE)) {
+	if (flags & (BASE_ADD | BASE_REMOVE)) {
 		if ((tfp = fopen(CVS_PATH_BASEREVTMP, "w")) == NULL) {
 			cvs_log(LP_ERRNO, "%s", CVS_PATH_BASEREVTMP);
 			goto out;
@@ -486,11 +468,11 @@ cvs_base_handle(struct cvs_file *cf, int flags)
 					ba_rev = rcsnum_parse(fields[1]);
 					if (ba_rev == NULL)
 						fatal("cvs_base_handle: "
-						    "rcsnum_parse");
+						      "rcsnum_parse");
 					goto got_rev;
 				}
 			} else {
-				if (flags & (BASE_ADD|BASE_REMOVE))
+				if (flags & (BASE_ADD | BASE_REMOVE))
 					(void)fprintf(tfp, "%s\n", buf);
 			}
 		}

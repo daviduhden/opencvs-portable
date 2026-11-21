@@ -44,48 +44,43 @@
 #include "diff.h"
 #include "remote.h"
 
-void	cvs_import_local(struct cvs_file *);
+void cvs_import_local(struct cvs_file *);
 
 static void import_loginfo(char *);
 static void import_new(struct cvs_file *);
 static void import_printf(const char *, ...)
-	__attribute__((format(printf, 1, 2)));
+    __attribute__((format(printf, 1, 2)));
 static void import_update(struct cvs_file *);
 static void import_tag(struct cvs_file *, RCSNUM *, RCSNUM *);
 static BUF *import_get_rcsdiff(struct cvs_file *, RCSNUM *);
 
-#define IMPORT_DEFAULT_BRANCH	"1.1.1"
+#define IMPORT_DEFAULT_BRANCH "1.1.1"
 
 extern char *loginfo;
 extern char *logmsg;
 
-static char *import_branch = IMPORT_DEFAULT_BRANCH;
-static char *vendor_tag = NULL;
+static char  *import_branch = IMPORT_DEFAULT_BRANCH;
+static char  *vendor_tag = NULL;
 static char **release_tags;
-static char *koptstr;
-static int dflag = 0;
-static int tagcount = 0;
-static BUF *logbuf;
+static char  *koptstr;
+static int    dflag = 0;
+static int    tagcount = 0;
+static BUF   *logbuf;
 
 char *import_repository = NULL;
-int import_conflicts = 0;
+int   import_conflicts = 0;
 
-struct cvs_cmd cvs_cmd_import = {
-	CVS_OP_IMPORT, CVS_USE_WDIR | CVS_LOCK_REPO, "import",
-	{ "im", "imp" },
-	"Import sources into CVS, using vendor branches",
-	"[-b branch] [-d] [-k mode] [-m message] "
-	"repository vendor-tag release-tags",
-	"b:dk:m:",
-	NULL,
-	cvs_import
-};
+struct cvs_cmd cvs_cmd_import = {CVS_OP_IMPORT, CVS_USE_WDIR | CVS_LOCK_REPO,
+    "import", {"im", "imp"}, "Import sources into CVS, using vendor branches",
+    "[-b branch] [-d] [-k mode] [-m message] "
+    "repository vendor-tag release-tags",
+    "b:dk:m:", NULL, cvs_import};
 
 int
 cvs_import(int argc, char **argv)
 {
-	int i, ch;
-	char repo[PATH_MAX], *arg = ".";
+	int		     i, ch;
+	char		     repo[PATH_MAX], *arg = ".";
 	struct cvs_recursion cr;
 	struct trigger_list *line_list;
 
@@ -146,7 +141,8 @@ cvs_import(int argc, char **argv)
 
 	if (cvsroot_is_remote()) {
 		if (dflag)
-			fatal("remote import -d requires file timestamp transport");
+			fatal("remote import -d requires file timestamp "
+			      "transport");
 		cvs_client_connect_to_server();
 
 		cvs_client_send_request("Argument -b%s", import_branch);
@@ -176,8 +172,8 @@ cvs_import(int argc, char **argv)
 	if (cvs_logmsg_verify(logmsg))
 		return (1);
 
-	(void)xsnprintf(repo, sizeof(repo), "%s/%s",
-	    current_cvsroot->cr_dir, import_repository);
+	(void)xsnprintf(repo, sizeof(repo), "%s/%s", current_cvsroot->cr_dir,
+	    import_repository);
 
 	import_loginfo(import_repository);
 
@@ -218,7 +214,7 @@ cvs_import(int argc, char **argv)
 static void
 import_printf(const char *fmt, ...)
 {
-	char *str;
+	char   *str;
 	va_list vap;
 
 	va_start(vap, fmt);
@@ -246,9 +242,9 @@ cvs_import_ignored(const char *path)
 void
 cvs_import_local(struct cvs_file *cf)
 {
-	int isnew;
+	int	    isnew;
 	struct stat st;
-	char repo[PATH_MAX];
+	char	    repo[PATH_MAX];
 
 	cvs_log(LP_TRACE, "cvs_import_local(%s)", cf->file_path);
 
@@ -273,8 +269,8 @@ cvs_import_local(struct cvs_file *cf)
 
 	isnew = 1;
 	(void)xsnprintf(repo, sizeof(repo), "%s/%s/%s/%s%s",
-	    current_cvsroot->cr_dir, cf->file_wd, CVS_PATH_ATTIC,
-	    cf->file_name, RCS_FILE_EXT);
+	    current_cvsroot->cr_dir, cf->file_wd, CVS_PATH_ATTIC, cf->file_name,
+	    RCS_FILE_EXT);
 
 	if (cf->file_rcs != NULL || stat(repo, &st) != -1)
 		isnew = 0;
@@ -288,7 +284,7 @@ cvs_import_local(struct cvs_file *cf)
 static void
 import_loginfo(char *repo)
 {
-	int i;
+	int  i;
 	char pwd[PATH_MAX];
 
 	if (getcwd(pwd, sizeof(pwd)) == NULL)
@@ -310,7 +306,7 @@ import_loginfo(char *repo)
 	buf_putc(logbuf, '\n');
 	buf_puts(logbuf, "Release Tags:\t");
 
-	for (i = 0; i < tagcount ; i++) {
+	for (i = 0; i < tagcount; i++) {
 		buf_puts(logbuf, "\t\t");
 		buf_puts(logbuf, release_tags[i]);
 		buf_putc(logbuf, '\n');
@@ -322,14 +318,14 @@ import_loginfo(char *repo)
 static void
 import_new(struct cvs_file *cf)
 {
-	int i;
-	BUF *bp;
-	mode_t mode;
-	time_t tstamp;
-	struct stat st;
+	int		   i;
+	BUF		  *bp;
+	mode_t		   mode;
+	time_t		   tstamp;
+	struct stat	   st;
 	struct rcs_branch *brp;
-	struct rcs_delta *rdp;
-	RCSNUM *branch, *brev;
+	struct rcs_delta  *rdp;
+	RCSNUM		  *branch, *brev;
 
 	tstamp = -1;
 
@@ -375,8 +371,8 @@ import_new(struct cvs_file *cf)
 	if (rcs_rev_add(cf->file_rcs, brev, logmsg, tstamp, NULL) == -1)
 		fatal("import_new: failed to create first branch revision");
 
-	if (rcs_rev_add(cf->file_rcs, RCS_HEAD_REV, "Initial revision",
-	    tstamp, NULL) == -1)
+	if (rcs_rev_add(cf->file_rcs, RCS_HEAD_REV, "Initial revision", tstamp,
+		NULL) == -1)
 		fatal("import_new: failed to create first revision");
 
 	if ((rdp = rcs_findrev(cf->file_rcs, cf->file_rcs->rf_head)) == NULL)
@@ -387,8 +383,7 @@ import_new(struct cvs_file *cf)
 	rcsnum_cpy(brev, brp->rb_num, 0);
 	TAILQ_INSERT_TAIL(&(rdp->rd_branches), brp, rb_list);
 
-	if (rcs_deltatext_set(cf->file_rcs,
-	    cf->file_rcs->rf_head, bp) == -1)
+	if (rcs_deltatext_set(cf->file_rcs, cf->file_rcs->rf_head, bp) == -1)
 		fatal("import_new: failed to set deltatext");
 	if (rcs_deltatext_set(cf->file_rcs, brev, buf_alloc(1)) == -1)
 		fatal("import_new: failed to set initial vendor delta");
@@ -406,12 +401,12 @@ import_new(struct cvs_file *cf)
 static void
 import_update(struct cvs_file *cf)
 {
-	int ret;
-	time_t tstamp = -1;
+	int	    ret;
+	time_t	    tstamp = -1;
 	struct stat st;
-	BUF *b1, *b2, *d;
-	char branch[CVS_REV_BUFSZ];
-	RCSNUM *newrev, *rev, *brev;
+	BUF	   *b1, *b2, *d;
+	char	    branch[CVS_REV_BUFSZ];
+	RCSNUM	   *newrev, *rev, *brev;
 
 	cvs_log(LP_TRACE, "import_update(%s)", cf->file_path);
 
@@ -496,8 +491,8 @@ static BUF *
 import_get_rcsdiff(struct cvs_file *cf, RCSNUM *rev)
 {
 	char *p1, *p2;
-	BUF *b1, *b2;
-	int fd1, fd2;
+	BUF  *b1, *b2;
+	int   fd1, fd2;
 
 	b2 = buf_alloc(128);
 

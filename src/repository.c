@@ -48,14 +48,16 @@ void
 cvs_repository_unlock(const char *repo)
 {
 	struct worklist *lock;
-	char path[PATH_MAX];
+	char		 path[PATH_MAX];
 	(void)xsnprintf(path, sizeof(path), "%s/%s", repo, CVS_LOCK);
-	SLIST_FOREACH(lock, &repo_locks, wkl_list) {
+	SLIST_FOREACH(lock, &repo_locks, wkl_list)
+	{
 		if (strcmp(lock->wkl_path, path) != 0)
 			continue;
 		SLIST_REMOVE(&repo_locks, lock, worklist, wkl_list);
 		if (unlink(path) == -1 && errno != ENOENT)
-			cvs_log(LP_ERR, "cannot remove owned repository lock: %s", path);
+			cvs_log(LP_ERR,
+			    "cannot remove owned repository lock: %s", path);
 		free(lock);
 		break;
 	}
@@ -65,34 +67,39 @@ void
 cvs_repository_lock(const char *repo, int wantlock)
 {
 	struct worklist *owned;
-	struct stat st;
-	char path[PATH_MAX];
-	int attempt, fd;
+	struct stat	 st;
+	char		 path[PATH_MAX];
+	int		 attempt, fd;
 
 	if (cvs_noexec || cvs_readonlyfs)
 		return;
 	(void)xsnprintf(path, sizeof(path), "%s/%s", repo, CVS_LOCK);
 	SLIST_FOREACH(owned, &repo_locks, wkl_list)
-		if (strcmp(owned->wkl_path, path) == 0)
-			return;
+	if (strcmp(owned->wkl_path, path) == 0)
+		return;
 	for (attempt = 0; attempt < CVS_LOCK_TRIES; attempt++) {
 		if (cvs_quit)
 			fatal("received signal %d", sig_received);
 		if (wantlock) {
-			fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+			fd = open(path,
+			    O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
 			if (fd != -1) {
 				worklist_add(path, &repo_locks);
 				if (close(fd) == -1)
-					fatal("cannot close repository lock: %s", strerror(errno));
+					fatal(
+					    "cannot close repository lock: %s",
+					    strerror(errno));
 				return;
 			}
 			if (errno != EEXIST)
-				fatal("cannot acquire repository lock %s: %s", path, strerror(errno));
+				fatal("cannot acquire repository lock %s: %s",
+				    path, strerror(errno));
 		} else {
 			if (lstat(path, &st) == -1) {
 				if (errno == ENOENT)
 					return;
-				fatal("cannot inspect repository lock %s: %s", path, strerror(errno));
+				fatal("cannot inspect repository lock %s: %s",
+				    path, strerror(errno));
 			}
 		}
 		cvs_log(LP_NOTICE, "waiting for repository lock in '%s'", repo);
@@ -103,13 +110,13 @@ cvs_repository_lock(const char *repo, int wantlock)
 
 void
 cvs_repository_getdir(const char *dir, const char *wdir,
-	struct cvs_flisthead *fl, struct cvs_flisthead *dl, int flags)
+    struct cvs_flisthead *fl, struct cvs_flisthead *dl, int flags)
 {
-	int type;
-	DIR *dirp;
-	struct stat st;
+	int	       type;
+	DIR	      *dirp;
+	struct stat    st;
 	struct dirent *dp;
-	char *s, fpath[PATH_MAX], rpath[PATH_MAX];
+	char	      *s, fpath[PATH_MAX], rpath[PATH_MAX];
 
 	if ((dirp = opendir(dir)) == NULL)
 		fatal("cvs_repository_getdir: failed to open '%s'", dir);
@@ -119,11 +126,11 @@ cvs_repository_getdir(const char *dir, const char *wdir,
 		dp = readdir(dirp);
 		if (dp == NULL) {
 			if (errno != 0)
-				fatal("cvs_repository_getdir: readdir: %s", strerror(errno));
+				fatal("cvs_repository_getdir: readdir: %s",
+				    strerror(errno));
 			break;
 		}
-		if (!strcmp(dp->d_name, ".") ||
-		    !strcmp(dp->d_name, "..") ||
+		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..") ||
 		    !strcmp(dp->d_name, CVS_LOCK))
 			continue;
 
@@ -179,19 +186,21 @@ cvs_repository_getdir(const char *dir, const char *wdir,
 		switch (type) {
 		case CVS_DIR:
 			if (!strcmp(dp->d_name, CVS_PATH_ATTIC)) {
-				cvs_repository_getdir(rpath, wdir, fl, dl,
-				    REPOSITORY_IS_ATTIC);
+				cvs_repository_getdir(
+				    rpath, wdir, fl, dl, REPOSITORY_IS_ATTIC);
 			} else {
 				cvs_file_get(fpath, 0, dl, CVS_DIR);
 			}
 			break;
 		case CVS_FILE:
-			if ((s = strrchr(fpath, ',')) != NULL &&
-			    s != fpath && !strcmp(s, RCS_FILE_EXT)) {
+			if ((s = strrchr(fpath, ',')) != NULL && s != fpath &&
+			    !strcmp(s, RCS_FILE_EXT)) {
 				*s = '\0';
-				cvs_file_get(fpath, 
+				cvs_file_get(fpath,
 				    (flags & REPOSITORY_IS_ATTIC) ?
-				    FILE_INSIDE_ATTIC : 0, fl, CVS_FILE);
+					FILE_INSIDE_ATTIC :
+					0,
+				    fl, CVS_FILE);
 			}
 			break;
 		default:

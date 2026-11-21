@@ -38,45 +38,33 @@
 #include "cvs.h"
 #include "remote.h"
 
-#define W_COMMIT	0x01
-#define W_EDIT		0x02
-#define W_UNEDIT	0x04
-#define W_ADD		0x08
-#define W_REMOVE	0x10
-#define W_ON		0x20
-#define W_OFF		0x40
-#define W_ALL		(W_EDIT|W_COMMIT|W_UNEDIT)
+#define W_COMMIT 0x01
+#define W_EDIT 0x02
+#define W_UNEDIT 0x04
+#define W_ADD 0x08
+#define W_REMOVE 0x10
+#define W_ON 0x20
+#define W_OFF 0x40
+#define W_ALL (W_EDIT | W_COMMIT | W_UNEDIT)
 
-static void	cvs_watch_local(struct cvs_file *);
-static void	cvs_watchers_local(struct cvs_file *);
+static void cvs_watch_local(struct cvs_file *);
+static void cvs_watchers_local(struct cvs_file *);
 
-struct cvs_cmd cvs_cmd_watch = {
-	CVS_OP_WATCH, CVS_USE_WDIR, "watch",
-	{ { 0 }, { 0 } },
-	"Set watches",
-	"on | off | add | remove [-lR] [-a action] [file ...]",
-	"a:lR",
-	NULL,
-	cvs_watch
-};
+struct cvs_cmd cvs_cmd_watch = {CVS_OP_WATCH, CVS_USE_WDIR, "watch", {{0}, {0}},
+    "Set watches", "on | off | add | remove [-lR] [-a action] [file ...]",
+    "a:lR", NULL, cvs_watch};
 
-struct cvs_cmd cvs_cmd_watchers = {
-	CVS_OP_WATCHERS, CVS_USE_WDIR, "watchers",
-	{ { 0 }, { 0 } },
-	"See who is watching a file",
-	"[-lR] [file ...]",
-	"lR",
-	NULL,
-	cvs_watchers
-};
+struct cvs_cmd cvs_cmd_watchers = {CVS_OP_WATCHERS, CVS_USE_WDIR, "watchers",
+    {{0}, {0}}, "See who is watching a file", "[-lR] [file ...]", "lR", NULL,
+    cvs_watchers};
 
 int
 cvs_watch(int argc, char **argv)
 {
-	int ch, flags;
+	int		     ch, flags;
 	struct cvs_recursion cr;
-	int watch_req = 0;
-	int watch_aflags = 0;
+	int		     watch_req = 0;
+	int		     watch_aflags = 0;
 
 	if (argc < 2)
 		fatal("%s", cvs_cmd_watch.cmd_synopsis);
@@ -100,7 +88,7 @@ cvs_watch(int argc, char **argv)
 	while ((ch = getopt(argc, argv, cvs_cmd_watch.cmd_opts)) != -1) {
 		switch (ch) {
 		case 'a':
-			if (!(watch_req & (W_ADD|W_REMOVE)))
+			if (!(watch_req & (W_ADD | W_REMOVE)))
 				fatal("%s", cvs_cmd_watch.cmd_synopsis);
 
 			if (strcmp(optarg, "edit") == 0)
@@ -140,7 +128,7 @@ cvs_watch(int argc, char **argv)
 		cvs_client_connect_to_server();
 		cr.fileproc = cvs_client_sendfile;
 
-		if (watch_req & (W_ADD|W_REMOVE)) {
+		if (watch_req & (W_ADD | W_REMOVE)) {
 			if (watch_aflags & W_EDIT)
 				cvs_client_send_request("Argument -a edit");
 
@@ -168,12 +156,12 @@ cvs_watch(int argc, char **argv)
 		cvs_client_send_files(argv, argc);
 		cvs_client_senddir(".");
 
-		if (watch_req & (W_ADD|W_REMOVE))
-			cvs_client_send_request("watch-%s",
-			    (watch_req & W_ADD) ? "add" : "remove");
+		if (watch_req & (W_ADD | W_REMOVE))
+			cvs_client_send_request(
+			    "watch-%s", (watch_req & W_ADD) ? "add" : "remove");
 		else
-			cvs_client_send_request("watch-%s",
-			    (watch_req & W_ON) ? "on" : "off");
+			cvs_client_send_request(
+			    "watch-%s", (watch_req & W_ON) ? "on" : "off");
 
 		cvs_client_get_responses();
 	}
@@ -184,8 +172,8 @@ cvs_watch(int argc, char **argv)
 int
 cvs_watchers(int argc, char **argv)
 {
-	int ch;
-	int flags;
+	int		     ch;
+	int		     flags;
 	struct cvs_recursion cr;
 
 	flags = CR_RECURSE_DIRS;

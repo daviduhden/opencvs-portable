@@ -47,7 +47,7 @@ void
 hash_table_init(struct hash_table *htable, size_t hsize)
 {
 	size_t i;
-	u_int power;
+	u_int  power;
 
 	if (hsize < MIN_HASH_SIZE)
 		hsize = MIN_HASH_SIZE;
@@ -58,7 +58,8 @@ hash_table_init(struct hash_table *htable, size_t hsize)
 	if ((hsize & (hsize - 1)) != 0) {
 		for (power = 0; hsize != 0; power++)
 			hsize >>= 1;
-		/* Shift in the size domain; MAX_HASH_SIZE bounds the exponent. */
+		/* Shift in the size domain; MAX_HASH_SIZE bounds the exponent.
+		 */
 		hsize = (size_t)1 << power;
 	}
 
@@ -72,8 +73,8 @@ hash_table_init(struct hash_table *htable, size_t hsize)
 void
 hash_table_enter(struct hash_table *htable, struct hash_data *e)
 {
-	uint32_t hashv;
-	struct hash_head *tableh;
+	uint32_t		 hashv;
+	struct hash_head	*tableh;
 	struct hash_table_entry *entry;
 
 	hashv = hash4(e->h_key, strlen(e->h_key));
@@ -88,14 +89,15 @@ hash_table_enter(struct hash_table *htable, struct hash_data *e)
 struct hash_data *
 hash_table_find(struct hash_table *htable, const char *key, size_t len)
 {
-	uint32_t hashv;
-	struct hash_head *tableh;
+	uint32_t		 hashv;
+	struct hash_head	*tableh;
 	struct hash_table_entry *entry;
 
 	hashv = hash4(key, len);
 	tableh = &(htable->h_table[(hashv & (htable->h_size - 1))]);
 
-	SLIST_FOREACH(entry, tableh, h_list) {
+	SLIST_FOREACH(entry, tableh, h_list)
+	{
 		if (!strcmp(entry->h_data.h_key, key))
 			return (&(entry->h_data));
 	}

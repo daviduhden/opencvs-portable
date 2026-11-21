@@ -35,8 +35,8 @@
  */
 
 #include <sys/types.h>
-#include <dirent.h>
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -47,35 +47,30 @@
 #include "cvs.h"
 #include "remote.h"
 
-#define ADM_EFLAG	0x01
+#define ADM_EFLAG 0x01
 
-void	cvs_admin_local(struct cvs_file *);
+void cvs_admin_local(struct cvs_file *);
 
-struct cvs_cmd cvs_cmd_admin = {
-	CVS_OP_ADMIN, CVS_USE_WDIR | CVS_LOCK_REPO, "admin",
-	{ "adm", "rcs" },
-	"Administrative front-end for RCS",
-	"[-ILqU] [-A oldfile] [-a users] [-b branch]\n"
-	"[-c string] [-e [users]] [-k mode] [-l [rev]] [-m rev:msg]\n"
-	"[-N tag[:rev]] [-n tag[:rev]] [-o rev] [-s state[:rev]]"
-	"[-t file | str]\n"
-	"[-u [rev]] file ...",
-	"A:a:b::c:e::Ik:l::Lm:N:n:o:qs:t:Uu::",
-	NULL,
-	cvs_admin
-};
+struct cvs_cmd cvs_cmd_admin = {CVS_OP_ADMIN, CVS_USE_WDIR | CVS_LOCK_REPO,
+    "admin", {"adm", "rcs"}, "Administrative front-end for RCS",
+    "[-ILqU] [-A oldfile] [-a users] [-b branch]\n"
+    "[-c string] [-e [users]] [-k mode] [-l [rev]] [-m rev:msg]\n"
+    "[-N tag[:rev]] [-n tag[:rev]] [-o rev] [-s state[:rev]]"
+    "[-t file | str]\n"
+    "[-u [rev]] file ...",
+    "A:a:b::c:e::Ik:l::Lm:N:n:o:qs:t:Uu::", NULL, cvs_admin};
 
-static int	 runflags = 0;
-static int	 lkmode = RCS_LOCK_INVAL;
-static char	*alist, *comment, *elist, *logmsg, *logstr, *koptstr;
-static char	*oldfilename, *orange, *state, *staterevstr;
+static int   runflags = 0;
+static int   lkmode = RCS_LOCK_INVAL;
+static char *alist, *comment, *elist, *logmsg, *logstr, *koptstr;
+static char *oldfilename, *orange, *state, *staterevstr;
 
 int
 cvs_admin(int argc, char **argv)
 {
-	int ch;
-	int flags;
-	char *statestr;
+	int		     ch;
+	int		     flags;
+	char		    *statestr;
 	struct cvs_recursion cr;
 
 	flags = CR_RECURSE_DIRS;
@@ -175,8 +170,8 @@ cvs_admin(int argc, char **argv)
 			cvs_client_send_request("Argument -c%s", comment);
 
 		if (runflags & ADM_EFLAG)
-			cvs_client_send_request("Argument -e%s",
-			    (elist != NULL) ? elist : "");
+			cvs_client_send_request(
+			    "Argument -e%s", (elist != NULL) ? elist : "");
 
 		if (koptstr != NULL)
 			cvs_client_send_request("Argument -k%s", koptstr);
@@ -230,7 +225,7 @@ cvs_admin(int argc, char **argv)
 void
 cvs_admin_local(struct cvs_file *cf)
 {
-	int i;
+	int	i;
 	RCSNUM *rev;
 
 	cvs_log(LP_TRACE, "cvs_admin_local(%s)", cf->file_path);
@@ -260,11 +255,11 @@ cvs_admin_local(struct cvs_file *cf)
 		cvs_printf("RCS file: %s\n", cf->file_rcs->rf_path);
 
 	if (oldfilename != NULL) {
-		struct cvs_file *ocf;
+		struct cvs_file	  *ocf;
 		struct rcs_access *acp;
-		int ofd;
-		char *d, dbuf[PATH_MAX], *f, fbuf[PATH_MAX];
-		char fpath[PATH_MAX], repo[PATH_MAX];
+		int		   ofd;
+		char		  *d, dbuf[PATH_MAX], *f, fbuf[PATH_MAX];
+		char		   fpath[PATH_MAX], repo[PATH_MAX];
 
 		if (strlcpy(fbuf, oldfilename, sizeof(fbuf)) >= sizeof(fbuf))
 			fatal("cvs_admin_local: truncation");
@@ -295,7 +290,7 @@ cvs_admin_local(struct cvs_file *cf)
 			fatal("cvs_admin_local: rcs_open failed");
 
 		TAILQ_FOREACH(acp, &(ocf->file_rcs->rf_access), ra_list)
-			rcs_access_add(cf->file_rcs, acp->ra_name);
+		rcs_access_add(cf->file_rcs, acp->ra_name);
 
 		cvs_file_free(ocf);
 	}
@@ -365,11 +360,11 @@ cvs_admin_local(struct cvs_file *cf)
 
 	if (orange != NULL) {
 		struct rcs_delta *rdp, *nrdp;
-		char b[CVS_REV_BUFSZ];
+		char		  b[CVS_REV_BUFSZ];
 
 		cvs_revision_select(cf->file_rcs, orange);
-		for (rdp = TAILQ_FIRST(&(cf->file_rcs->rf_delta));
-		    rdp != NULL; rdp = nrdp) {
+		for (rdp = TAILQ_FIRST(&(cf->file_rcs->rf_delta)); rdp != NULL;
+		    rdp = nrdp) {
 			nrdp = TAILQ_NEXT(rdp, rd_list);
 
 			/*

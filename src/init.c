@@ -54,48 +54,32 @@
 #include "init.h"
 #include "remote.h"
 
-void	cvs_init_local(void);
+void cvs_init_local(void);
 
 static void init_mkdir(const char *, mode_t);
 static void init_mkfile(char *, char **);
 
 struct cvsroot_file {
-	char			*cf_path;
-	char			**cf_content;
+	char  *cf_path;
+	char **cf_content;
 };
 
 static const struct cvsroot_file cvsroot_files[] = {
-	{ CVS_PATH_CHECKOUTLIST,	NULL			},
-	{ CVS_PATH_COMMITINFO,		NULL			},
-	{ CVS_PATH_CONFIG,		config_contents		},
-	{ CVS_PATH_CVSWRAPPERS,		NULL			},
-	{ CVS_PATH_EDITINFO,		NULL			},
-	{ CVS_PATH_HISTORY,		NULL			},
-	{ CVS_PATH_LOGINFO,		NULL			},
-	{ CVS_PATH_MODULES,		NULL			},
-	{ CVS_PATH_NOTIFY_R,		NULL			},
-	{ CVS_PATH_RCSINFO,		NULL			},
-	{ CVS_PATH_TAGINFO,		NULL			},
-	{ CVS_PATH_VALTAGS,		NULL			},
-	{ CVS_PATH_VERIFYMSG,		NULL			}
-};
+    {CVS_PATH_CHECKOUTLIST, NULL}, {CVS_PATH_COMMITINFO, NULL},
+    {CVS_PATH_CONFIG, config_contents}, {CVS_PATH_CVSWRAPPERS, NULL},
+    {CVS_PATH_EDITINFO, NULL}, {CVS_PATH_HISTORY, NULL},
+    {CVS_PATH_LOGINFO, NULL}, {CVS_PATH_MODULES, NULL},
+    {CVS_PATH_NOTIFY_R, NULL}, {CVS_PATH_RCSINFO, NULL},
+    {CVS_PATH_TAGINFO, NULL}, {CVS_PATH_VALTAGS, NULL},
+    {CVS_PATH_VERIFYMSG, NULL}};
 
-static const char *cvsroot_dirs[2] = {
-	CVS_PATH_ROOT, CVS_PATH_EMPTYDIR
-};
+static const char *cvsroot_dirs[2] = {CVS_PATH_ROOT, CVS_PATH_EMPTYDIR};
 
-#define INIT_NFILES	(sizeof(cvsroot_files)/sizeof(cvsroot_files[0]))
-#define INIT_NDIRS	(sizeof(cvsroot_dirs)/sizeof(cvsroot_dirs[0]))
+#define INIT_NFILES (sizeof(cvsroot_files) / sizeof(cvsroot_files[0]))
+#define INIT_NDIRS (sizeof(cvsroot_dirs) / sizeof(cvsroot_dirs[0]))
 
-struct cvs_cmd cvs_cmd_init = {
-	CVS_OP_INIT, 0, "init",
-	{ { 0 }, { 0 } },
-	"Create a CVS repository if it doesn't exist",
-	"",
-	"",
-	NULL,
-	cvs_init
-};
+struct cvs_cmd cvs_cmd_init = {CVS_OP_INIT, 0, "init", {{0}, {0}},
+    "Create a CVS repository if it doesn't exist", "", "", NULL, cvs_init};
 
 int
 cvs_init(int argc, char **argv)
@@ -119,7 +103,7 @@ void
 cvs_init_local(void)
 {
 	u_int i;
-	char path[PATH_MAX];
+	char  path[PATH_MAX];
 
 	cvs_log(LP_TRACE, "cvs_init_local()");
 
@@ -149,37 +133,44 @@ init_mkdir(const char *path, mode_t mode)
 	if (mkdir(path, mode) == -1) {
 		if ((errno != EEXIST && errno != EACCES) ||
 		    lstat(path, &st) == -1 || !S_ISDIR(st.st_mode))
-			fatal("init_mkdir: `%s' is not an accessible directory", path);
+			fatal("init_mkdir: `%s' is not an accessible directory",
+			    path);
 	}
 }
 
 static void
 init_mkfile(char *path, char **content)
 {
-	BUF *b;
-	size_t len;
-	int fd, rcsflags;
-	char rpath[PATH_MAX];
-	char **p;
-	RCSFILE *file;
+	BUF	   *b;
+	size_t	    len;
+	int	    fd, rcsflags;
+	char	    rpath[PATH_MAX];
+	char	  **p;
+	RCSFILE	   *file;
 	struct stat existing;
 
 	rcsflags = RCS_WRITE | RCS_CREATE;
-	/* Repeated init preserves every existing administrator file and archive. */
+	/* Repeated init preserves every existing administrator file and
+	 * archive. */
 	if (lstat(path, &existing) == 0) {
 		if (!S_ISREG(existing.st_mode))
-			fatal("init_mkfile: existing path is not a regular file: %s", path);
+			fatal("init_mkfile: existing path is not a regular "
+			      "file: %s",
+			    path);
 		return;
 	}
 	if (errno != ENOENT)
 		fatal("init_mkfile: inspect %s: %s", path, strerror(errno));
 	(void)xsnprintf(rpath, PATH_MAX, "%s%s", path, RCS_FILE_EXT);
 	if (lstat(rpath, &existing) == 0)
-		fatal("init_mkfile: archive exists without administrator file: %s", rpath);
+		fatal("init_mkfile: archive exists without administrator file: "
+		      "%s",
+		    rpath);
 	if (errno != ENOENT)
 		fatal("init_mkfile: inspect %s: %s", rpath, strerror(errno));
 
-	if ((fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0444)) == -1)
+	if ((fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0444)) ==
+	    -1)
 		fatal("init_mkfile: open: `%s': %s", path, strerror(errno));
 
 	if (content != NULL) {
@@ -196,8 +187,10 @@ init_mkfile(char *path, char **content)
 	 */
 	if (strcmp(strrchr(CVS_PATH_HISTORY, '/'), strrchr(path, '/')) == 0 ||
 	    strcmp(strrchr(CVS_PATH_VALTAGS, '/'), strrchr(path, '/')) == 0) {
-		if (fchmod(fd, 0666) == -1 || fsync(fd) == -1 || close(fd) == -1)
-			fatal("init_mkfile: finish %s: %s", path, strerror(errno));
+		if (fchmod(fd, 0666) == -1 || fsync(fd) == -1 ||
+		    close(fd) == -1)
+			fatal("init_mkfile: finish %s: %s", path,
+			    strerror(errno));
 		return;
 	}
 

@@ -51,17 +51,17 @@ extern char *cvs_rootstr;
 
 /* keep these ordered with the defines */
 const char *cvs_methods[] = {
-	"",
-	"local",
-	"ssh",
-	"pserver",
-	"kserver",
-	"gserver",
-	"ext",
-	"fork",
+    "",
+    "local",
+    "ssh",
+    "pserver",
+    "kserver",
+    "gserver",
+    "ext",
+    "fork",
 };
 
-#define CVS_NBMETHODS	(sizeof(cvs_methods)/sizeof(cvs_methods[0]))
+#define CVS_NBMETHODS (sizeof(cvs_methods) / sizeof(cvs_methods[0]))
 
 /*
  * cvsroot_parse()
@@ -76,10 +76,10 @@ const char *cvs_methods[] = {
 static struct cvsroot *
 cvsroot_parse(const char *str)
 {
-	u_int i;
-	long long port;
-	char *cp, *sp, *pp;
-	const char *errstr;
+	u_int		       i;
+	long long	       port;
+	char		      *cp, *sp, *pp;
+	const char	      *errstr;
 	static struct cvsroot *root = NULL;
 
 	if (root != NULL)
@@ -112,7 +112,8 @@ cvsroot_parse(const char *str)
 	if (strpbrk(cp, "\r\n") != NULL)
 		fatal("line break in CVSROOT");
 	if (pc_native_absolute(cp) &&
-	    (root->cr_method == CVS_METHOD_NONE || root->cr_method == CVS_METHOD_LOCAL)) {
+	    (root->cr_method == CVS_METHOD_NONE ||
+		root->cr_method == CVS_METHOD_LOCAL)) {
 		root->cr_method = CVS_METHOD_LOCAL;
 		root->cr_dir = cp;
 		STRIP_SLASH(root->cr_dir);
@@ -197,7 +198,7 @@ cvsroot_parse(const char *str)
 struct cvsroot *
 cvsroot_get(const char *dir)
 {
-	char rootpath[PATH_MAX], *rootstr, line[PATH_MAX + 2];
+	char  rootpath[PATH_MAX], *rootstr, line[PATH_MAX + 2];
 	FILE *fp;
 
 	if (cvs_rootstr != NULL)
@@ -222,8 +223,8 @@ cvsroot_get(const char *dir)
 			else
 				return (NULL);
 		} else {
-			fatal("cvsroot_get: fopen: `%s': %s",
-			    CVS_PATH_ROOTSPEC, strerror(errno));
+			fatal("cvsroot_get: fopen: `%s': %s", CVS_PATH_ROOTSPEC,
+			    strerror(errno));
 		}
 	}
 

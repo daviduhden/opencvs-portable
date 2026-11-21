@@ -41,35 +41,18 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/types.h>
-#include <dirent.h>
 
+#include <dirent.h>
 #include <string.h>
 
 #include "cvs.h"
 
-struct cvs_cmd *cvs_cdt[] = {
-	&cvs_cmd_add,
-	&cvs_cmd_admin,
-	&cvs_cmd_annotate,
-	&cvs_cmd_commit,
-	&cvs_cmd_checkout,
-	&cvs_cmd_diff,
-	&cvs_cmd_export,
-	&cvs_cmd_history,
-	&cvs_cmd_import,
-	&cvs_cmd_init,
-	&cvs_cmd_log,
-	&cvs_cmd_rannotate,
-	&cvs_cmd_rdiff,
-	&cvs_cmd_release,
-	&cvs_cmd_remove,
-	&cvs_cmd_rlog,
-	&cvs_cmd_rtag,
-	&cvs_cmd_server,
-	&cvs_cmd_status,
-	&cvs_cmd_tag,
-	&cvs_cmd_update,
-	&cvs_cmd_version,
+struct cvs_cmd *cvs_cdt[] = {&cvs_cmd_add, &cvs_cmd_admin, &cvs_cmd_annotate,
+    &cvs_cmd_commit, &cvs_cmd_checkout, &cvs_cmd_diff, &cvs_cmd_export,
+    &cvs_cmd_history, &cvs_cmd_import, &cvs_cmd_init, &cvs_cmd_log,
+    &cvs_cmd_rannotate, &cvs_cmd_rdiff, &cvs_cmd_release, &cvs_cmd_remove,
+    &cvs_cmd_rlog, &cvs_cmd_rtag, &cvs_cmd_server, &cvs_cmd_status,
+    &cvs_cmd_tag, &cvs_cmd_update, &cvs_cmd_version,
 #if 0
 	&cvs_cmd_edit,
 	&cvs_cmd_editors,
@@ -77,13 +60,12 @@ struct cvs_cmd *cvs_cdt[] = {
 	&cvs_cmd_watch,
 	&cvs_cmd_watchers,
 #endif
-	NULL
-};
+    NULL};
 
 struct cvs_cmd *
 cvs_findcmd(const char *cmd)
 {
-	int i, j;
+	int		i, j;
 	struct cvs_cmd *p;
 
 	p = NULL;
@@ -92,8 +74,8 @@ cvs_findcmd(const char *cmd)
 			p = cvs_cdt[i];
 		else {
 			for (j = 0; j < CVS_CMD_MAXALIAS; j++) {
-				if (strcmp(cmd,
-				    cvs_cdt[i]->cmd_alias[j]) == 0) {
+				if (strcmp(cmd, cvs_cdt[i]->cmd_alias[j]) ==
+				    0) {
 					p = cvs_cdt[i];
 					break;
 				}

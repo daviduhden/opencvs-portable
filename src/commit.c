@@ -45,47 +45,41 @@
 #include "diff.h"
 #include "remote.h"
 
-void			 cvs_commit_local(struct cvs_file *);
-void			 cvs_commit_check_files(struct cvs_file *);
-void			 cvs_commit_loginfo(char *);
-void			 cvs_commit_lock_dirs(struct cvs_file *);
+void cvs_commit_local(struct cvs_file *);
+void cvs_commit_check_files(struct cvs_file *);
+void cvs_commit_loginfo(char *);
+void cvs_commit_lock_dirs(struct cvs_file *);
 
 static BUF *commit_diff(struct cvs_file *, RCSNUM *, int);
 static void commit_desc_set(struct cvs_file *);
 
-struct	file_info_list	 files_info;
-struct	trigger_list	*line_list;
+struct file_info_list files_info;
+struct trigger_list  *line_list;
 
-struct cvs_flisthead	files_affected;
-struct cvs_flisthead	files_added;
-struct cvs_flisthead	files_removed;
-struct cvs_flisthead	files_modified;
+struct cvs_flisthead files_affected;
+struct cvs_flisthead files_added;
+struct cvs_flisthead files_removed;
+struct cvs_flisthead files_modified;
 
-char	*logmsg = NULL;
-char	*loginfo = NULL;
+char *logmsg = NULL;
+char *loginfo = NULL;
 
-static int	conflicts_found;
+static int conflicts_found;
 
-struct cvs_cmd cvs_cmd_commit = {
-	CVS_OP_COMMIT, CVS_USE_WDIR, "commit",
-	{ "ci", "com" },
-	"Check files into the repository",
-	"[-flR] [-F logfile | -m msg] [-r rev] ...",
-	"F:flm:Rr:",
-	NULL,
-	cvs_commit
-};
+struct cvs_cmd cvs_cmd_commit = {CVS_OP_COMMIT, CVS_USE_WDIR, "commit",
+    {"ci", "com"}, "Check files into the repository",
+    "[-flR] [-F logfile | -m msg] [-r rev] ...", "F:flm:Rr:", NULL, cvs_commit};
 
 int
 cvs_commit(int argc, char **argv)
 {
-	int flags;
-	int ch, Fflag, mflag, result = 0;
+	int			flags;
+	int			ch, Fflag, mflag, result = 0;
 	struct module_checkout *mc;
-	struct cvs_recursion cr;
-	struct cvs_filelist *l;
-	struct file_info *fi;
-	char *arg = ".", repo[PATH_MAX];
+	struct cvs_recursion	cr;
+	struct cvs_filelist    *l;
+	struct file_info       *fi;
+	char		       *arg = ".", repo[PATH_MAX];
 
 	flags = CR_RECURSE_DIRS;
 	Fflag = mflag = 0;
@@ -179,17 +173,16 @@ cvs_commit(int argc, char **argv)
 
 		line_list = cvs_trigger_getlines(CVS_PATH_COMMITINFO, repo);
 		if (line_list != NULL) {
-			RB_FOREACH(l, cvs_flisthead, &files_affected) {
+			RB_FOREACH(l, cvs_flisthead, &files_affected)
+			{
 				fi = xcalloc(1, sizeof(*fi));
 				fi->file_path = xstrdup(l->file_path);
-				TAILQ_INSERT_TAIL(&files_info, fi,
-				    flist);
+				TAILQ_INSERT_TAIL(&files_info, fi, flist);
 			}
 
-			if (cvs_trigger_handle(CVS_TRIGGER_COMMITINFO,
-			    repo, NULL, line_list, &files_info)) {
-				cvs_log(LP_ERR,
-				    "Pre-commit check failed");
+			if (cvs_trigger_handle(CVS_TRIGGER_COMMITINFO, repo,
+				NULL, line_list, &files_info)) {
+				cvs_log(LP_ERR, "Pre-commit check failed");
 				cvs_trigger_freelist(line_list);
 				goto end;
 			}
@@ -224,8 +217,8 @@ cvs_commit(int argc, char **argv)
 		if (line_list != NULL) {
 			cvs_commit_loginfo(repo);
 
-			cvs_trigger_handle(CVS_TRIGGER_LOGINFO, repo,
-			    loginfo, line_list, &files_info);
+			cvs_trigger_handle(CVS_TRIGGER_LOGINFO, repo, loginfo,
+			    line_list, &files_info);
 
 			free(loginfo);
 			cvs_trigger_freelist(line_list);
@@ -252,8 +245,8 @@ end:
 void
 cvs_commit_loginfo(char *repo)
 {
-	BUF *buf;
-	char pwd[PATH_MAX];
+	BUF		    *buf;
+	char		     pwd[PATH_MAX];
 	struct cvs_filelist *cf;
 
 	if (getcwd(pwd, sizeof(pwd)) == NULL)
@@ -266,7 +259,8 @@ cvs_commit_loginfo(char *repo)
 	if (!RB_EMPTY(&files_added)) {
 		buf_puts(buf, "Added Files:");
 
-		RB_FOREACH(cf, cvs_flisthead, &files_added) {
+		RB_FOREACH(cf, cvs_flisthead, &files_added)
+		{
 			buf_putc(buf, '\n');
 			buf_putc(buf, '\t');
 			buf_puts(buf, cf->file_path);
@@ -278,7 +272,8 @@ cvs_commit_loginfo(char *repo)
 	if (!RB_EMPTY(&files_modified)) {
 		buf_puts(buf, "Modified Files:");
 
-		RB_FOREACH(cf, cvs_flisthead, &files_modified) {
+		RB_FOREACH(cf, cvs_flisthead, &files_modified)
+		{
 			buf_putc(buf, '\n');
 			buf_putc(buf, '\t');
 			buf_puts(buf, cf->file_path);
@@ -290,7 +285,8 @@ cvs_commit_loginfo(char *repo)
 	if (!RB_EMPTY(&files_removed)) {
 		buf_puts(buf, "Removed Files:");
 
-		RB_FOREACH(cf, cvs_flisthead, &files_removed) {
+		RB_FOREACH(cf, cvs_flisthead, &files_removed)
+		{
 			buf_putc(buf, '\n');
 			buf_putc(buf, '\t');
 			buf_puts(buf, cf->file_path);
@@ -324,7 +320,7 @@ cvs_commit_lock_dirs(struct cvs_file *cf)
 void
 cvs_commit_check_files(struct cvs_file *cf)
 {
-	char *tag;
+	char   *tag;
 	RCSNUM *branch, *brev;
 
 	branch = brev = NULL;
@@ -342,10 +338,12 @@ cvs_commit_check_files(struct cvs_file *cf)
 		return;
 	}
 
-	/* A conflict can retain the same one-second mtime as its Entries record. */
+	/* A conflict can retain the same one-second mtime as its Entries
+	 * record. */
 	if (cf->file_ent != NULL && cf->file_ent->ce_conflict != NULL &&
 	    update_has_conflict_markers(cf)) {
-		cvs_log(LP_ERR, "conflict: unresolved conflict indicators in %s",
+		cvs_log(LP_ERR,
+		    "conflict: unresolved conflict indicators in %s",
 		    cf->file_path);
 		conflicts_found++;
 		return;
@@ -354,21 +352,21 @@ cvs_commit_check_files(struct cvs_file *cf)
 	if (cf->file_status == FILE_UPTODATE)
 		return;
 
-	if (cf->file_status == FILE_MERGE ||
-	    cf->file_status == FILE_PATCH ||
-	    cf->file_status == FILE_CHECKOUT ||
-	    cf->file_status == FILE_LOST ||
+	if (cf->file_status == FILE_MERGE || cf->file_status == FILE_PATCH ||
+	    cf->file_status == FILE_CHECKOUT || cf->file_status == FILE_LOST ||
 	    cf->file_status == FILE_UNLINK) {
-		cvs_log(LP_ERR, "conflict: %s is not up-to-date",
-		    cf->file_path);
+		cvs_log(
+		    LP_ERR, "conflict: %s is not up-to-date", cf->file_path);
 		conflicts_found++;
 		return;
 	}
 
 	if (cf->file_status == FILE_CONFLICT &&
-	   cf->file_ent->ce_conflict != NULL) {
-		cvs_log(LP_ERR, "conflict: unresolved conflicts in %s from "
-		    "merging, please fix these first", cf->file_path);
+	    cf->file_ent->ce_conflict != NULL) {
+		cvs_log(LP_ERR,
+		    "conflict: unresolved conflicts in %s from "
+		    "merging, please fix these first",
+		    cf->file_path);
 		conflicts_found++;
 		return;
 	}
@@ -376,8 +374,10 @@ cvs_commit_check_files(struct cvs_file *cf)
 	if (cf->file_status == FILE_MODIFIED &&
 	    cf->file_ent->ce_conflict != NULL &&
 	    update_has_conflict_markers(cf)) {
-		cvs_log(LP_ERR, "conflict: file %s still contains unresolved "
-		    "conflict indicators", cf->file_path);
+		cvs_log(LP_ERR,
+		    "conflict: file %s still contains unresolved "
+		    "conflict indicators",
+		    cf->file_path);
 		conflicts_found++;
 		return;
 	}
@@ -398,9 +398,10 @@ cvs_commit_check_files(struct cvs_file *cf)
 			brev = rcs_sym_getrev(cf->file_rcs, tag);
 			if (brev != NULL) {
 				if (!RCSNUM_ISBRANCH(brev)) {
-					cvs_log(LP_ERR, "sticky tag %s is not "
-					    "a branch for file %s", tag,
-					    cf->file_path);
+					cvs_log(LP_ERR,
+					    "sticky tag %s is not "
+					    "a branch for file %s",
+					    tag, cf->file_path);
 					conflicts_found++;
 				}
 			}
@@ -410,8 +411,7 @@ cvs_commit_check_files(struct cvs_file *cf)
 	free(branch);
 	free(brev);
 
-	if (cf->file_status != FILE_ADDED &&
-	    cf->file_status != FILE_REMOVED &&
+	if (cf->file_status != FILE_ADDED && cf->file_status != FILE_REMOVED &&
 	    cf->file_status != FILE_MODIFIED)
 		return;
 
@@ -433,16 +433,16 @@ cvs_commit_check_files(struct cvs_file *cf)
 void
 cvs_commit_local(struct cvs_file *cf)
 {
-	char *tag;
-	BUF *b, *d;
-	int onbranch, isnew, histtype, branchadded;
-	RCSNUM *nrev, *crev, *rrev, *brev;
-	const char *destination = NULL;
-	char rbuf[CVS_REV_BUFSZ], nbuf[CVS_REV_BUFSZ];
-	CVSENTRIES *entlist;
-	char attic[PATH_MAX], repo[PATH_MAX], rcsfile[PATH_MAX];
+	char		 *tag;
+	BUF		 *b, *d;
+	int		  onbranch, isnew, histtype, branchadded;
+	RCSNUM		 *nrev, *crev, *rrev, *brev;
+	const char	 *destination = NULL;
+	char		  rbuf[CVS_REV_BUFSZ], nbuf[CVS_REV_BUFSZ];
+	CVSENTRIES	 *entlist;
+	char		  attic[PATH_MAX], repo[PATH_MAX], rcsfile[PATH_MAX];
 	struct file_info *fi;
-	struct stat st;
+	struct stat	  st;
 
 	cvs_log(LP_TRACE, "cvs_commit_local(%s)", cf->file_path);
 	cvs_file_classify(cf, cvs_directory_tag);
@@ -468,8 +468,8 @@ cvs_commit_local(struct cvs_file *cf)
 	case FILE_MODIFIED:
 	case FILE_REMOVED:
 		if (cf->file_rcs == NULL) {
-			cvs_log(LP_ERR, "RCS file for %s got lost",
-			    cf->file_path);
+			cvs_log(
+			    LP_ERR, "RCS file for %s got lost", cf->file_path);
 			return;
 		}
 		break;
@@ -502,8 +502,8 @@ cvs_commit_local(struct cvs_file *cf)
 			brev = rcs_sym_getrev(cf->file_rcs, tag);
 			crev = rcs_translate_tag(tag, cf->file_rcs);
 			if (brev == NULL || crev == NULL) {
-				fatal("failed to resolve existing tag: %s",
-				    tag);
+				fatal(
+				    "failed to resolve existing tag: %s", tag);
 			}
 
 			rrev = rcsnum_alloc();
@@ -514,7 +514,8 @@ cvs_commit_local(struct cvs_file *cf)
 				nrev = rcsnum_alloc();
 				rcsnum_cpy(crev, nrev, 0);
 				if (rcsnum_inc(nrev) == NULL)
-					fatal("commit: revision number limit reached");
+					fatal("commit: revision number limit "
+					      "reached");
 			} else if (!RCSNUM_ISBRANCH(crev)) {
 				nrev = rcsnum_brtorev(brev);
 				if (nrev == NULL)
@@ -540,12 +541,14 @@ cvs_commit_local(struct cvs_file *cf)
 	isnew = cf->file_rcs == NULL;
 	if (cf->file_status == FILE_ADDED) {
 		if (isnew) {
-			cf->file_rcs = rcs_open(cf->file_rpath, -1, RCS_CREATE,
-			    0444);
+			cf->file_rcs =
+			    rcs_open(cf->file_rpath, -1, RCS_CREATE, 0444);
 			if (cf->file_rcs == NULL)
-				fatal("could not create archive for %s", cf->file_path);
+				fatal("could not create archive for %s",
+				    cf->file_path);
 		} else if (!onbranch && cf->in_attic) {
-			cvs_get_repository_path(cf->file_wd, repo, sizeof(repo));
+			cvs_get_repository_path(
+			    cf->file_wd, repo, sizeof(repo));
 			(void)xsnprintf(rcsfile, sizeof(rcsfile), "%s/%s%s",
 			    repo, cf->file_name, RCS_FILE_EXT);
 			destination = rcsfile;
@@ -595,13 +598,15 @@ cvs_commit_local(struct cvs_file *cf)
 		if (rcs_state_set(cf->file_rcs, nrev, RCS_STATE_DEAD) == -1)
 			fatal("cvs_commit_local: failed to set state");
 		if (!cf->in_attic && !onbranch) {
-			cvs_get_repository_path(cf->file_wd, repo, sizeof(repo));
+			cvs_get_repository_path(
+			    cf->file_wd, repo, sizeof(repo));
 			(void)xsnprintf(attic, sizeof(attic), "%s/%s", repo,
 			    CVS_PATH_ATTIC);
-			if (mkdir(attic, 0755) == -1 && (errno != EEXIST ||
-			    lstat(attic, &st) == -1 || !S_ISDIR(st.st_mode)))
-				fatal("commit: could not create Attic %s: %s", attic,
-				    strerror(errno));
+			if (mkdir(attic, 0755) == -1 &&
+			    (errno != EEXIST || lstat(attic, &st) == -1 ||
+				!S_ISDIR(st.st_mode)))
+				fatal("commit: could not create Attic %s: %s",
+				    attic, strerror(errno));
 			(void)xsnprintf(rcsfile, sizeof(rcsfile), "%s/%s%s",
 			    attic, cf->file_name, RCS_FILE_EXT);
 			destination = rcsfile;
@@ -636,13 +641,16 @@ cvs_commit_local(struct cvs_file *cf)
 		cvs_printf("new revision: %s\n", nbuf);
 
 	if (cf->file_status != FILE_REMOVED) {
-		/* Checkout stages the new bytes before replacing this working file. */
+		/* Checkout stages the new bytes before replacing this working
+		 * file. */
 		cvs_checkout_file(cf, nrev, NULL, CO_COMMIT);
 	} else {
 		if (unlink(cf->file_path) == -1 && errno != ENOENT)
-			fatal("commit: remove %s: %s", cf->file_path, strerror(errno));
+			fatal("commit: remove %s: %s", cf->file_path,
+			    strerror(errno));
 		if (cf->fd >= 0 && close(cf->fd) == -1)
-			fatal("commit: close removed file: %s", strerror(errno));
+			fatal(
+			    "commit: close removed file: %s", strerror(errno));
 		cf->fd = -1;
 		entlist = cvs_ent_open(cf->file_wd);
 		cvs_ent_remove(entlist, cf->file_name);
@@ -694,14 +702,13 @@ cvs_commit_local(struct cvs_file *cf)
 static BUF *
 commit_diff(struct cvs_file *cf, RCSNUM *rev, int reverse)
 {
-	int fd1, fd2, d;
+	int   fd1, fd2, d;
 	char *p1, *p2;
-	BUF *b;
+	BUF  *b;
 
 	(void)xasprintf(&p1, "%s/diff1.XXXXXXXXXX", cvs_tmpdir);
 
-	if (cf->file_status == FILE_MODIFIED ||
-	    cf->file_status == FILE_ADDED) {
+	if (cf->file_status == FILE_MODIFIED || cf->file_status == FILE_ADDED) {
 		b = buf_load_fd(cf->fd);
 		fd1 = buf_write_stmp(b, p1, NULL);
 		buf_free(b);
@@ -736,11 +743,11 @@ static void
 commit_desc_set(struct cvs_file *cf)
 {
 	BUF *bp;
-	int fd;
+	int  fd;
 	char desc_path[PATH_MAX], *desc;
 
-	(void)xsnprintf(desc_path, PATH_MAX, "%s/%s/%s%s",
-	    cf->file_wd, CVS_PATH_CVSDIR, cf->file_name, CVS_DESCR_FILE_EXT);
+	(void)xsnprintf(desc_path, PATH_MAX, "%s/%s/%s%s", cf->file_wd,
+	    CVS_PATH_CVSDIR, cf->file_name, CVS_DESCR_FILE_EXT);
 
 	if ((fd = open(desc_path, O_RDONLY)) == -1)
 		return;

@@ -55,25 +55,26 @@
  * ensure all of data on socket comes through. f==read || f==vwrite
  */
 size_t
-atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
+atomicio(ssize_t (*f)(int, void *, size_t), int fd, void *_s, size_t n)
 {
-	char *s = _s;
-	size_t pos = 0;
-	ssize_t res;
+	char	     *s = _s;
+	size_t	      pos = 0;
+	ssize_t	      res;
 	struct pollfd pfd;
 
 	pfd.fd = fd;
 	pfd.events = f == read ? POLLIN : POLLOUT;
 	while (n > pos) {
-		res = (f) (fd, s + pos, n - pos);
+		res = (f)(fd, s + pos, n - pos);
 		switch (res) {
 		case -1:
 			if (errno == EINTR)
 				continue;
 			if (errno == EAGAIN) {
 				int ready;
-				do { ready = poll(&pfd, 1, -1); }
-				while (ready < 0 && errno == EINTR);
+				do {
+					ready = poll(&pfd, 1, -1);
+				} while (ready < 0 && errno == EINTR);
 				if (ready < 0)
 					return pos;
 				continue;
@@ -89,7 +90,8 @@ atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
 	return (pos);
 }
 
-/* Match atomicio's callback type without incompatible function-pointer casts. */
+/* Match atomicio's callback type without incompatible function-pointer casts.
+ */
 ssize_t
 pc_vwrite(int fd, void *buffer, size_t count)
 {

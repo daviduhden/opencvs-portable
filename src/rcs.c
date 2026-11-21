@@ -55,111 +55,111 @@
 #include "rcs.h"
 #include "rcsparse.h"
 
-#define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
+#define MINIMUM(a, b) (((a) < (b)) ? (a) : (b))
 
-#define RCS_KWEXP_SIZE  1024
+#define RCS_KWEXP_SIZE 1024
 
-#define ANNOTATE_NEVER	0
-#define ANNOTATE_NOW	1
-#define ANNOTATE_LATER	2
+#define ANNOTATE_NEVER 0
+#define ANNOTATE_NOW 1
+#define ANNOTATE_LATER 2
 
 /* invalid characters in RCS symbol names */
 static const char rcs_sym_invch[] = RCS_SYM_INVALCHAR;
 
 /* comment leaders, depending on the file's suffix */
 static const struct rcs_comment {
-	const char	*rc_suffix;
-	const char	*rc_cstr;
+	const char *rc_suffix;
+	const char *rc_cstr;
 } rcs_comments[] = {
-	{ "1",    ".\\\" " },
-	{ "2",    ".\\\" " },
-	{ "3",    ".\\\" " },
-	{ "4",    ".\\\" " },
-	{ "5",    ".\\\" " },
-	{ "6",    ".\\\" " },
-	{ "7",    ".\\\" " },
-	{ "8",    ".\\\" " },
-	{ "9",    ".\\\" " },
-	{ "a",    "-- "    },	/* Ada		 */
-	{ "ada",  "-- "    },
-	{ "adb",  "-- "    },
-	{ "asm",  ";; "    },	/* assembler (MS-DOS) */
-	{ "ads",  "-- "    },	/* Ada */
-	{ "bat",  ":: "    },	/* batch (MS-DOS) */
-	{ "body", "-- "    },	/* Ada */
-	{ "c",    " * "    },	/* C */
-	{ "c++",  "// "    },	/* C++ */
-	{ "cc",   "// "    },
-	{ "cpp",  "// "    },
-	{ "cxx",  "// "    },
-	{ "m",    "// "    },	/* Objective-C */
-	{ "cl",   ";;; "   },	/* Common Lisp	 */
-	{ "cmd",  ":: "    },	/* command (OS/2) */
-	{ "cmf",  "c "     },	/* CM Fortran	 */
-	{ "csh",  "# "     },	/* shell	 */
-	{ "e",    "# "     },	/* efl		 */
-	{ "epsf", "% "     },	/* encapsulated postscript */
-	{ "epsi", "% "     },	/* encapsulated postscript */
-	{ "el",   "; "     },	/* Emacs Lisp	 */
-	{ "f",    "c "     },	/* Fortran	 */
-	{ "for",  "c "     },
-	{ "h",    " * "    },	/* C-header	 */
-	{ "hh",   "// "    },	/* C++ header	 */
-	{ "hpp",  "// "    },
-	{ "hxx",  "// "    },
-	{ "in",   "# "     },	/* for Makefile.in */
-	{ "l",    " * "    },	/* lex */
-	{ "mac",  ";; "    },	/* macro (DEC-10, MS-DOS, PDP-11, VMS, etc) */
-	{ "mak",  "# "     },	/* makefile, e.g. Visual C++ */
-	{ "me",   ".\\\" " },	/* me-macros	t/nroff	 */
-	{ "ml",   "; "     },	/* mocklisp	 */
-	{ "mm",   ".\\\" " },	/* mm-macros	t/nroff	 */
-	{ "ms",   ".\\\" " },	/* ms-macros	t/nroff	 */
-	{ "man",  ".\\\" " },	/* man-macros	t/nroff	 */
-	{ "p",    " * "    },	/* pascal	 */
-	{ "pas",  " * "    },
-	{ "pl",   "# "     },	/* Perl	(conflict with Prolog) */
-	{ "pm",   "# "     },	/* Perl	module */
-	{ "ps",   "% "     },	/* postscript */
-	{ "psw",  "% "     },	/* postscript wrap */
-	{ "pswm", "% "     },	/* postscript wrap */
-	{ "r",    "# "     },	/* ratfor	 */
-	{ "rc",   " * "    },	/* Microsoft Windows resource file */
-	{ "red",  "% "     },	/* psl/rlisp	 */
-	{ "sh",   "# "     },	/* shell	 */
-	{ "sl",   "% "     },	/* psl		 */
-	{ "spec", "-- "    },	/* Ada		 */
-	{ "tex",  "% "     },	/* tex		 */
-	{ "y",    " * "    },	/* yacc		 */
-	{ "ye",   " * "    },	/* yacc-efl	 */
-	{ "yr",   " * "    },	/* yacc-ratfor	 */
+    {"1", ".\\\" "},
+    {"2", ".\\\" "},
+    {"3", ".\\\" "},
+    {"4", ".\\\" "},
+    {"5", ".\\\" "},
+    {"6", ".\\\" "},
+    {"7", ".\\\" "},
+    {"8", ".\\\" "},
+    {"9", ".\\\" "},
+    {"a", "-- "}, /* Ada		 */
+    {"ada", "-- "},
+    {"adb", "-- "},
+    {"asm", ";; "},  /* assembler (MS-DOS) */
+    {"ads", "-- "},  /* Ada */
+    {"bat", ":: "},  /* batch (MS-DOS) */
+    {"body", "-- "}, /* Ada */
+    {"c", " * "},    /* C */
+    {"c++", "// "},  /* C++ */
+    {"cc", "// "},
+    {"cpp", "// "},
+    {"cxx", "// "},
+    {"m", "// "},   /* Objective-C */
+    {"cl", ";;; "}, /* Common Lisp	 */
+    {"cmd", ":: "}, /* command (OS/2) */
+    {"cmf", "c "},  /* CM Fortran	 */
+    {"csh", "# "},  /* shell	 */
+    {"e", "# "},    /* efl		 */
+    {"epsf", "% "}, /* encapsulated postscript */
+    {"epsi", "% "}, /* encapsulated postscript */
+    {"el", "; "},   /* Emacs Lisp	 */
+    {"f", "c "},    /* Fortran	 */
+    {"for", "c "},
+    {"h", " * "},  /* C-header	 */
+    {"hh", "// "}, /* C++ header	 */
+    {"hpp", "// "},
+    {"hxx", "// "},
+    {"in", "# "},      /* for Makefile.in */
+    {"l", " * "},      /* lex */
+    {"mac", ";; "},    /* macro (DEC-10, MS-DOS, PDP-11, VMS, etc) */
+    {"mak", "# "},     /* makefile, e.g. Visual C++ */
+    {"me", ".\\\" "},  /* me-macros	t/nroff	 */
+    {"ml", "; "},      /* mocklisp	 */
+    {"mm", ".\\\" "},  /* mm-macros	t/nroff	 */
+    {"ms", ".\\\" "},  /* ms-macros	t/nroff	 */
+    {"man", ".\\\" "}, /* man-macros	t/nroff	 */
+    {"p", " * "},      /* pascal	 */
+    {"pas", " * "},
+    {"pl", "# "},    /* Perl	(conflict with Prolog) */
+    {"pm", "# "},    /* Perl	module */
+    {"ps", "% "},    /* postscript */
+    {"psw", "% "},   /* postscript wrap */
+    {"pswm", "% "},  /* postscript wrap */
+    {"r", "# "},     /* ratfor	 */
+    {"rc", " * "},   /* Microsoft Windows resource file */
+    {"red", "% "},   /* psl/rlisp	 */
+    {"sh", "# "},    /* shell	 */
+    {"sl", "% "},    /* psl		 */
+    {"spec", "-- "}, /* Ada		 */
+    {"tex", "% "},   /* tex		 */
+    {"y", " * "},    /* yacc		 */
+    {"ye", " * "},   /* yacc-efl	 */
+    {"yr", " * "},   /* yacc-ratfor	 */
 };
 
-struct rcs_kw rcs_expkw[] =  {
-	{ "Author",	RCS_KW_AUTHOR   },
-	{ "Date",	RCS_KW_DATE     },
-	{ "Header",	RCS_KW_HEADER   },
-	{ "Id",		RCS_KW_ID       },
-	{ "Locker",	RCS_KW_LOCKER	},
-	{ "Log",	RCS_KW_LOG      },
-	{ "Name",	RCS_KW_NAME     },
-	{ "RCSfile",	RCS_KW_RCSFILE  },
-	{ "Revision",	RCS_KW_REVISION },
-	{ "Source",	RCS_KW_SOURCE   },
-	{ "State",	RCS_KW_STATE    },
-	{ "Mdocdate",	RCS_KW_MDOCDATE },
+struct rcs_kw rcs_expkw[] = {
+    {"Author", RCS_KW_AUTHOR},
+    {"Date", RCS_KW_DATE},
+    {"Header", RCS_KW_HEADER},
+    {"Id", RCS_KW_ID},
+    {"Locker", RCS_KW_LOCKER},
+    {"Log", RCS_KW_LOG},
+    {"Name", RCS_KW_NAME},
+    {"RCSfile", RCS_KW_RCSFILE},
+    {"Revision", RCS_KW_REVISION},
+    {"Source", RCS_KW_SOURCE},
+    {"State", RCS_KW_STATE},
+    {"Mdocdate", RCS_KW_MDOCDATE},
 };
 
-#define NB_COMTYPES	(sizeof(rcs_comments)/sizeof(rcs_comments[0]))
+#define NB_COMTYPES (sizeof(rcs_comments) / sizeof(rcs_comments[0]))
 
-static RCSNUM	*rcs_get_revision(const char *, RCSFILE *);
-int		rcs_patch_lines(struct rcs_lines *, struct rcs_lines *,
-		    struct rcs_line **, struct rcs_delta *);
-static void	rcs_freedelta(struct rcs_delta *);
-static void	rcs_strprint(const u_char *, size_t, FILE *);
+static RCSNUM *rcs_get_revision(const char *, RCSFILE *);
+int rcs_patch_lines(struct rcs_lines *, struct rcs_lines *, struct rcs_line **,
+    struct rcs_delta *);
+static void rcs_freedelta(struct rcs_delta *);
+static void rcs_strprint(const u_char *, size_t, FILE *);
 
-static void	rcs_kwexp_line(char *, struct rcs_delta *, struct rcs_lines *,
-		    struct rcs_line *, int mode);
+static void rcs_kwexp_line(char *, struct rcs_delta *, struct rcs_lines *,
+    struct rcs_line *, int mode);
 
 /*
  * Prepare RCSFILE for parsing. The given file descriptor (if any) must be
@@ -168,16 +168,16 @@ static void	rcs_kwexp_line(char *, struct rcs_delta *, struct rcs_lines *,
 RCSFILE *
 rcs_open(const char *path, int fd, int flags, ...)
 {
-	int mode;
-	mode_t fmode;
-	RCSFILE *rfp;
-	va_list vap;
-	struct stat st;
+	int		  mode;
+	mode_t		  fmode;
+	RCSFILE		 *rfp;
+	va_list		  vap;
+	struct stat	  st;
 	struct rcs_delta *rdp;
-	struct rcs_lock *lkr;
+	struct rcs_lock	 *lkr;
 
-	fmode = S_IRUSR|S_IRGRP|S_IROTH;
-	flags &= 0xffff;	/* ditch any internal flags */
+	fmode = S_IRUSR | S_IRGRP | S_IROTH;
+	flags &= 0xffff; /* ditch any internal flags */
 
 	if (flags & RCS_CREATE) {
 		va_start(vap, flags);
@@ -214,7 +214,8 @@ rcs_open(const char *path, int fd, int flags, ...)
 	}
 
 	/* fill in rd_locker */
-	TAILQ_FOREACH(lkr, &(rfp->rf_locks), rl_list) {
+	TAILQ_FOREACH(lkr, &(rfp->rf_locks), rl_list)
+	{
 		if ((rdp = rcs_findrev(rfp, lkr->rl_num)) == NULL) {
 			rcs_close(rfp);
 			return (NULL);
@@ -234,10 +235,10 @@ rcs_open(const char *path, int fd, int flags, ...)
 void
 rcs_close(RCSFILE *rfp)
 {
-	struct rcs_delta *rdp;
+	struct rcs_delta  *rdp;
 	struct rcs_access *rap;
-	struct rcs_lock *rlp;
-	struct rcs_sym *rsp;
+	struct rcs_lock	  *rlp;
+	struct rcs_sym	  *rsp;
 
 	if ((rfp->rf_flags & RCS_WRITE) && !(rfp->rf_flags & RCS_SYNCED))
 		rcs_write(rfp);
@@ -301,17 +302,17 @@ rcs_write(RCSFILE *rfp)
 void
 rcs_write_to(RCSFILE *rfp, const char *destination)
 {
-	FILE *fp;
-	char   numbuf[CVS_REV_BUFSZ], *fn, tmpdir[PATH_MAX];
-	const char *path;
-	struct stat st;
+	FILE		  *fp;
+	char		   numbuf[CVS_REV_BUFSZ], *fn, tmpdir[PATH_MAX];
+	const char	  *path;
+	struct stat	   st;
 	struct rcs_access *ap;
-	struct rcs_sym *symp;
+	struct rcs_sym	  *symp;
 	struct rcs_branch *brp;
-	struct rcs_delta *rdp;
-	struct rcs_lock *lkp;
-	size_t len;
-	int fd, saved_errno;
+	struct rcs_delta  *rdp;
+	struct rcs_lock	  *lkp;
+	size_t		   len;
+	int		   fd, saved_errno;
 
 	fd = -1;
 
@@ -325,9 +326,11 @@ rcs_write_to(RCSFILE *rfp, const char *destination)
 	/* Write operations need the whole file parsed */
 	if (rcsparse_deltatexts(rfp, NULL))
 		fatal("rcs_write: rcsparse_deltatexts");
-	TAILQ_FOREACH(rdp, &rfp->rf_delta, rd_list) {
+	TAILQ_FOREACH(rdp, &rfp->rf_delta, rd_list)
+	{
 		if (rdp->rd_text == NULL)
-			fatal("rcs_write: missing deltatext in %s", rfp->rf_path);
+			fatal(
+			    "rcs_write: missing deltatext in %s", rfp->rf_path);
 	}
 
 	if (strlcpy(tmpdir, path, sizeof(tmpdir)) >= sizeof(tmpdir))
@@ -359,13 +362,15 @@ rcs_write_to(RCSFILE *rfp, const char *destination)
 	}
 
 	fputs("access", fp);
-	TAILQ_FOREACH(ap, &(rfp->rf_access), ra_list) {
+	TAILQ_FOREACH(ap, &(rfp->rf_access), ra_list)
+	{
 		fprintf(fp, "\n\t%s", ap->ra_name);
 	}
 	fputs(";\n", fp);
 
 	fprintf(fp, "symbols");
-	TAILQ_FOREACH(symp, &(rfp->rf_symbols), rs_list) {
+	TAILQ_FOREACH(symp, &(rfp->rf_symbols), rs_list)
+	{
 		if (RCSNUM_ISBRANCH(symp->rs_num))
 			rcsnum_addmagic(symp->rs_num);
 		rcsnum_tostr(symp->rs_num, numbuf, sizeof(numbuf));
@@ -374,7 +379,8 @@ rcs_write_to(RCSFILE *rfp, const char *destination)
 	fprintf(fp, ";\n");
 
 	fprintf(fp, "locks");
-	TAILQ_FOREACH(lkp, &(rfp->rf_locks), rl_list) {
+	TAILQ_FOREACH(lkp, &(rfp->rf_locks), rl_list)
+	{
 		rcsnum_tostr(lkp->rl_num, numbuf, sizeof(numbuf));
 		fprintf(fp, "\n\t%s:%s", lkp->rl_name, numbuf);
 	}
@@ -395,31 +401,34 @@ rcs_write_to(RCSFILE *rfp, const char *destination)
 
 	if (rfp->rf_expand != NULL) {
 		fputs("expand @", fp);
-		rcs_strprint((const u_char *)rfp->rf_expand,
-		    strlen(rfp->rf_expand), fp);
+		rcs_strprint(
+		    (const u_char *)rfp->rf_expand, strlen(rfp->rf_expand), fp);
 		fputs("@;\n", fp);
 	}
 
 	fputs("\n\n", fp);
 
-	TAILQ_FOREACH(rdp, &(rfp->rf_delta), rd_list) {
-		fprintf(fp, "%s\n", rcsnum_tostr(rdp->rd_num, numbuf,
-		    sizeof(numbuf)));
+	TAILQ_FOREACH(rdp, &(rfp->rf_delta), rd_list)
+	{
+		fprintf(fp, "%s\n",
+		    rcsnum_tostr(rdp->rd_num, numbuf, sizeof(numbuf)));
 		fprintf(fp, "date\t%d.%02d.%02d.%02d.%02d.%02d;",
 		    rdp->rd_date.tm_year + 1900, rdp->rd_date.tm_mon + 1,
 		    rdp->rd_date.tm_mday, rdp->rd_date.tm_hour,
 		    rdp->rd_date.tm_min, rdp->rd_date.tm_sec);
-		fprintf(fp, "\tauthor %s;\tstate %s;\n",
-		    rdp->rd_author, rdp->rd_state);
+		fprintf(fp, "\tauthor %s;\tstate %s;\n", rdp->rd_author,
+		    rdp->rd_state);
 		fputs("branches", fp);
-		TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list) {
-			fprintf(fp, "\n\t%s", rcsnum_tostr(brp->rb_num, numbuf,
-			    sizeof(numbuf)));
+		TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list)
+		{
+			fprintf(fp, "\n\t%s",
+			    rcsnum_tostr(brp->rb_num, numbuf, sizeof(numbuf)));
 		}
 		fputs(";\n", fp);
-		fprintf(fp, "next\t%s;\n", rcsnum_tostr(rdp->rd_next,
-		    numbuf, sizeof(numbuf)));
-		/* Validated optional GNU CVS commit IDs remain part of existing history. */
+		fprintf(fp, "next\t%s;\n",
+		    rcsnum_tostr(rdp->rd_next, numbuf, sizeof(numbuf)));
+		/* Validated optional GNU CVS commit IDs remain part of existing
+		 * history. */
 		if (rdp->rd_commitid != NULL)
 			fprintf(fp, "commitid\t%s;\n", rdp->rd_commitid);
 		fputc('\n', fp);
@@ -428,20 +437,21 @@ rcs_write_to(RCSFILE *rfp, const char *destination)
 	fputs("\ndesc\n@", fp);
 	if (rfp->rf_desc != NULL && (len = strlen(rfp->rf_desc)) > 0) {
 		rcs_strprint((const u_char *)rfp->rf_desc, len, fp);
-		if (rfp->rf_desc[len-1] != '\n')
+		if (rfp->rf_desc[len - 1] != '\n')
 			fputc('\n', fp);
 	}
 	fputs("@\n", fp);
 
 	/* deltatexts */
-	TAILQ_FOREACH(rdp, &(rfp->rf_delta), rd_list) {
-		fprintf(fp, "\n\n%s\n", rcsnum_tostr(rdp->rd_num, numbuf,
-		    sizeof(numbuf)));
+	TAILQ_FOREACH(rdp, &(rfp->rf_delta), rd_list)
+	{
+		fprintf(fp, "\n\n%s\n",
+		    rcsnum_tostr(rdp->rd_num, numbuf, sizeof(numbuf)));
 		fputs("log\n@", fp);
 		if (rdp->rd_log != NULL) {
 			len = strlen(rdp->rd_log);
 			rcs_strprint((const u_char *)rdp->rd_log, len, fp);
-			if (len == 0 || rdp->rd_log[len-1] != '\n')
+			if (len == 0 || rdp->rd_log[len - 1] != '\n')
 				fputc('\n', fp);
 		}
 		fputs("@\ntext\n@", fp);
@@ -450,7 +460,8 @@ rcs_write_to(RCSFILE *rfp, const char *destination)
 		fputs("@\n", fp);
 	}
 
-	/* Never replace the original archive until every buffered byte is durable. */
+	/* Never replace the original archive until every buffered byte is
+	 * durable. */
 	if (fflush(fp) == EOF || ferror(fp) || fchmod(fd, rfp->rf_mode) == -1 ||
 	    fsync(fd) == -1) {
 		saved_errno = errno != 0 ? errno : EIO;
@@ -474,21 +485,22 @@ rcs_write_to(RCSFILE *rfp, const char *destination)
 	if (rename(fn, path) == -1) {
 		saved_errno = errno;
 		(void)unlink(fn);
-		fatal("rename(%s, %s): %s", fn, path,
-		    strerror(saved_errno));
+		fatal("rename(%s, %s): %s", fn, path, strerror(saved_errno));
 	}
 
 	worklist_remove(fn, &temp_files);
 	free(fn);
 	if (pc_sync_parent_directory(path) == -1)
-		fatal("published %s but could not sync its directory: %s",
-		    path, strerror(errno));
+		fatal("published %s but could not sync its directory: %s", path,
+		    strerror(errno));
 	if (destination != NULL) {
 		if (unlink(rfp->rf_path) == -1)
-			fatal("published %s but could not remove old archive %s: %s",
+			fatal("published %s but could not remove old archive "
+			      "%s: %s",
 			    path, rfp->rf_path, strerror(errno));
 		if (pc_sync_parent_directory(rfp->rf_path) == -1)
-			fatal("removed old archive %s but could not sync its directory: %s",
+			fatal("removed old archive %s but could not sync its "
+			      "directory: %s",
 			    rfp->rf_path, strerror(errno));
 		free(rfp->rf_path);
 		rfp->rf_path = xstrdup(path);
@@ -505,8 +517,8 @@ RCSNUM *
 rcs_head_get(RCSFILE *file)
 {
 	struct rcs_branch *brp;
-	struct rcs_delta *rdp;
-	RCSNUM *rev, *rootrev;
+	struct rcs_delta  *rdp;
+	RCSNUM		  *rev, *rootrev;
 
 	if (file->rf_head == NULL)
 		return NULL;
@@ -516,29 +528,30 @@ rcs_head_get(RCSFILE *file)
 		/* we have a default branch, use that to calculate the
 		 * real HEAD*/
 		rootrev = rcsnum_alloc();
-		rcsnum_cpy(file->rf_branch, rootrev,
-		    file->rf_branch->rn_len - 1);
+		rcsnum_cpy(
+		    file->rf_branch, rootrev, file->rf_branch->rn_len - 1);
 		if ((rdp = rcs_findrev(file, rootrev)) == NULL)
 			fatal("rcs_head_get: could not find root revision");
 
 		/* HEAD should be the last revision on the default branch */
-		TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list) {
+		TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list)
+		{
 			if (rcsnum_cmp(brp->rb_num, file->rf_branch,
-			    file->rf_branch->rn_len) == 0)
+				file->rf_branch->rn_len) == 0)
 				break;
 		}
 		free(rootrev);
 
 		if (brp == NULL)
 			fatal("rcs_head_get: could not find first default "
-			    "branch revision");
+			      "branch revision");
 
 		if ((rdp = rcs_findrev(file, brp->rb_num)) == NULL)
 			fatal("rcs_head_get: could not find branch revision");
 		while (rdp->rd_next->rn_len != 0)
 			if ((rdp = rcs_findrev(file, rdp->rd_next)) == NULL)
 				fatal("rcs_head_get: could not find "
-				    "next branch revision");
+				      "next branch revision");
 
 		rcsnum_cpy(rdp->rd_num, rev, 0);
 	} else {
@@ -576,7 +589,7 @@ rcs_head_set(RCSFILE *file, RCSNUM *rev)
 RCSNUM *
 rcs_branch_new(RCSFILE *file, RCSNUM *rev)
 {
-	RCSNUM *brev;
+	RCSNUM	       *brev;
 	struct rcs_sym *sym;
 
 	if ((brev = rcsnum_new_branch(rev)) == NULL)
@@ -584,14 +597,13 @@ rcs_branch_new(RCSFILE *file, RCSNUM *rev)
 
 	for (;;) {
 		TAILQ_FOREACH(sym, &(file->rf_symbols), rs_list)
-			if (!rcsnum_cmp(sym->rs_num, brev, 0))
-				break;
+		if (!rcsnum_cmp(sym->rs_num, brev, 0))
+			break;
 
 		if (sym == NULL)
 			break;
 
-		if (rcsnum_inc(brev) == NULL ||
-		    rcsnum_inc(brev) == NULL) {
+		if (rcsnum_inc(brev) == NULL || rcsnum_inc(brev) == NULL) {
 			free(brev);
 			return (NULL);
 		}
@@ -642,7 +654,8 @@ rcs_access_add(RCSFILE *file, const char *login)
 	struct rcs_access *ap;
 
 	/* first look for duplication */
-	TAILQ_FOREACH(ap, &(file->rf_access), ra_list) {
+	TAILQ_FOREACH(ap, &(file->rf_access), ra_list)
+	{
 		if (strcmp(ap->ra_name, login) == 0)
 			return (-1);
 	}
@@ -669,8 +682,8 @@ rcs_access_remove(RCSFILE *file, const char *login)
 	struct rcs_access *ap;
 
 	TAILQ_FOREACH(ap, &(file->rf_access), ra_list)
-		if (strcmp(ap->ra_name, login) == 0)
-			break;
+	if (strcmp(ap->ra_name, login) == 0)
+		break;
 
 	if (ap == NULL)
 		return (-1);
@@ -699,7 +712,8 @@ rcs_sym_add(RCSFILE *rfp, const char *sym, RCSNUM *snum)
 		return (-1);
 
 	/* first look for duplication */
-	TAILQ_FOREACH(symp, &(rfp->rf_symbols), rs_list) {
+	TAILQ_FOREACH(symp, &(rfp->rf_symbols), rs_list)
+	{
 		if (strcmp(symp->rs_name, sym) == 0)
 			return (1);
 	}
@@ -733,8 +747,8 @@ rcs_sym_remove(RCSFILE *file, const char *sym)
 		return (-1);
 
 	TAILQ_FOREACH(symp, &(file->rf_symbols), rs_list)
-		if (strcmp(symp->rs_name, sym) == 0)
-			break;
+	if (strcmp(symp->rs_name, sym) == 0)
+		break;
 
 	if (symp == NULL)
 		return (-1);
@@ -762,8 +776,8 @@ rcs_sym_get(RCSFILE *file, const char *sym)
 	struct rcs_sym *symp;
 
 	TAILQ_FOREACH(symp, &(file->rf_symbols), rs_list)
-		if (strcmp(symp->rs_name, sym) == 0)
-			return (symp);
+	if (strcmp(symp->rs_name, sym) == 0)
+		return (symp);
 
 	return (NULL);
 }
@@ -779,7 +793,7 @@ rcs_sym_get(RCSFILE *file, const char *sym)
 RCSNUM *
 rcs_sym_getrev(RCSFILE *file, const char *sym)
 {
-	RCSNUM *num;
+	RCSNUM	       *num;
 	struct rcs_sym *symp;
 
 	if (!rcs_sym_check(sym) || file->rf_head == NULL)
@@ -793,8 +807,8 @@ rcs_sym_getrev(RCSFILE *file, const char *sym)
 
 	num = NULL;
 	TAILQ_FOREACH(symp, &(file->rf_symbols), rs_list)
-		if (strcmp(symp->rs_name, sym) == 0)
-			break;
+	if (strcmp(symp->rs_name, sym) == 0)
+		break;
 
 	if (symp != NULL) {
 		num = rcsnum_alloc();
@@ -813,7 +827,7 @@ rcs_sym_getrev(RCSFILE *file, const char *sym)
 int
 rcs_sym_check(const char *sym)
 {
-	int ret;
+	int		     ret;
 	const unsigned char *cp;
 
 	ret = 1;
@@ -877,7 +891,8 @@ rcs_lock_add(RCSFILE *file, const char *user, RCSNUM *rev)
 	struct rcs_lock *lkp;
 
 	/* first look for duplication */
-	TAILQ_FOREACH(lkp, &(file->rf_locks), rl_list) {
+	TAILQ_FOREACH(lkp, &(file->rf_locks), rl_list)
+	{
 		if (strcmp(lkp->rl_name, user) == 0 &&
 		    rcsnum_cmp(rev, lkp->rl_num, 0) == 0)
 			return (-1);
@@ -895,7 +910,6 @@ rcs_lock_add(RCSFILE *file, const char *user, RCSNUM *rev)
 	return (0);
 }
 
-
 /*
  * rcs_lock_remove()
  *
@@ -907,7 +921,8 @@ rcs_lock_remove(RCSFILE *file, const char *user, RCSNUM *rev)
 {
 	struct rcs_lock *lkp;
 
-	TAILQ_FOREACH(lkp, &(file->rf_locks), rl_list) {
+	TAILQ_FOREACH(lkp, &(file->rf_locks), rl_list)
+	{
 		if (strcmp(lkp->rl_name, user) == 0 &&
 		    rcsnum_cmp(lkp->rl_num, rev, 0) == 0)
 			break;
@@ -962,7 +977,7 @@ rcs_desc_set(RCSFILE *file, const char *desc)
 const char *
 rcs_comment_lookup(const char *filename)
 {
-	int i;
+	int	    i;
 	const char *sp;
 
 	if ((sp = strrchr(filename, '.')) == NULL)
@@ -1007,7 +1022,7 @@ static void
 rcs_patch_command(const struct rcs_line *line, u_char *op, int *at, int *count)
 {
 	size_t i = 1, end = line->l_len;
-	int field, values[2] = {0, 0};
+	int    field, values[2] = {0, 0};
 
 	if (end < 5 || line->l_line[end - 1] != '\n' ||
 	    (line->l_line[0] != 'a' && line->l_line[0] != 'd'))
@@ -1015,16 +1030,19 @@ rcs_patch_command(const struct rcs_line *line, u_char *op, int *at, int *count)
 	end--;
 	for (field = 0; field < 2; field++) {
 		size_t start = i;
-		while (i < end && line->l_line[i] >= '0' && line->l_line[i] <= '9') {
+		while (i < end && line->l_line[i] >= '0' &&
+		    line->l_line[i] <= '9') {
 			int digit = line->l_line[i++] - '0';
 			if (values[field] > (INT_MAX - digit) / 10)
 				fatal("RCS patch number overflow");
 			values[field] = values[field] * 10 + digit;
 		}
-		if (i == start || (field == 0 && (i == end || line->l_line[i++] != ' ')))
+		if (i == start ||
+		    (field == 0 && (i == end || line->l_line[i++] != ' ')))
 			fatal("invalid RCS patch numbers");
 	}
-	if (i != end || values[1] == 0 || (line->l_line[0] == 'd' && values[0] == 0))
+	if (i != end || values[1] == 0 ||
+	    (line->l_line[0] == 'd' && values[0] == 0))
 		fatal("invalid RCS patch range");
 	*op = line->l_line[0];
 	*at = values[0];
@@ -1035,9 +1053,9 @@ int
 rcs_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines,
     struct rcs_line **alines, struct rcs_delta *rdp)
 {
-	u_char op;
+	u_char		 op;
 	struct rcs_line *lp, *dlp, *ndlp;
-	int i, lineno, nbln;
+	int		 i, lineno, nbln;
 
 	dlp = TAILQ_FIRST(&(dlines->l_lines));
 	lp = TAILQ_FIRST(&(plines->l_lines));
@@ -1046,7 +1064,8 @@ rcs_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines,
 	for (lp = TAILQ_NEXT(lp, l_list); lp != NULL;
 	    lp = TAILQ_NEXT(lp, l_list)) {
 		rcs_patch_command(lp, &op, &lineno, &nbln);
-		if (lineno > dlines->l_nblines || (op == 'd' && nbln > dlines->l_nblines - lineno + 1))
+		if (lineno > dlines->l_nblines ||
+		    (op == 'd' && nbln > dlines->l_nblines - lineno + 1))
 			fatal("invalid line specification in RCS patch");
 
 		/* find the appropriate line */
@@ -1058,7 +1077,8 @@ rcs_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines,
 			if (dlp->l_lineno > lineno) {
 				dlp = TAILQ_PREV(dlp, tqh, l_list);
 			} else if (dlp->l_lineno < lineno) {
-				if (((ndlp = TAILQ_NEXT(dlp, l_list)) == NULL) ||
+				if (((ndlp = TAILQ_NEXT(dlp, l_list)) ==
+					NULL) ||
 				    ndlp->l_lineno > lineno)
 					break;
 				dlp = ndlp;
@@ -1073,15 +1093,14 @@ rcs_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines,
 				TAILQ_REMOVE(&(dlines->l_lines), dlp, l_list);
 				if (alines != NULL && dlp->l_line != NULL) {
 					dlp->l_delta = rdp;
-					alines[dlp->l_lineno_orig - 1] =
-						dlp;
+					alines[dlp->l_lineno_orig - 1] = dlp;
 				} else
 					free(dlp);
 				dlp = ndlp;
 				/* last line is gone - reset dlp */
 				if (dlp == NULL) {
-					ndlp = TAILQ_LAST(&(dlines->l_lines),
-					    tqh);
+					ndlp =
+					    TAILQ_LAST(&(dlines->l_lines), tqh);
 					dlp = ndlp;
 				}
 			}
@@ -1099,8 +1118,8 @@ rcs_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines,
 					lp->l_needsfree = 0;
 				}
 				lp->l_delta = rdp;
-				TAILQ_INSERT_AFTER(&(dlines->l_lines), dlp,
-				    lp, l_list);
+				TAILQ_INSERT_AFTER(
+				    &(dlines->l_lines), dlp, lp, l_list);
 				dlp = lp;
 
 				/* we don't want lookup to block on those */
@@ -1119,7 +1138,7 @@ rcs_patch_lines(struct rcs_lines *dlines, struct rcs_lines *plines,
 	/* once we're done patching, rebuild the line numbers */
 	lineno = 0;
 	TAILQ_FOREACH(lp, &(dlines->l_lines), l_list)
-		lp->l_lineno = lineno++;
+	lp->l_lineno = lineno++;
 	dlines->l_nblines = lineno - 1;
 
 	return (0);
@@ -1129,9 +1148,9 @@ void
 rcs_delta_stats(struct rcs_delta *rdp, int *ladded, int *lremoved)
 {
 	struct rcs_lines *plines;
-	struct rcs_line *lp;
-	int added, i, nbln, removed, lineno;
-	u_char op;
+	struct rcs_line	 *lp;
+	int		  added, i, nbln, removed, lineno;
+	u_char		  op;
 
 	added = removed = 0;
 
@@ -1152,13 +1171,11 @@ rcs_delta_stats(struct rcs_delta *rdp, int *ladded, int *lremoved)
 				if (lp == NULL)
 					fatal("truncated RCS patch");
 			}
-		}
-		else if (op == 'd') {
+		} else if (op == 'd') {
 			if (nbln > INT_MAX - removed)
 				fatal("RCS removed line count overflow");
 			removed += nbln;
-		}
-		else
+		} else
 			fatal("unknown RCS patch operation '%c'", op);
 	}
 
@@ -1181,14 +1198,14 @@ rcs_delta_stats(struct rcs_delta *rdp, int *ladded, int *lremoved)
  * Returns 0 on success, or -1 on failure.
  */
 int
-rcs_rev_add(RCSFILE *rf, RCSNUM *rev, const char *msg, time_t date,
-    const char *author)
+rcs_rev_add(
+    RCSFILE *rf, RCSNUM *rev, const char *msg, time_t date, const char *author)
 {
-	time_t now;
-	RCSNUM *root = NULL;
-	struct passwd *pw;
+	time_t		   now;
+	RCSNUM		  *root = NULL;
+	struct passwd	  *pw;
 	struct rcs_branch *brp, *obrp;
-	struct rcs_delta *ordp, *rdp;
+	struct rcs_delta  *ordp, *rdp;
 
 	if (rcsparse_deltatexts(rf, NULL))
 		return (-1);
@@ -1258,17 +1275,18 @@ rcs_rev_add(RCSFILE *rf, RCSNUM *rev, const char *msg, time_t date,
 				if ((ordp = rcs_findrev(rf, root)) == NULL)
 					fatal("root node not found");
 
-				TAILQ_FOREACH(obrp, &(ordp->rd_branches),
-				    rb_list) {
+				TAILQ_FOREACH(
+				    obrp, &(ordp->rd_branches), rb_list)
+				{
 					if (!rcsnum_cmp(obrp->rb_num,
-					    brp->rb_num,
-					    brp->rb_num->rn_len - 1))
+						brp->rb_num,
+						brp->rb_num->rn_len - 1))
 						break;
 				}
 
 				if (obrp == NULL) {
-					TAILQ_INSERT_TAIL(&(ordp->rd_branches),
-					    brp, rb_list);
+					TAILQ_INSERT_TAIL(
+					    &(ordp->rd_branches), brp, rb_list);
 				}
 			} else {
 				root = rcsnum_alloc();
@@ -1300,10 +1318,10 @@ rcs_rev_add(RCSFILE *rf, RCSNUM *rev, const char *msg, time_t date,
 int
 rcs_rev_remove(RCSFILE *rf, RCSNUM *rev)
 {
-	int fd1, fd2;
-	char *path_tmp1, *path_tmp2;
+	int		  fd1, fd2;
+	char		 *path_tmp1, *path_tmp2;
 	struct rcs_delta *rdp, *prevrdp, *nextrdp;
-	BUF *prevbuf, *newdiff, *newdeltatext;
+	BUF		 *prevbuf, *newdiff, *newdeltatext;
 
 	if (rev == RCS_HEAD_REV)
 		rev = rf->rf_head;
@@ -1340,8 +1358,8 @@ rcs_rev_remove(RCSFILE *rf, RCSNUM *rev)
 		fd2 = rcs_rev_write_stmp(rf, prevrdp->rd_num, path_tmp2, 0);
 
 		diff_format = D_RCSDIFF;
-		if (diffreg(path_tmp1, path_tmp2,
-		    fd1, fd2, newdiff, D_FORCEASCII) == D_ERROR)
+		if (diffreg(path_tmp1, path_tmp2, fd1, fd2, newdiff,
+			D_FORCEASCII) == D_ERROR)
 			fatal("rcs_diffreg failed");
 
 		close(fd1);
@@ -1395,7 +1413,7 @@ rcs_rev_remove(RCSFILE *rf, RCSNUM *rev)
 struct rcs_delta *
 rcs_findrev(RCSFILE *rfp, RCSNUM *rev)
 {
-	int isbrev;
+	int		  isbrev;
 	struct rcs_delta *rdp;
 
 	if (rev == NULL)
@@ -1408,15 +1426,15 @@ rcs_findrev(RCSFILE *rfp, RCSNUM *rev)
 	 * is greater than the requested revision.
 	 */
 	rdp = TAILQ_LAST(&(rfp->rf_delta), rcs_dlist);
-	if (rdp == NULL ||
-	    (!isbrev && rcsnum_cmp(rdp->rd_num, rev, 0) == -1) ||
+	if (rdp == NULL || (!isbrev && rcsnum_cmp(rdp->rd_num, rev, 0) == -1) ||
 	    ((isbrev && rdp->rd_num->rn_len < 4) ||
-	    (isbrev && rcsnum_differ(rev, rdp->rd_num)))) {
+		(isbrev && rcsnum_differ(rev, rdp->rd_num)))) {
 		if (rcsparse_deltas(rfp, rev))
 			fatal("error parsing deltas");
 	}
 
-	TAILQ_FOREACH(rdp, &(rfp->rf_delta), rd_list) {
+	TAILQ_FOREACH(rdp, &(rfp->rf_delta), rd_list)
+	{
 		if (rcsnum_differ(rdp->rd_num, rev))
 			continue;
 		else
@@ -1434,7 +1452,7 @@ rcs_findrev(RCSFILE *rfp, RCSNUM *rev)
 void
 rcs_kwexp_set(RCSFILE *file, int mode)
 {
-	int i;
+	int   i;
 	char *tmp, buf[8] = "";
 
 	if (RCS_KWEXP_INVAL(mode))
@@ -1485,8 +1503,8 @@ rcs_kwexp_get(RCSFILE *file)
 int
 rcs_kflag_get(const char *flags)
 {
-	int fl;
-	size_t len;
+	int	    fl;
+	size_t	    len;
 	const char *fp;
 
 	if (flags == NULL || !(len = strlen(flags)))
@@ -1508,7 +1526,7 @@ rcs_kflag_get(const char *flags)
 			if (len != 1)
 				fl |= RCS_KWEXP_ERR;
 			fl |= RCS_KWEXP_NONE;
-		} else	/* unknown letter */
+		} else /* unknown letter */
 			fl |= RCS_KWEXP_ERR;
 	}
 
@@ -1560,7 +1578,7 @@ rcs_strprint(const u_char *str, size_t slen, FILE *stream)
 
 	ep = str + slen - 1;
 
-	for (sp = str; sp <= ep;)  {
+	for (sp = str; sp <= ep;) {
 		ap = memchr(sp, '@', ep - sp);
 		if (ap == NULL)
 			ap = ep;
@@ -1581,8 +1599,8 @@ rcs_strprint(const u_char *str, size_t slen, FILE *stream)
 int
 rcs_deltatext_set(RCSFILE *rfp, RCSNUM *rev, BUF *bp)
 {
-	size_t len;
-	u_char *dtext;
+	size_t		  len;
+	u_char		 *dtext;
 	struct rcs_delta *rdp;
 
 	/* Write operations require full parsing */
@@ -1710,10 +1728,10 @@ rcs_state_get(RCSFILE *rfp, RCSNUM *rev)
 static RCSNUM *
 rcs_get_revision(const char *revstr, RCSFILE *rfp)
 {
-	RCSNUM *rev, *brev, *frev;
+	RCSNUM		  *rev, *brev, *frev;
 	struct rcs_branch *brp;
-	struct rcs_delta *rdp;
-	size_t i;
+	struct rcs_delta  *rdp;
+	size_t		   i;
 
 	rdp = NULL;
 
@@ -1752,8 +1770,9 @@ rcs_get_revision(const char *revstr, RCSFILE *rfp)
 		 * the minimum of both revision lengths is taken
 		 * instead of just 2.
 		 */
-		if (rfp->rf_head == NULL || rcsnum_cmp(rev, rfp->rf_head,
-		    MINIMUM(rfp->rf_head->rn_len, rev->rn_len)) < 0) {
+		if (rfp->rf_head == NULL ||
+		    rcsnum_cmp(rev, rfp->rf_head,
+			MINIMUM(rfp->rf_head->rn_len, rev->rn_len)) < 0) {
 			free(rev);
 			return (NULL);
 		}
@@ -1767,7 +1786,8 @@ rcs_get_revision(const char *revstr, RCSFILE *rfp)
 		fatal("rcs_get_revision: tag `%s' does not exist", revstr);
 	free(brev);
 
-	TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list) {
+	TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list)
+	{
 		for (i = 0; i < rev->rn_len; i++)
 			if (brp->rb_num->rn_id[i] != rev->rn_id[i])
 				break;
@@ -1785,7 +1805,7 @@ rcs_get_revision(const char *revstr, RCSFILE *rfp)
 		/* Fetch the delta with the correct branch num */
 		if ((rdp = rcs_findrev(rfp, brp->rb_num)) == NULL)
 			fatal("rcs_get_revision: could not fetch branch "
-			    "delta");
+			      "delta");
 		rcsnum_cpy(rdp->rd_num, frev, 0);
 		return (frev);
 	}
@@ -1800,14 +1820,14 @@ rcs_get_revision(const char *revstr, RCSFILE *rfp)
 struct rcs_lines *
 rcs_rev_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 {
-	size_t plen;
-	int annotate, done, i, nextroot;
-	RCSNUM *tnum, *bnum;
+	size_t		   plen;
+	int		   annotate, done, i, nextroot;
+	RCSNUM		  *tnum, *bnum;
 	struct rcs_branch *brp;
-	struct rcs_delta *hrdp, *prdp, *rdp, *trdp;
-	u_char *patch;
-	struct rcs_line *line, *nline;
-	struct rcs_lines *dlines, *plines;
+	struct rcs_delta  *hrdp, *prdp, *rdp, *trdp;
+	u_char		  *patch;
+	struct rcs_line	  *line, *nline;
+	struct rcs_lines  *dlines, *plines;
 
 	hrdp = prdp = rdp = trdp = NULL;
 
@@ -1843,7 +1863,8 @@ rcs_rev_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 		if (annotate == ANNOTATE_LATER) {
 			/* found requested revision for annotate */
 			i = 0;
-			TAILQ_FOREACH(line, &(dlines->l_lines), l_list) {
+			TAILQ_FOREACH(line, &(dlines->l_lines), l_list)
+			{
 				line->l_lineno_orig = line->l_lineno;
 				i++;
 			}
@@ -1899,7 +1920,8 @@ again:
 
 			/* found requested revision for annotate */
 			i = 0;
-			TAILQ_FOREACH(line, &(dlines->l_lines), l_list) {
+			TAILQ_FOREACH(line, &(dlines->l_lines), l_list)
+			{
 				line->l_lineno_orig = line->l_lineno;
 				i++;
 			}
@@ -1930,7 +1952,8 @@ next:
 		nextroot += 2;
 		rcsnum_cpy(frev, bnum, nextroot);
 
-		TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list) {
+		TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list)
+		{
 			for (i = 0; i < nextroot - 1; i++)
 				if (brp->rb_num->rn_id[i] != bnum->rn_id[i])
 					break;
@@ -1950,7 +1973,8 @@ next:
 		}
 
 		if ((rdp = rcs_findrev(rfp, brp->rb_num)) == NULL)
-			fatal("rcs_rev_getlines: failed to get delta for target rev");
+			fatal("rcs_rev_getlines: failed to get delta for "
+			      "target rev");
 
 		goto again;
 	}
@@ -1960,8 +1984,8 @@ done:
 		fatal("revision is missing from RCS history");
 	/* put remaining lines into annotate buffer */
 	if (annotate == ANNOTATE_NOW) {
-		for (line = TAILQ_FIRST(&(dlines->l_lines));
-		    line != NULL; line = nline) {
+		for (line = TAILQ_FIRST(&(dlines->l_lines)); line != NULL;
+		    line = nline) {
 			nline = TAILQ_NEXT(line, l_list);
 			TAILQ_REMOVE(&(dlines->l_lines), line, l_list);
 			if (line->l_line == NULL) {
@@ -1986,14 +2010,14 @@ done:
 void
 rcs_annotate_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 {
-	size_t plen;
-	int i, nextroot;
-	RCSNUM *bnum;
+	size_t		   plen;
+	int		   i, nextroot;
+	RCSNUM		  *bnum;
 	struct rcs_branch *brp;
-	struct rcs_delta *rdp, *trdp;
-	u_char *patch;
-	struct rcs_line *line;
-	struct rcs_lines *dlines, *plines;
+	struct rcs_delta  *rdp, *trdp;
+	u_char		  *patch;
+	struct rcs_line	  *line;
+	struct rcs_lines  *dlines, *plines;
 
 	rdp = trdp = NULL;
 
@@ -2029,7 +2053,8 @@ rcs_annotate_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 		nextroot += 2;
 		rcsnum_cpy(frev, bnum, nextroot);
 
-		TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list) {
+		TAILQ_FOREACH(brp, &(rdp->rd_branches), rb_list)
+		{
 			for (i = 0; i < nextroot - 1; i++)
 				if (brp->rb_num->rn_id[i] != bnum->rn_id[i])
 					break;
@@ -2054,7 +2079,7 @@ rcs_annotate_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 			if (rdp->rd_text == NULL) {
 				if (rcsparse_deltatexts(rfp, rdp->rd_num))
 					fatal("rcs_annotate_getlines: "
-					    "rcsparse_deltatexts");
+					      "rcsparse_deltatexts");
 			}
 
 			plen = rdp->rd_tlen;
@@ -2084,7 +2109,8 @@ rcs_annotate_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 	free(*alines);
 
 	i = 0;
-	TAILQ_FOREACH(line, &(dlines->l_lines), l_list) {
+	TAILQ_FOREACH(line, &(dlines->l_lines), l_list)
+	{
 		if (line->l_line != NULL)
 			i++;
 	}
@@ -2092,7 +2118,8 @@ rcs_annotate_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 	(*alines)[i] = NULL;
 
 	i = 0;
-	TAILQ_FOREACH(line, &(dlines->l_lines), l_list) {
+	TAILQ_FOREACH(line, &(dlines->l_lines), l_list)
+	{
 		if (line->l_line != NULL)
 			(*alines)[i++] = line;
 	}
@@ -2109,11 +2136,11 @@ rcs_annotate_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 BUF *
 rcs_rev_getbuf(RCSFILE *rfp, RCSNUM *rev, int mode)
 {
-	int expmode, expand;
+	int		  expmode, expand;
 	struct rcs_delta *rdp;
 	struct rcs_lines *lines;
-	struct rcs_line *lp, *nlp;
-	BUF *bp;
+	struct rcs_line	 *lp, *nlp;
+	BUF		 *bp;
 
 	rdp = NULL;
 	expmode = RCS_KWEXP_NONE;
@@ -2167,14 +2194,14 @@ rcs_rev_getbuf(RCSFILE *rfp, RCSNUM *rev, int mode)
 void
 rcs_rev_write_fd(RCSFILE *rfp, RCSNUM *rev, int _fd, int mode)
 {
-	int fd;
-	FILE *fp;
-	size_t ret;
-	int expmode, expand;
+	int		  fd;
+	FILE		 *fp;
+	size_t		  ret;
+	int		  expmode, expand;
 	struct rcs_delta *rdp;
 	struct rcs_lines *lines;
-	struct rcs_line *lp, *nlp;
-	extern int print_stdout;
+	struct rcs_line	 *lp, *nlp;
+	extern int	  print_stdout;
 
 	rdp = NULL;
 	expmode = RCS_KWEXP_NONE;
@@ -2215,7 +2242,8 @@ rcs_rev_write_fd(RCSFILE *rfp, RCSNUM *rev, int _fd, int mode)
 			 */
 			if (cvs_server_active == 1 &&
 			    (cvs_cmdop == CVS_OP_CHECKOUT ||
-			    cvs_cmdop == CVS_OP_UPDATE) && print_stdout == 1) {
+				cvs_cmdop == CVS_OP_UPDATE) &&
+			    print_stdout == 1) {
 				ret = fwrite("M ", 1, 2, fp);
 				if (ret != 2)
 					fatal("rcs_rev_write_fd: %s",
@@ -2241,7 +2269,7 @@ rcs_rev_write_fd(RCSFILE *rfp, RCSNUM *rev, int _fd, int mode)
  * <template>, as per mkstemp.
  */
 int
-rcs_rev_write_stmp(RCSFILE *rfp,  RCSNUM *rev, char *template, int mode)
+rcs_rev_write_stmp(RCSFILE *rfp, RCSNUM *rev, char *template, int mode)
 {
 	int fd;
 
@@ -2261,13 +2289,13 @@ static void
 rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
     struct rcs_line *line, int mode)
 {
-	BUF *tmpbuf;
-	int kwtype;
-	u_int j, found;
+	BUF	     *tmpbuf;
+	int	      kwtype;
+	u_int	      j, found;
 	const u_char *c, *start, *fin, *end;
-	char *kwstr, *rcsfile_basename;
-	char expbuf[256], buf[256], path[PATH_MAX];
-	size_t clen, kwlen, len, tlen;
+	char	     *kwstr, *rcsfile_basename;
+	char	      expbuf[256], buf[256], path[PATH_MAX];
+	size_t	      clen, kwlen, len, tlen;
 
 	kwtype = 0;
 	kwstr = NULL;
@@ -2370,12 +2398,13 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 
 		if (mode & RCS_KWEXP_NAME) {
 			if (strlcat(expbuf, "$", sizeof(expbuf)) >=
-			    sizeof(expbuf) || strlcat(expbuf, kwstr,
-			    sizeof(expbuf)) >= sizeof(expbuf))
+				sizeof(expbuf) ||
+			    strlcat(expbuf, kwstr, sizeof(expbuf)) >=
+				sizeof(expbuf))
 				fatal("rcs_kwexp_line: truncated");
 			if ((mode & RCS_KWEXP_VAL) &&
 			    strlcat(expbuf, ": ", sizeof(expbuf)) >=
-			    sizeof(expbuf))
+				sizeof(expbuf))
 				fatal("rcs_kwexp_line: truncated");
 		}
 
@@ -2389,8 +2418,8 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 					(void)strlcat(expbuf, rcsfile_basename,
 					    sizeof(expbuf));
 				else
-					(void)strlcat(expbuf, rcsfile,
-					    sizeof(expbuf));
+					(void)strlcat(
+					    expbuf, rcsfile, sizeof(expbuf));
 				if (strlcat(expbuf, " ", sizeof(expbuf)) >=
 				    sizeof(expbuf))
 					fatal("rcs_kwexp_line: truncated");
@@ -2399,21 +2428,22 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 			if (kwtype & RCS_KW_REVISION) {
 				rcsnum_tostr(rdp->rd_num, buf, sizeof(buf));
 				if (strlcat(buf, " ", sizeof(buf)) >=
-				    sizeof(buf) || strlcat(expbuf, buf,
-				    sizeof(expbuf)) >= sizeof(buf))
+					sizeof(buf) ||
+				    strlcat(expbuf, buf, sizeof(expbuf)) >=
+					sizeof(buf))
 					fatal("rcs_kwexp_line: truncated");
 			}
 
 			if (kwtype & RCS_KW_DATE) {
 				if (strftime(buf, sizeof(buf),
-				    "%Y/%m/%d %H:%M:%S ",
-				    &rdp->rd_date) == 0)
+					"%Y/%m/%d %H:%M:%S ",
+					&rdp->rd_date) == 0)
 					fatal("rcs_kwexp_line: strftime "
-					    "failure");
+					      "failure");
 				if (strlcat(expbuf, buf, sizeof(expbuf)) >=
 				    sizeof(expbuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 			}
 
 			if (kwtype & RCS_KW_MDOCDATE) {
@@ -2423,54 +2453,55 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 				 * no better format for strftime().
 				 */
 				if (strftime(buf, sizeof(buf),
-				    (rdp->rd_date.tm_mday < 10) ?
-				        "%B%e %Y " : "%B %e %Y ",
-				    &rdp->rd_date) == 0)
+					(rdp->rd_date.tm_mday < 10) ?
+					    "%B%e %Y " :
+					    "%B %e %Y ",
+					&rdp->rd_date) == 0)
 					fatal("rcs_kwexp_line: strftime "
-					    "failure");
+					      "failure");
 				if (strlcat(expbuf, buf, sizeof(expbuf)) >=
 				    sizeof(expbuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 			}
 
 			if (kwtype & RCS_KW_AUTHOR) {
 				if (strlcat(expbuf, rdp->rd_author,
-				    sizeof(expbuf)) >= sizeof(expbuf) ||
+					sizeof(expbuf)) >= sizeof(expbuf) ||
 				    strlcat(expbuf, " ", sizeof(expbuf)) >=
-				    sizeof(expbuf))
+					sizeof(expbuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 			}
 
 			if (kwtype & RCS_KW_STATE) {
 				if (strlcat(expbuf, rdp->rd_state,
-				    sizeof(expbuf)) >= sizeof(expbuf) ||
+					sizeof(expbuf)) >= sizeof(expbuf) ||
 				    strlcat(expbuf, " ", sizeof(expbuf)) >=
-				    sizeof(expbuf))
+					sizeof(expbuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 			}
 
 			/* order does not matter anymore below */
 			if (kwtype & RCS_KW_LOG) {
-				char linebuf[256];
+				char		 linebuf[256];
 				struct rcs_line *cur, *lp;
-				char *logp, *l_line, *prefix, *q, *sprefix;
+				char  *logp, *l_line, *prefix, *q, *sprefix;
 				size_t i;
 
 				/* Log line */
 				if (!(kwtype & RCS_KW_FULLPATH))
-					(void)strlcat(expbuf,
-					    rcsfile_basename, sizeof(expbuf));
-				else
-					(void)strlcat(expbuf, rcsfile,
+					(void)strlcat(expbuf, rcsfile_basename,
 					    sizeof(expbuf));
+				else
+					(void)strlcat(
+					    expbuf, rcsfile, sizeof(expbuf));
 
 				if (strlcat(expbuf, " ", sizeof(expbuf)) >=
 				    sizeof(expbuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 
 				cur = line;
 
@@ -2479,45 +2510,45 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 
 				/* copy our prefix for later processing */
 				prefix = xmalloc(start - line->l_line + 1);
-				memcpy(prefix, line->l_line,
-				    start - line->l_line);
+				memcpy(
+				    prefix, line->l_line, start - line->l_line);
 				prefix[start - line->l_line] = '\0';
 
 				/* copy also prefix without trailing blanks. */
 				sprefix = xstrdup(prefix);
-				for (i = strlen(sprefix); i > 0 &&
-				    sprefix[i - 1] == ' '; i--)
+				for (i = strlen(sprefix);
+				    i > 0 && sprefix[i - 1] == ' '; i--)
 					sprefix[i - 1] = '\0';
 
 				/* new line: revision + date + author */
 				linebuf[0] = '\0';
 				if (strlcat(linebuf, "Revision ",
-				    sizeof(linebuf)) >= sizeof(linebuf))
+					sizeof(linebuf)) >= sizeof(linebuf))
 					fatal("rcs_kwexp_line: truncated");
 				rcsnum_tostr(rdp->rd_num, buf, sizeof(buf));
-				if (strlcat(linebuf, buf, sizeof(linebuf))
-				    >= sizeof(buf))
+				if (strlcat(linebuf, buf, sizeof(linebuf)) >=
+				    sizeof(buf))
 					fatal("rcs_kwexp_line: truncated");
 				if (strftime(buf, sizeof(buf),
-				    "  %Y/%m/%d %H:%M:%S  ",
-				    &rdp->rd_date) == 0)
+					"  %Y/%m/%d %H:%M:%S  ",
+					&rdp->rd_date) == 0)
 					fatal("rcs_kwexp_line: strftime "
-					    "failure");
-				if (strlcat(linebuf, buf, sizeof(linebuf))
-				    >= sizeof(linebuf))
+					      "failure");
+				if (strlcat(linebuf, buf, sizeof(linebuf)) >=
+				    sizeof(linebuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 				if (strlcat(linebuf, rdp->rd_author,
-				    sizeof(linebuf)) >= sizeof(linebuf))
+					sizeof(linebuf)) >= sizeof(linebuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 
 				lp = xcalloc(1, sizeof(*lp));
 				xasprintf((char **)&(lp->l_line), "%s%s\n",
 				    prefix, linebuf);
 				lp->l_len = strlen((const char *)lp->l_line);
-				TAILQ_INSERT_AFTER(&(lines->l_lines), cur, lp,
-				    l_list);
+				TAILQ_INSERT_AFTER(
+				    &(lines->l_lines), cur, lp, l_list);
 				cur = lp;
 
 				/* Log message */
@@ -2527,16 +2558,19 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 					lp = xcalloc(1, sizeof(*lp));
 
 					if (l_line[0] == '\0') {
-						xasprintf((char **)&(lp->l_line),
+						xasprintf(
+						    (char **)&(lp->l_line),
 						    "%s\n", sprefix);
 					} else {
-						xasprintf((char **)&(lp->l_line),
+						xasprintf(
+						    (char **)&(lp->l_line),
 						    "%s%s\n", prefix, l_line);
 					}
 
-					lp->l_len = strlen((const char *)lp->l_line);
-					TAILQ_INSERT_AFTER(&(lines->l_lines),
-					    cur, lp, l_list);
+					lp->l_len =
+					    strlen((const char *)lp->l_line);
+					TAILQ_INSERT_AFTER(
+					    &(lines->l_lines), cur, lp, l_list);
 					cur = lp;
 				}
 				free(logp);
@@ -2549,59 +2583,57 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 				 * trailing whitespaces of our prefix.
 				 */
 				lp = xcalloc(1, sizeof(*lp));
-				xasprintf((char **)&lp->l_line, "%s%s",
-				    sprefix, end);
+				xasprintf(
+				    (char **)&lp->l_line, "%s%s", sprefix, end);
 				lp->l_len = strlen((const char *)lp->l_line);
-				TAILQ_INSERT_AFTER(&(lines->l_lines), cur, lp,
-				    l_list);
+				TAILQ_INSERT_AFTER(
+				    &(lines->l_lines), cur, lp, l_list);
 				cur = lp;
 
 				end = line->l_line + line->l_len - 1;
 
 				free(prefix);
 				free(sprefix);
-
 			}
 
 			if (kwtype & RCS_KW_SOURCE) {
 				if (strlcat(expbuf, rcsfile, sizeof(expbuf)) >=
-				    sizeof(expbuf) || strlcat(expbuf, " ",
-				    sizeof(expbuf)) >= sizeof(expbuf))
+					sizeof(expbuf) ||
+				    strlcat(expbuf, " ", sizeof(expbuf)) >=
+					sizeof(expbuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 			}
 
 			if (kwtype & RCS_KW_NAME)
 				if (strlcat(expbuf, " ", sizeof(expbuf)) >=
 				    sizeof(expbuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 
 			if (kwtype & RCS_KW_LOCKER)
 				if (strlcat(expbuf, " ", sizeof(expbuf)) >=
 				    sizeof(expbuf))
 					fatal("rcs_kwexp_line: string "
-					    "truncated");
+					      "truncated");
 		}
 
 		/* end the expansion */
 		if (mode & RCS_KWEXP_NAME)
-			if (strlcat(expbuf, "$",
-			    sizeof(expbuf)) >= sizeof(expbuf))
+			if (strlcat(expbuf, "$", sizeof(expbuf)) >=
+			    sizeof(expbuf))
 				fatal("rcs_kwexp_line: truncated");
 
 		/* Concatenate everything together. */
 		tmpbuf = buf_alloc(len + strlen(expbuf));
 		/* Append everything before keyword. */
-		buf_append(tmpbuf, line->l_line,
-		    start - line->l_line);
+		buf_append(tmpbuf, line->l_line, start - line->l_line);
 		/* Append keyword. */
 		buf_puts(tmpbuf, expbuf);
 		/* Point c to end of keyword. */
 		tlen = buf_len(tmpbuf) - 1;
 		/* Append everything after keyword. */
-		buf_append(tmpbuf, end,
-		    line->l_line + line->l_len - end);
+		buf_append(tmpbuf, end, line->l_line + line->l_len - end);
 		c = buf_get(tmpbuf) + tlen;
 		/* Point fin to end of data. */
 		fin = buf_get(tmpbuf) + buf_len(tmpbuf) - 1;
@@ -2621,12 +2653,12 @@ rcs_kwexp_line(char *rcsfile, struct rcs_delta *rdp, struct rcs_lines *lines,
 RCSNUM *
 rcs_translate_tag(const char *revstr, RCSFILE *rfp)
 {
-	int follow;
-	time_t deltatime;
-	char branch[CVS_REV_BUFSZ];
-	RCSNUM *brev, *frev, *rev;
+	int		  follow;
+	time_t		  deltatime;
+	char		  branch[CVS_REV_BUFSZ];
+	RCSNUM		 *brev, *frev, *rev;
 	struct rcs_delta *rdp, *trdp;
-	time_t cdate;
+	time_t		  cdate;
 
 	brev = frev = NULL;
 
@@ -2686,7 +2718,7 @@ rcs_translate_tag(const char *revstr, RCSFILE *rfp)
 				break;
 			if ((rdp = rcs_findrev(rfp, rdp->rd_next)) == NULL)
 				fatal("rcs_translate_tag: could not fetch "
-				    "branch delta");
+				      "branch delta");
 		}
 
 		rev = rcsnum_alloc();

@@ -76,7 +76,7 @@ cvs_log(u_int level, const char *fmt, ...)
 void
 cvs_vlog(u_int level, const char *fmt, va_list vap)
 {
-	int ecp;
+	int   ecp;
 	FILE *out;
 	char *cmdname;
 
@@ -117,8 +117,7 @@ cvs_vlog(u_int level, const char *fmt, va_list vap)
 		(void)fputs(__progname, out);
 		putc(' ', out);
 		if (level == LP_ABORT)
-			(void)fprintf(out,
-			    "[%s aborted]", cmdname);
+			(void)fprintf(out, "[%s aborted]", cmdname);
 		else
 			(void)fputs(cmdname, out);
 		(void)fputs(": ", out);
@@ -144,9 +143,9 @@ int
 cvs_printf(const char *fmt, ...)
 {
 	static int send_m = 1;
-	int ret;
-	char *nstr, *dp, *sp;
-	va_list vap;
+	int	   ret;
+	char	  *nstr, *dp, *sp;
+	va_list	   vap;
 
 	va_start(vap, fmt);
 
@@ -166,12 +165,13 @@ cvs_printf(const char *fmt, ...)
 			putc(' ', stdout);
 		}
 
-		if (dp != nstr && dp != sp &&
-		    !strncmp(dp, LOG_REVSEP, sp - dp))
+		if (dp != nstr && dp != sp && !strncmp(dp, LOG_REVSEP, sp - dp))
 			putc('>', stdout);
 
-		if (fwrite(dp, 1, (size_t)(sp - dp), stdout) != (size_t)(sp - dp))
-			fatal("cvs_printf: output write failed: %s", strerror(errno));
+		if (fwrite(dp, 1, (size_t)(sp - dp), stdout) !=
+		    (size_t)(sp - dp))
+			fatal("cvs_printf: output write failed: %s",
+			    strerror(errno));
 
 		if (*sp != '\n')
 			break;

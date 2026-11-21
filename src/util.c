@@ -43,22 +43,22 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include <atomicio.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <string.h>
-#include <paths.h>
 #include <unistd.h>
 
 #include "cvs.h"
+#include "hash.h"
 #include "pc_process.h"
 #include "remote.h"
-#include "hash.h"
 
 extern int print_stdout;
 extern int build_dirs;
@@ -66,37 +66,58 @@ extern int disable_fast_checkout;
 
 /* letter -> mode type map */
 static const int cvs_modetypes[26] = {
-	-1, -1, -1, -1, -1, -1,  1, -1, -1, -1, -1, -1, -1,
-	-1,  2, -1, -1, -1, -1, -1,  0, -1, -1, -1, -1, -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    2,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    0,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
 };
 
 /* letter -> mode map */
 static const mode_t cvs_modes[3][26] = {
-	{
-		0,  0,       0,       0,       0,  0,  0,    /* a - g */
-		0,  0,       0,       0,       0,  0,  0,    /* h - m */
-		0,  0,       0,       S_IRUSR, 0,  0,  0,    /* n - u */
-		0,  S_IWUSR, S_IXUSR, 0,       0             /* v - z */
-	},
-	{
-		0,  0,       0,       0,       0,  0,  0,    /* a - g */
-		0,  0,       0,       0,       0,  0,  0,    /* h - m */
-		0,  0,       0,       S_IRGRP, 0,  0,  0,    /* n - u */
-		0,  S_IWGRP, S_IXGRP, 0,       0             /* v - z */
-	},
-	{
-		0,  0,       0,       0,       0,  0,  0,    /* a - g */
-		0,  0,       0,       0,       0,  0,  0,    /* h - m */
-		0,  0,       0,       S_IROTH, 0,  0,  0,    /* n - u */
-		0,  S_IWOTH, S_IXOTH, 0,       0             /* v - z */
-	}
-};
-
+    {
+	0, 0, 0, 0, 0, 0, 0,	   /* a - g */
+	0, 0, 0, 0, 0, 0, 0,	   /* h - m */
+	0, 0, 0, S_IRUSR, 0, 0, 0, /* n - u */
+	0, S_IWUSR, S_IXUSR, 0, 0  /* v - z */
+    },
+    {
+	0, 0, 0, 0, 0, 0, 0,	   /* a - g */
+	0, 0, 0, 0, 0, 0, 0,	   /* h - m */
+	0, 0, 0, S_IRGRP, 0, 0, 0, /* n - u */
+	0, S_IWGRP, S_IXGRP, 0, 0  /* v - z */
+    },
+    {
+	0, 0, 0, 0, 0, 0, 0,	   /* a - g */
+	0, 0, 0, 0, 0, 0, 0,	   /* h - m */
+	0, 0, 0, S_IROTH, 0, 0, 0, /* n - u */
+	0, S_IWOTH, S_IXOTH, 0, 0  /* v - z */
+    }};
 
 /* octal -> string */
 static const char *cvs_modestr[8] = {
-	"", "x", "w", "wx", "r", "rx", "rw", "rwx"
-};
+    "", "x", "w", "wx", "r", "rx", "rw", "rwx"};
 
 /*
  * cvs_strtomode()
@@ -111,8 +132,8 @@ void
 cvs_strtomode(const char *str, mode_t *mode)
 {
 	const char *part = str;
-	int type;
-	mode_t bit, m = 0;
+	int	    type;
+	mode_t	    bit, m = 0;
 
 	for (;;) {
 		if (*part < 'a' || *part > 'z' ||
@@ -146,7 +167,7 @@ cvs_strtomode(const char *str, mode_t *mode)
 void
 cvs_modetostr(mode_t mode, char *buf, size_t len)
 {
-	char tmp[16], *bp;
+	char   tmp[16], *bp;
 	mode_t um, gm, om;
 
 	um = (mode & S_IRWXU) >> 6;
@@ -206,7 +227,7 @@ int
 cvs_getargv(const char *line, char **argv, int argvlen)
 {
 	u_int i;
-	int argc, error;
+	int   argc, error;
 	char *linebuf, *lp, *cp;
 
 	linebuf = xstrdup(line);
@@ -252,7 +273,7 @@ cvs_getargv(const char *line, char **argv, int argvlen)
 char **
 cvs_makeargv(const char *line, int *argc)
 {
-	int i, ret;
+	int   i, ret;
 	char *argv[1024], **copy;
 
 	ret = cvs_getargv(line, argv, 1024);
@@ -357,11 +378,11 @@ cvs_unlink(const char *path)
 int
 cvs_rmdir(const char *path)
 {
-	int type, ret = -1;
-	DIR *dirp;
+	int	       type, ret = -1;
+	DIR	      *dirp;
 	struct dirent *ent;
-	struct stat st;
-	char fpath[PATH_MAX];
+	struct stat    st;
+	char	       fpath[PATH_MAX];
 
 	if (cvs_server_active == 0)
 		cvs_log(LP_TRACE, "cvs_rmdir(%s)", path);
@@ -379,17 +400,17 @@ cvs_rmdir(const char *path)
 		ent = readdir(dirp);
 		if (ent == NULL) {
 			if (errno != 0) {
-				cvs_log(LP_ERRNO, "cvs_rmdir: readdir %s", path);
+				cvs_log(
+				    LP_ERRNO, "cvs_rmdir: readdir %s", path);
 				goto done;
 			}
 			break;
 		}
-		if (!strcmp(ent->d_name, ".") ||
-		    !strcmp(ent->d_name, ".."))
+		if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
 			continue;
 
-		(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
-		    path, ent->d_name);
+		(void)xsnprintf(
+		    fpath, sizeof(fpath), "%s/%s", path, ent->d_name);
 
 		if (ent->d_type == DT_UNKNOWN) {
 			if (lstat(fpath, &st) == -1)
@@ -403,8 +424,7 @@ cvs_rmdir(const char *path)
 				type = CVS_FILE;
 				break;
 			default:
-				fatal("'%s': Unknown file type in copy",
-				    fpath);
+				fatal("'%s': Unknown file type in copy", fpath);
 			}
 		} else {
 			switch (ent->d_type) {
@@ -415,8 +435,7 @@ cvs_rmdir(const char *path)
 				type = CVS_FILE;
 				break;
 			default:
-				fatal("'%s': Unknown file type in copy",
-				    fpath);
+				fatal("'%s': Unknown file type in copy", fpath);
 			}
 		}
 		switch (type) {
@@ -432,7 +451,6 @@ cvs_rmdir(const char *path)
 			fatal("type %d unknown, shouldn't happen", type);
 		}
 	}
-
 
 	if (rmdir(path) == -1 && errno != ENOENT) {
 		cvs_log(LP_ERRNO, "%s", path);
@@ -462,7 +480,7 @@ void
 cvs_get_repository_name(const char *dir, char *dst, size_t len)
 {
 	FILE *fp;
-	char fpath[PATH_MAX];
+	char  fpath[PATH_MAX];
 
 	dst[0] = '\0';
 
@@ -491,10 +509,11 @@ cvs_get_repository_name(const char *dir, char *dst, size_t len)
 				fatal("cvs_get_repository_name: truncation");
 		break;
 	default:
-		(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
-		    dir, CVS_PATH_REPOSITORY);
+		(void)xsnprintf(
+		    fpath, sizeof(fpath), "%s/%s", dir, CVS_PATH_REPOSITORY);
 		if ((fp = fopen(fpath, "r")) != NULL) {
-			if (len > INT_MAX || pc_metadata_fgets(dst, (int)len, fp) == NULL)
+			if (len > INT_MAX ||
+			    pc_metadata_fgets(dst, (int)len, fp) == NULL)
 				fatal("%s: bad repository file", fpath);
 			dst[strcspn(dst, "\n")] = '\0';
 			(void)fclose(fp);
@@ -505,12 +524,12 @@ cvs_get_repository_name(const char *dir, char *dst, size_t len)
 }
 
 void
-cvs_mkadmin(const char *path, const char *root, const char *repo,
-    char *tag, char *date)
+cvs_mkadmin(
+    const char *path, const char *root, const char *repo, char *tag, char *date)
 {
-	FILE *fp;
-	int fd;
-	char buf[PATH_MAX];
+	FILE		 *fp;
+	int		  fd;
+	char		  buf[PATH_MAX];
 	struct hash_data *hdata, hd;
 
 	hdata = hash_table_find(&created_cvs_directories, path, strlen(path));
@@ -522,9 +541,8 @@ cvs_mkadmin(const char *path, const char *root, const char *repo,
 	hash_table_enter(&created_cvs_directories, &hd);
 
 	if (cvs_server_active == 0)
-		cvs_log(LP_TRACE, "cvs_mkadmin(%s, %s, %s, %s, %s)",
-		    path, root, repo, (tag != NULL) ? tag : "",
-		    (date != NULL) ? date : "");
+		cvs_log(LP_TRACE, "cvs_mkadmin(%s, %s, %s, %s, %s)", path, root,
+		    repo, (tag != NULL) ? tag : "", (date != NULL) ? date : "");
 
 	(void)xsnprintf(buf, sizeof(buf), "%s/%s", path, CVS_PATH_CVSDIR);
 
@@ -533,8 +551,8 @@ cvs_mkadmin(const char *path, const char *root, const char *repo,
 
 	if (cvs_cmdop == CVS_OP_CHECKOUT || cvs_cmdop == CVS_OP_ADD ||
 	    (cvs_cmdop == CVS_OP_UPDATE && build_dirs == 1)) {
-		(void)xsnprintf(buf, sizeof(buf), "%s/%s",
-		    path, CVS_PATH_ROOTSPEC);
+		(void)xsnprintf(
+		    buf, sizeof(buf), "%s/%s", path, CVS_PATH_ROOTSPEC);
 
 		if ((fp = fopen(buf, "w")) == NULL)
 			fatal("cvs_mkadmin: %s: %s", buf, strerror(errno));
@@ -555,8 +573,8 @@ cvs_mkadmin(const char *path, const char *root, const char *repo,
 
 	(void)xsnprintf(buf, sizeof(buf), "%s/%s", path, CVS_PATH_ENTRIES);
 
-	if ((fd = open(buf, O_WRONLY|O_CREAT|O_EXCL, 0666 & ~cvs_umask))
-	    == -1) {
+	if ((fd = open(buf, O_WRONLY | O_CREAT | O_EXCL, 0666 & ~cvs_umask)) ==
+	    -1) {
 		if (errno == EEXIST)
 			return;
 		fatal("cvs_mkadmin: %s: %s", buf, strerror(errno));
@@ -570,9 +588,9 @@ cvs_mkadmin(const char *path, const char *root, const char *repo,
 void
 cvs_mkpath(const char *path, char *tag)
 {
-	CVSENTRIES *ent;
-	FILE *fp;
-	size_t len;
+	CVSENTRIES	 *ent;
+	FILE		 *fp;
+	size_t		  len;
 	struct hash_data *hdata, hd;
 	char *entry, *sp, *dp, *dir, *p, rpath[PATH_MAX], repo[PATH_MAX];
 
@@ -643,8 +661,7 @@ cvs_mkpath(const char *path, char *tag)
 		if (cvs_cmdop == CVS_OP_EXPORT && !cvs_server_active)
 			continue;
 
-		cvs_mkadmin(rpath, current_cvsroot->cr_str, repo,
-		    tag, NULL);
+		cvs_mkadmin(rpath, current_cvsroot->cr_str, repo, tag, NULL);
 
 		if (dp != NULL) {
 			if ((p = strchr(dp, '/')) != NULL)
@@ -669,7 +686,7 @@ cvs_mkpath(const char *path, char *tag)
 void
 cvs_mkdir(const char *path, mode_t mode)
 {
-	char *dir, *cursor, *separator;
+	char	   *dir, *cursor, *separator;
 	struct stat st;
 
 	if (cvsroot_is_remote() || cvs_server_active == 1)
@@ -702,7 +719,8 @@ cvs_mkdir(const char *path, mode_t mode)
 			*separator = '\0';
 		if (mkdir(dir, mode) == -1) {
 			if (errno != EEXIST)
-				fatal("cvs_mkdir: %s: %s", dir, strerror(errno));
+				fatal(
+				    "cvs_mkdir: %s: %s", dir, strerror(errno));
 			if (lstat(dir, &st) == -1 || !S_ISDIR(st.st_mode))
 				fatal("cvs_mkdir: %s is not a directory", dir);
 		}
@@ -723,10 +741,10 @@ cvs_mkdir(const char *path, mode_t mode)
 struct rcs_lines *
 cvs_splitlines(u_char *data, size_t len)
 {
-	u_char *p, *c;
-	size_t i, tlen;
+	u_char		 *p, *c;
+	size_t		  i, tlen;
 	struct rcs_lines *lines;
-	struct rcs_line *lp;
+	struct rcs_line	 *lp;
 
 	lines = xcalloc(1, sizeof(*lines));
 	TAILQ_INIT(&(lines->l_lines));
@@ -776,8 +794,8 @@ struct cvs_argvector *
 cvs_strsplit(char *str, const char *sep)
 {
 	struct cvs_argvector *av;
-	size_t i = 0;
-	char *cp, *p;
+	size_t		      i = 0;
+	char		     *cp, *p;
 
 	cp = xstrdup(str);
 	av = xmalloc(sizeof(*av));
@@ -786,8 +804,7 @@ cvs_strsplit(char *str, const char *sep)
 
 	while ((p = strsep(&cp, sep)) != NULL) {
 		av->argv[i++] = p;
-		av->argv = xreallocarray(av->argv,
-		    i + 1, sizeof(*(av->argv)));
+		av->argv = xreallocarray(av->argv, i + 1, sizeof(*(av->argv)));
 	}
 	av->argv[i] = NULL;
 
@@ -810,12 +827,12 @@ cvs_argv_destroy(struct cvs_argvector *av)
 u_int
 cvs_revision_select(RCSFILE *file, char *range)
 {
-	int i;
-	u_int nrev;
-	char *lstr, *rstr;
-	struct rcs_delta *rdp;
+	int		      i;
+	u_int		      nrev;
+	char		     *lstr, *rstr;
+	struct rcs_delta     *rdp;
 	struct cvs_argvector *revargv, *revrange;
-	RCSNUM *lnum, *rnum;
+	RCSNUM		     *lnum, *rnum;
 
 	nrev = 0;
 	lnum = rnum = NULL;
@@ -845,11 +862,15 @@ cvs_revision_select(RCSFILE *file, char *range)
 			lstr = RCS_HEAD_INIT;
 
 		if ((lnum = rcs_translate_tag(lstr, file)) == NULL)
-			fatal("cvs_revision_select: could not translate tag `%s'", lstr);
+			fatal(
+			    "cvs_revision_select: could not translate tag `%s'",
+			    lstr);
 
 		if (rstr != NULL) {
 			if ((rnum = rcs_translate_tag(rstr, file)) == NULL)
-				fatal("cvs_revision_select: could not translate tag `%s'", rstr);
+				fatal("cvs_revision_select: could not "
+				      "translate tag `%s'",
+				    rstr);
 		} else {
 			rnum = rcsnum_alloc();
 			rcsnum_cpy(file->rf_head, rnum, 0);
@@ -857,7 +878,8 @@ cvs_revision_select(RCSFILE *file, char *range)
 
 		cvs_argv_destroy(revrange);
 
-		TAILQ_FOREACH(rdp, &(file->rf_delta), rd_list) {
+		TAILQ_FOREACH(rdp, &(file->rf_delta), rd_list)
+		{
 			if (rcsnum_cmp(rdp->rd_num, lnum, 0) <= 0 &&
 			    rcsnum_cmp(rdp->rd_num, rnum, 0) >= 0 &&
 			    !(rdp->rd_flags & RCS_RD_SELECT)) {
@@ -898,17 +920,17 @@ cvs_yesno(void)
  * cvs_exec()
  *
  * Execute <prog> and send <in> to the STDIN if not NULL.
- * If <needwait> == 1, return the result of <prog>, 
+ * If <needwait> == 1, return the result of <prog>,
  * else, 0 or -1 if an error occur.
  */
 int
 cvs_exec(char *prog, char *in, int needwait)
 {
 	pc_process child;
-	char **arguments;
-	char *oldroot;
-	int fds[2] = {-1, -1}, result, saved, root_changed = 0;
-	size_t size;
+	char	 **arguments;
+	char	  *oldroot;
+	int	   fds[2] = {-1, -1}, result, saved, root_changed = 0;
+	size_t	   size;
 
 	arguments = pc_command_argv(prog, NULL);
 	if (arguments == NULL)
@@ -920,8 +942,8 @@ cvs_exec(char *prog, char *in, int needwait)
 	root_changed = 1;
 	if (in != NULL && pc_pipe(fds) == -1)
 		goto fail;
-	result = pc_spawn(&child, (const char *const *)arguments,
-	    fds[0], -1, -1);
+	result =
+	    pc_spawn(&child, (const char *const *)arguments, fds[0], -1, -1);
 	saved = errno;
 	if (oldroot != NULL)
 		(void)setenv("CVSROOT", oldroot, 1);
@@ -955,8 +977,10 @@ fail:
 		else
 			(void)unsetenv("CVSROOT");
 	}
-	if (fds[0] != -1) (void)close(fds[0]);
-	if (fds[1] != -1) (void)close(fds[1]);
+	if (fds[0] != -1)
+		(void)close(fds[0]);
+	if (fds[1] != -1)
+		(void)close(fds[1]);
 	pc_free_argv(arguments);
 	free(oldroot);
 	errno = saved;

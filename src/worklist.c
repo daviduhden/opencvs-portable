@@ -53,7 +53,7 @@
 void
 worklist_add(const char *path, struct wklhead *worklist)
 {
-	size_t len;
+	size_t		 len;
 	struct worklist *wkl;
 
 	wkl = xcalloc(1, sizeof(*wkl));
@@ -75,14 +75,12 @@ worklist_run(struct wklhead *list, void (*cb)(struct worklist *))
 {
 	struct worklist *wkl;
 
-
 	worklist_clean(list, cb);
 
 	while ((wkl = SLIST_FIRST(list)) != NULL) {
 		SLIST_REMOVE_HEAD(list, wkl_list);
 		free(wkl);
 	}
-
 }
 
 /*
@@ -94,7 +92,7 @@ worklist_clean(struct wklhead *list, void (*cb)(struct worklist *))
 	struct worklist *wkl;
 
 	SLIST_FOREACH(wkl, list, wkl_list)
-	    cb(wkl);
+	cb(wkl);
 }
 
 void
@@ -107,12 +105,14 @@ void
 worklist_remove(const char *path, struct wklhead *list)
 {
 	struct worklist *entry, *previous = NULL;
-	SLIST_FOREACH(entry, list, wkl_list) {
+	SLIST_FOREACH(entry, list, wkl_list)
+	{
 		if (!strcmp(entry->wkl_path, path)) {
 			if (previous == NULL)
 				SLIST_REMOVE_HEAD(list, wkl_list);
 			else
-				SLIST_NEXT(previous, wkl_list) = SLIST_NEXT(entry, wkl_list);
+				SLIST_NEXT(previous, wkl_list) =
+				    SLIST_NEXT(entry, wkl_list);
 			free(entry);
 			return;
 		}

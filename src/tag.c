@@ -40,59 +40,50 @@
 #include "cvs.h"
 #include "remote.h"
 
-#define T_CHECK_UPTODATE	0x01
-#define T_DELETE		0x02
-#define T_FORCE_MOVE		0x04
-#define T_BRANCH		0x08
+#define T_CHECK_UPTODATE 0x01
+#define T_DELETE 0x02
+#define T_FORCE_MOVE 0x04
+#define T_BRANCH 0x08
 
-void	cvs_tag_check_files(struct cvs_file *);
-void	cvs_tag_local(struct cvs_file *);
+void cvs_tag_check_files(struct cvs_file *);
+void cvs_tag_local(struct cvs_file *);
 
 static int tag_del(struct cvs_file *);
 static int tag_add(struct cvs_file *);
 
-struct file_info_list	tag_files_info;
+struct file_info_list tag_files_info;
 
-static int	runflags = 0;
-static int	tag_errors = 0;
-static char	*tag = NULL;
-static char	*tag_date = NULL;
-static char	*tag_name = NULL;
-static char	*tag_oldname = NULL;
+static int   runflags = 0;
+static int   tag_errors = 0;
+static char *tag = NULL;
+static char *tag_date = NULL;
+static char *tag_name = NULL;
+static char *tag_oldname = NULL;
 
-struct cvs_cmd cvs_cmd_rtag = {
-	CVS_OP_RTAG, CVS_LOCK_REPO, "rtag",
-	{ "rt", "rfreeze" },
-	"Add a symbolic tag to a module",
-	"[-bcdFflR] [-D date | -r rev] symbolic_tag module ...",
-	"bcD:dFflRr:",
-	NULL,
-	cvs_tag
-};
+struct cvs_cmd cvs_cmd_rtag = {CVS_OP_RTAG, CVS_LOCK_REPO, "rtag",
+    {"rt", "rfreeze"}, "Add a symbolic tag to a module",
+    "[-bcdFflR] [-D date | -r rev] symbolic_tag module ...",
+    "bcD:dFflRr:", NULL, cvs_tag};
 
-struct cvs_cmd cvs_cmd_tag = {
-	CVS_OP_TAG, CVS_USE_WDIR | CVS_LOCK_REPO, "tag",
-	{ "ta", "freeze" },
-	"Add a symbolic tag to checked out version of files",
-	"[-bcdFflR] [-D date | -r rev] symbolic_tag [file ...]",
-	"bcD:dFflRr:",
-	NULL,
-	cvs_tag
-};
+struct cvs_cmd cvs_cmd_tag = {CVS_OP_TAG, CVS_USE_WDIR | CVS_LOCK_REPO, "tag",
+    {"ta", "freeze"}, "Add a symbolic tag to checked out version of files",
+    "[-bcdFflR] [-D date | -r rev] symbolic_tag [file ...]",
+    "bcD:dFflRr:", NULL, cvs_tag};
 
 int
 cvs_tag(int argc, char **argv)
 {
-	int ch, flags, i;
-	char repo[PATH_MAX];
-	char *arg = ".";
+	int		     ch, flags, i;
+	char		     repo[PATH_MAX];
+	char		    *arg = ".";
 	struct cvs_recursion cr;
 	struct trigger_list *line_list;
 
 	flags = CR_RECURSE_DIRS;
 
-	while ((ch = getopt(argc, argv, cvs_cmdop == CVS_OP_TAG ?
-	    cvs_cmd_tag.cmd_opts : cvs_cmd_rtag.cmd_opts)) != -1) {
+	while ((ch = getopt(argc, argv,
+		    cvs_cmdop == CVS_OP_TAG ? cvs_cmd_tag.cmd_opts :
+					      cvs_cmd_rtag.cmd_opts)) != -1) {
 		switch (ch) {
 		case 'b':
 			runflags |= T_BRANCH;
@@ -119,9 +110,10 @@ cvs_tag(int argc, char **argv)
 			tag_oldname = optarg;
 			break;
 		default:
-			fatal("%s", cvs_cmdop == CVS_OP_TAG ?
-			    cvs_cmd_tag.cmd_synopsis :
-			    cvs_cmd_rtag.cmd_synopsis);
+			fatal("%s",
+			    cvs_cmdop == CVS_OP_TAG ?
+				cvs_cmd_tag.cmd_synopsis :
+				cvs_cmd_rtag.cmd_synopsis);
 		}
 	}
 
@@ -149,8 +141,8 @@ cvs_tag(int argc, char **argv)
 	argv++;
 
 	if (!rcs_sym_check(tag_name)) {
-		fatal("tag `%s' must not contain the characters `%s'",
-		    tag_name, RCS_SYM_INVALCHAR);
+		fatal("tag `%s' must not contain the characters `%s'", tag_name,
+		    RCS_SYM_INVALCHAR);
 	}
 
 	if (tag_oldname != NULL) {
@@ -206,8 +198,8 @@ cvs_tag(int argc, char **argv)
 		cvs_client_send_request("Argument %s", tag_name);
 		cvs_client_send_files(argv, argc);
 		cvs_client_senddir(".");
-		cvs_client_send_request((cvs_cmdop == CVS_OP_RTAG) ?
-		    "rtag" : "tag");
+		cvs_client_send_request(
+		    (cvs_cmdop == CVS_OP_RTAG) ? "rtag" : "tag");
 		cvs_client_get_responses();
 
 		return (0);
@@ -233,7 +225,7 @@ cvs_tag(int argc, char **argv)
 
 	if (line_list != NULL) {
 		if (cvs_trigger_handle(CVS_TRIGGER_TAGINFO, repo, NULL,
-		    line_list, &tag_files_info))
+			line_list, &tag_files_info))
 			fatal("Pre-tag check failed");
 		cvs_trigger_freelist(line_list);
 	}
@@ -254,8 +246,8 @@ cvs_tag(int argc, char **argv)
 void
 cvs_tag_check_files(struct cvs_file *cf)
 {
-	RCSNUM *srev = NULL, *rev = NULL;
-	char rbuf[CVS_REV_BUFSZ];
+	RCSNUM		 *srev = NULL, *rev = NULL;
+	char		  rbuf[CVS_REV_BUFSZ];
 	struct file_info *fi;
 
 	cvs_log(LP_TRACE, "cvs_tag_check_files(%s)", cf->file_path);
@@ -270,8 +262,8 @@ cvs_tag_check_files(struct cvs_file *cf)
 		    cf->file_status != FILE_CHECKOUT &&
 		    cf->file_status != FILE_PATCH) {
 			tag_errors++;
-			cvs_log(LP_NOTICE,
-			    "%s is locally modified", cf->file_path);
+			cvs_log(
+			    LP_NOTICE, "%s is locally modified", cf->file_path);
 			return;
 		}
 	}
@@ -408,15 +400,17 @@ tag_del(struct cvs_file *cf)
 static int
 tag_add(struct cvs_file *cf)
 {
-	int ret;
-	char revbuf[CVS_REV_BUFSZ], trevbuf[CVS_REV_BUFSZ];
-	RCSNUM *srev, *trev;
+	int		ret;
+	char		revbuf[CVS_REV_BUFSZ], trevbuf[CVS_REV_BUFSZ];
+	RCSNUM	       *srev, *trev;
 	struct rcs_sym *sym;
 
 	if (cf->file_rcs == NULL) {
 		if (verbosity > 1)
-			cvs_log(LP_NOTICE, "cannot find revision "
-			    "control file for `%s'", cf->file_name);
+			cvs_log(LP_NOTICE,
+			    "cannot find revision "
+			    "control file for `%s'",
+			    cf->file_name);
 		return (-1);
 	}
 

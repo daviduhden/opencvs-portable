@@ -33,10 +33,10 @@
  */
 
 #include <sys/types.h>
-#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -50,15 +50,15 @@
 #include "remote.h"
 
 static void checkout_check_repository(int, char **);
-static int checkout_classify(const char *, const char *);
+static int  checkout_classify(const char *, const char *);
 static void checkout_repository(const char *, const char *);
 
 extern int print_stdout;
 extern int prune_dirs;
 extern int build_dirs;
 
-static int flags = CR_REPO | CR_RECURSE_DIRS;
-static int Aflag = 0;
+static int   flags = CR_REPO | CR_RECURSE_DIRS;
+static int   Aflag = 0;
 static char *dflag = NULL;
 static char *koptstr = NULL;
 static char *dateflag = NULL;
@@ -67,7 +67,8 @@ static int nflag = 0;
 
 char *checkout_target_dir = NULL;
 
-/* Active only while traversing one export module; no CVS metadata is created. */
+/* Active only while traversing one export module; no CVS metadata is created.
+ */
 static char export_repository[PATH_MAX];
 static char export_directory[PATH_MAX];
 
@@ -79,9 +80,9 @@ export_set_base(const char *repository, const char *directory, int single_file)
 	if (cvs_cmdop != CVS_OP_EXPORT)
 		return;
 	if (strlcpy(export_repository, repository, sizeof(export_repository)) >=
-	    sizeof(export_repository) ||
+		sizeof(export_repository) ||
 	    strlcpy(export_directory, directory, sizeof(export_directory)) >=
-	    sizeof(export_directory))
+		sizeof(export_directory))
 		fatal("export: module mapping is too long");
 	pc_strip_slash(export_repository);
 	pc_strip_slash(export_directory);
@@ -90,7 +91,8 @@ export_set_base(const char *repository, const char *directory, int single_file)
 		if (slash == NULL)
 			fatal("export: invalid source file mapping");
 		if (slash == export_repository ||
-		    (slash == export_repository + 2 && export_repository[1] == ':'))
+		    (slash == export_repository + 2 &&
+			export_repository[1] == ':'))
 			slash[1] = '\0';
 		else
 			*slash = '\0';
@@ -100,14 +102,15 @@ export_set_base(const char *repository, const char *directory, int single_file)
 int
 cvs_export_repository_name(const char *directory, char *dst, size_t size)
 {
-	char path[PATH_MAX], root[PATH_MAX];
+	char	    path[PATH_MAX], root[PATH_MAX];
 	const char *suffix, *relative, *base;
-	size_t length;
+	size_t	    length;
 
 	if (export_repository[0] == '\0')
 		return 0;
 	if (strlcpy(path, directory, sizeof(path)) >= sizeof(path) ||
-	    strlcpy(root, current_cvsroot->cr_dir, sizeof(root)) >= sizeof(root))
+	    strlcpy(root, current_cvsroot->cr_dir, sizeof(root)) >=
+		sizeof(root))
 		fatal("export: directory mapping is too long");
 	pc_strip_slash(path);
 	pc_strip_slash(root);
@@ -124,14 +127,16 @@ cvs_export_repository_name(const char *directory, char *dst, size_t size)
 	else if (!strncmp(path, base, length) && path[length] == '/')
 		suffix = path + length + 1;
 	else
-		fatal("export: working directory is outside the selected module");
+		fatal(
+		    "export: working directory is outside the selected module");
 	length = strlen(root);
 	if (length == 0)
 		fatal("export: empty repository root");
 	if (strncmp(export_repository, root, length) != 0 ||
 	    (root[length - 1] != '/' && export_repository[length] != '/' &&
-	    export_repository[length] != '\0'))
-		fatal("export: source directory is outside the selected repository");
+		export_repository[length] != '\0'))
+		fatal("export: source directory is outside the selected "
+		      "repository");
 	relative = export_repository + length;
 	if (*relative == '/')
 		relative++;
@@ -142,28 +147,18 @@ cvs_export_repository_name(const char *directory, char *dst, size_t size)
 
 time_t cvs_specified_date = -1;
 time_t cvs_directory_date = -1;
-int disable_fast_checkout = 0;
+int    disable_fast_checkout = 0;
 
-struct cvs_cmd cvs_cmd_checkout = {
-	CVS_OP_CHECKOUT, CVS_USE_WDIR, "checkout",
-	{ "co", "get" },
-	"Checkout a working copy of a repository",
-	"[-AcflNnPpRs] [-D date | -r tag] [-d dir] [-j rev] [-k mode] "
-	"[-t id] module ...",
-	"AcD:d:fj:k:lNnPpRr:st:",
-	NULL,
-	cvs_checkout
-};
+struct cvs_cmd cvs_cmd_checkout = {CVS_OP_CHECKOUT, CVS_USE_WDIR, "checkout",
+    {"co", "get"}, "Checkout a working copy of a repository",
+    "[-AcflNnPpRs] [-D date | -r tag] [-d dir] [-j rev] [-k mode] "
+    "[-t id] module ...",
+    "AcD:d:fj:k:lNnPpRr:st:", NULL, cvs_checkout};
 
-struct cvs_cmd cvs_cmd_export = {
-	CVS_OP_EXPORT, CVS_USE_WDIR, "export",
-	{ "exp", "ex" },
-	"Export sources from CVS, similar to checkout",
-	"[-flNnR] [-d dir] [-k mode] -D date | -r rev module ...",
-	"D:d:k:flNnRr:",
-	NULL,
-	cvs_export
-};
+struct cvs_cmd cvs_cmd_export = {CVS_OP_EXPORT, CVS_USE_WDIR, "export",
+    {"exp", "ex"}, "Export sources from CVS, similar to checkout",
+    "[-flNnR] [-d dir] [-k mode] -D date | -r rev module ...",
+    "D:d:k:flNnRr:", NULL, cvs_export};
 
 int
 cvs_checkout(int argc, char **argv)
@@ -323,12 +318,12 @@ cvs_export(int argc, char **argv)
 static void
 checkout_check_repository(int argc, char **argv)
 {
-	int i;
-	char *wdir, *d;
-	struct cvs_recursion cr;
+	int			i;
+	char		       *wdir, *d;
+	struct cvs_recursion	cr;
 	struct module_checkout *mc;
-	struct cvs_ignpat *ip;
-	struct cvs_filelist *fl, *nxt;
+	struct cvs_ignpat      *ip;
+	struct cvs_filelist    *fl, *nxt;
 	char repo[PATH_MAX], fpath[PATH_MAX], path[PATH_MAX], *f[1];
 
 	build_dirs = print_stdout ? 0 : 1;
@@ -337,8 +332,8 @@ checkout_check_repository(int argc, char **argv)
 		cvs_client_connect_to_server();
 
 		if (cvs_specified_tag != NULL)
-			cvs_client_send_request("Argument -r%s",
-			    cvs_specified_tag);
+			cvs_client_send_request(
+			    "Argument -r%s", cvs_specified_tag);
 		if (Aflag)
 			cvs_client_send_request("Argument -A");
 
@@ -379,8 +374,8 @@ checkout_check_repository(int argc, char **argv)
 		cvs_client_send_files(argv, argc);
 		cvs_client_senddir(".");
 
-		cvs_client_send_request("%s",
-		    (cvs_cmdop == CVS_OP_CHECKOUT) ? "co" : "export");
+		cvs_client_send_request(
+		    "%s", (cvs_cmdop == CVS_OP_CHECKOUT) ? "co" : "export");
 
 		cvs_client_get_responses();
 
@@ -392,9 +387,10 @@ checkout_check_repository(int argc, char **argv)
 		current_module = mc;
 
 		RB_FOREACH(fl, cvs_flisthead, &(mc->mc_ignores))
-			cvs_file_ignore(fl->file_path, &checkout_ign_pats);
+		cvs_file_ignore(fl->file_path, &checkout_ign_pats);
 
-		RB_FOREACH(fl, cvs_flisthead, &(mc->mc_modules)) {
+		RB_FOREACH(fl, cvs_flisthead, &(mc->mc_modules))
+		{
 			module_repo_root = NULL;
 
 			(void)xsnprintf(repo, sizeof(repo), "%s/%s",
@@ -419,25 +415,26 @@ checkout_check_repository(int argc, char **argv)
 				cr.flags = flags;
 
 				if (!(mc->mc_flags & MODULE_ALIAS) ||
-				    (cvs_cmdop == CVS_OP_EXPORT && dflag != NULL)) {
+				    (cvs_cmdop == CVS_OP_EXPORT &&
+					dflag != NULL)) {
 					if (strlcpy(path, fl->file_path,
-					    sizeof(path)) >= sizeof(path))
-						fatal("%s: truncation",
-						    __func__);
+						sizeof(path)) >= sizeof(path))
+						fatal(
+						    "%s: truncation", __func__);
 					module_repo_root =
 					    xstrdup(dirname(path));
 					d = wdir;
 					if (strlcpy(path, fl->file_path,
-					    sizeof(path)) >= sizeof(path))
-						fatal("%s: truncation",
-						    __func__);
+						sizeof(path)) >= sizeof(path))
+						fatal(
+						    "%s: truncation", __func__);
 					(void)xsnprintf(fpath, sizeof(fpath),
 					    "%s/%s", d, basename(path));
 				} else {
-					if (strlcpy(path, wdir,
-					    sizeof(path)) >= sizeof(path))
-						fatal("%s: truncation",
-						    __func__);
+					if (strlcpy(path, wdir, sizeof(path)) >=
+					    sizeof(path))
+						fatal(
+						    "%s: truncation", __func__);
 					d = dirname(path);
 					strlcpy(fpath, fl->file_path,
 					    sizeof(fpath));
@@ -470,10 +467,9 @@ checkout_check_repository(int argc, char **argv)
 		if (mc->mc_canfree == 1) {
 			for (fl = RB_MIN(cvs_flisthead, &(mc->mc_modules));
 			    fl != NULL; fl = nxt) {
-				nxt = RB_NEXT(cvs_flisthead,
-				    &(mc->mc_modules), fl);
-				RB_REMOVE(cvs_flisthead,
-				    &(mc->mc_modules), fl);
+				nxt = RB_NEXT(
+				    cvs_flisthead, &(mc->mc_modules), fl);
+				RB_REMOVE(cvs_flisthead, &(mc->mc_modules), fl);
 				free(fl->file_path);
 				free(fl);
 			}
@@ -491,7 +487,7 @@ checkout_check_repository(int argc, char **argv)
 static int
 checkout_classify(const char *repo, const char *arg)
 {
-	char *d, dbuf[PATH_MAX], *f, fbuf[PATH_MAX], fpath[PATH_MAX];
+	char	   *d, dbuf[PATH_MAX], *f, fbuf[PATH_MAX], fpath[PATH_MAX];
 	struct stat sb;
 
 	if (stat(repo, &sb) == 0) {
@@ -516,8 +512,8 @@ checkout_classify(const char *repo, const char *arg)
 		return CVS_FILE;
 	}
 
-	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s/%s%s",
-	    d, CVS_PATH_ATTIC, f, RCS_FILE_EXT);
+	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s/%s%s", d, CVS_PATH_ATTIC,
+	    f, RCS_FILE_EXT);
 	if (stat(fpath, &sb) == 0) {
 		if (!S_ISREG(sb.st_mode)) {
 			cvs_log(LP_ERR, "ignoring %s: not a regular file", arg);
@@ -541,8 +537,9 @@ checkout_repository(const char *repobase, const char *wdbase)
 	RB_INIT(&fl);
 	RB_INIT(&dl);
 
-	cvs_history_add((cvs_cmdop == CVS_OP_CHECKOUT) ?
-	    CVS_HISTORY_CHECKOUT : CVS_HISTORY_EXPORT, NULL, wdbase);
+	cvs_history_add((cvs_cmdop == CVS_OP_CHECKOUT) ? CVS_HISTORY_CHECKOUT :
+							 CVS_HISTORY_EXPORT,
+	    NULL, wdbase);
 
 	if (print_stdout) {
 		cr.enterdir = NULL;
@@ -578,17 +575,17 @@ checkout_repository(const char *repobase, const char *wdbase)
 void
 cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 {
-	BUF *bp;
-	mode_t mode;
-	int cf_kflag, exists, oldfd = -1;
-	time_t rcstime;
-	CVSENTRIES *ent;
+	BUF	      *bp;
+	mode_t	       mode;
+	int	       cf_kflag, exists, oldfd = -1;
+	time_t	       rcstime;
+	CVSENTRIES    *ent;
 	struct timeval tv[2];
-	struct tm datetm;
-	char *entry, *tosend, *temporary = NULL;
-	char kbuf[8], sticky[CVS_REV_BUFSZ], rev[CVS_REV_BUFSZ];
-	char timebuf[CVS_TIME_BUFSZ], tbuf[CVS_TIME_BUFSZ];
-	static char lastwd[PATH_MAX];
+	struct tm      datetm;
+	char	      *entry, *tosend, *temporary = NULL;
+	char	       kbuf[8], sticky[CVS_REV_BUFSZ], rev[CVS_REV_BUFSZ];
+	char	       timebuf[CVS_TIME_BUFSZ], tbuf[CVS_TIME_BUFSZ];
+	static char    lastwd[PATH_MAX];
 
 	exists = 0;
 	tosend = NULL;
@@ -598,9 +595,8 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 	else
 		rev[0] = '\0';
 
-	cvs_log(LP_TRACE, "cvs_checkout_file(%s, %s, %d) -> %s",
-	    cf->file_path, rev, co_flags,
-	    (cvs_server_active) ? "to client" : "to disk");
+	cvs_log(LP_TRACE, "cvs_checkout_file(%s, %s, %d) -> %s", cf->file_path,
+	    rev, co_flags, (cvs_server_active) ? "to client" : "to disk");
 
 	if (co_flags & CO_DUMP) {
 		rcs_rev_write_fd(cf->file_rcs, rnum, STDOUT_FILENO, 0);
@@ -614,7 +610,8 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 			oldfd = cf->fd;
 			xasprintf(&temporary, "%s.XXXXXXXX", cf->file_path);
 			if ((cf->fd = mkstemp(temporary)) == -1)
-				fatal("cvs_checkout_file: create temporary: %s", strerror(errno));
+				fatal("cvs_checkout_file: create temporary: %s",
+				    strerror(errno));
 			worklist_add(temporary, &temp_files);
 
 			rcs_rev_write_fd(cf->file_rcs, rnum, cf->fd, 0);
@@ -639,8 +636,8 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 		tv[0].tv_usec = 0;
 		tv[1] = tv[0];
 		if (futimes(cf->fd, tv) == -1)
-			fatal("cvs_checkout_file: futimes: %s",
-			    strerror(errno));
+			fatal(
+			    "cvs_checkout_file: futimes: %s", strerror(errno));
 		if (temporary != NULL) {
 			if (fsync(cf->fd) == -1)
 				fatal("checkout: sync: %s", strerror(errno));
@@ -649,7 +646,8 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 			worklist_remove(temporary, &temp_files);
 			free(temporary);
 			if (oldfd >= 0 && close(oldfd) == -1)
-				fatal("checkout: close original: %s", strerror(errno));
+				fatal("checkout: close original: %s",
+				    strerror(errno));
 		}
 
 	} else {
@@ -661,8 +659,8 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 	tbuf[strcspn(tbuf, "\n")] = '\0';
 
 	if (co_flags & CO_MERGE) {
-		(void)xsnprintf(timebuf, sizeof(timebuf), "Result of merge+%s",
-		    tbuf);
+		(void)xsnprintf(
+		    timebuf, sizeof(timebuf), "Result of merge+%s", tbuf);
 	} else {
 		strlcpy(timebuf, tbuf, sizeof(timebuf));
 	}
@@ -674,17 +672,17 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 			(void)xsnprintf(sticky, sizeof(sticky), "T%s", tag);
 		else if (cvs_specified_date != -1) {
 			gmtime_r(&cvs_specified_date, &datetm);
-			(void)strftime(sticky, sizeof(sticky),
-			    "D"CVS_DATE_FMT, &datetm);
+			(void)strftime(
+			    sticky, sizeof(sticky), "D" CVS_DATE_FMT, &datetm);
 		} else if (cvs_directory_date != -1) {
 			gmtime_r(&cvs_directory_date, &datetm);
-			(void)strftime(sticky, sizeof(sticky),
-			    "D"CVS_DATE_FMT, &datetm);
+			(void)strftime(
+			    sticky, sizeof(sticky), "D" CVS_DATE_FMT, &datetm);
 		} else
 			(void)xsnprintf(sticky, sizeof(sticky), "T%s", rev);
 	else if (cf->file_ent != NULL && cf->file_ent->ce_tag != NULL)
-		(void)xsnprintf(sticky, sizeof(sticky), "T%s",
-		    cf->file_ent->ce_tag);
+		(void)xsnprintf(
+		    sticky, sizeof(sticky), "T%s", cf->file_ent->ce_tag);
 	else
 		sticky[0] = '\0';
 
@@ -692,16 +690,16 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 	if (cf->file_rcs != NULL && cf->file_rcs->rf_expand != NULL) {
 		cf_kflag = rcs_kflag_get(cf->file_rcs->rf_expand);
 		if (kflag || cf_kflag != RCS_KWEXP_DEFAULT)
-			(void)xsnprintf(kbuf, sizeof(kbuf),
-			    "-k%s", cf->file_rcs->rf_expand);
+			(void)xsnprintf(kbuf, sizeof(kbuf), "-k%s",
+			    cf->file_rcs->rf_expand);
 	} else if (!reset_option && cf->file_ent != NULL) {
 		if (cf->file_ent->ce_opts != NULL)
 			strlcpy(kbuf, cf->file_ent->ce_opts, sizeof(kbuf));
 	}
 
 	entry = xmalloc(CVS_ENT_MAXLINELEN);
-	cvs_ent_line_str(cf->file_name, rev, timebuf, kbuf, sticky, 0, 0,
-	    entry, CVS_ENT_MAXLINELEN);
+	cvs_ent_line_str(cf->file_name, rev, timebuf, kbuf, sticky, 0, 0, entry,
+	    CVS_ENT_MAXLINELEN);
 
 	if (cvs_server_active == 0) {
 		if (!(co_flags & CO_REMOVE) && cvs_cmdop != CVS_OP_EXPORT) {
@@ -744,8 +742,8 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 				mode = cf->file_rcs->rf_mode;
 				mode |= S_IWUSR;
 				bp = rcs_rev_getbuf(cf->file_rcs, rnum, 0);
-				cvs_remote_send_file_buf(cf->file_path,
-				    bp, mode);
+				cvs_remote_send_file_buf(
+				    cf->file_path, bp, mode);
 			} else {
 				cvs_remote_send_file(tosend, cf->fd);
 			}

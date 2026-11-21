@@ -33,8 +33,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/queue.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -49,19 +49,19 @@
 #include "config.h"
 #include "cvs.h"
 
-static int	 expand_args(BUF *, struct file_info_list *, const char *,
-    const char *, char *);
-static int	 expand_var(BUF *, const char *);
-static char	*parse_cmd(int, char *, const char *, struct file_info_list *);
+static int expand_args(
+    BUF *, struct file_info_list *, const char *, const char *, char *);
+static int   expand_var(BUF *, const char *);
+static char *parse_cmd(int, char *, const char *, struct file_info_list *);
 
 static int
 expand_args(BUF *buf, struct file_info_list *file_info, const char *repo,
     const char *allowed_args, char *format)
 {
-	int oldstyle, quote;
+	int		  oldstyle, quote;
 	struct file_info *fi = NULL;
-	char *p, valbuf[2] = { '\0', '\0' };
-	const char *val;
+	char		 *p, valbuf[2] = {'\0', '\0'};
+	const char	 *val;
 
 	if (file_info != NULL && !TAILQ_EMPTY(file_info))
 		fi = TAILQ_FIRST(file_info);
@@ -151,8 +151,8 @@ expand_args(BUF *buf, struct file_info_list *file_info, const char *repo,
 			case 'V':
 				if (fi != NULL) {
 					if (fi->crevstr != NULL &&
-					    !strcmp(fi->crevstr,
-					    "Non-existent"))
+					    !strcmp(
+						fi->crevstr, "Non-existent"))
 						val = "NONE";
 					else
 						val = fi->crevstr;
@@ -183,8 +183,9 @@ expand_args(BUF *buf, struct file_info_list *file_info, const char *repo,
 		if (fi == NULL)
 			break;
 
-		if (strlen(format) == 1 && (*format == '%' || *format == 'o' ||
-		    *format == 'p' || *format == 'r' || *format == 't'))
+		if (strlen(format) == 1 &&
+		    (*format == '%' || *format == 'o' || *format == 'p' ||
+			*format == 'r' || *format == 't'))
 			break;
 
 		buf_putc(buf, ' ');
@@ -200,7 +201,7 @@ static int
 expand_var(BUF *buf, const char *var)
 {
 	struct passwd *pw;
-	const char *val;
+	const char    *val;
 
 	if (*var == '=') {
 		if ((val = cvs_var_get(++var)) == NULL) {
@@ -210,21 +211,22 @@ expand_var(BUF *buf, const char *var)
 		buf_puts(buf, val);
 	} else {
 		if (strcmp(var, "CVSEDITOR") == 0 ||
-		    strcmp(var, "EDITOR") == 0 ||
-		    strcmp(var, "VISUAL") == 0)
+		    strcmp(var, "EDITOR") == 0 || strcmp(var, "VISUAL") == 0)
 			buf_puts(buf, cvs_editor);
 		else if (strcmp(var, "CVSROOT") == 0)
 			buf_puts(buf, current_cvsroot->cr_dir);
 		else if (strcmp(var, "USER") == 0) {
 			pw = getpwuid(geteuid());
 			if (pw == NULL) {
-				cvs_log(LP_ERR, "unable to retrieve "
+				cvs_log(LP_ERR,
+				    "unable to retrieve "
 				    "caller ID");
 				return (1);
 			}
 			buf_puts(buf, pw->pw_name);
 		} else if (strcmp(var, "RCSBIN") == 0) {
-			cvs_log(LP_ERR, "RCSBIN internal variable is no "
+			cvs_log(LP_ERR,
+			    "RCSBIN internal variable is no "
 			    "longer supported");
 			return (1);
 		} else {
@@ -237,14 +239,14 @@ expand_var(BUF *buf, const char *var)
 }
 
 static char *
-parse_cmd(int type, char *cmd, const char *repo,
-    struct file_info_list *file_info)
+parse_cmd(
+    int type, char *cmd, const char *repo, struct file_info_list *file_info)
 {
-	int expanded = 0;
-	char argbuf[2] = { '\0', '\0' };
-	char *allowed_args, *default_args, *args, *file, *p, *q = NULL;
+	int    expanded = 0;
+	char   argbuf[2] = {'\0', '\0'};
+	char  *allowed_args, *default_args, *args, *file, *p, *q = NULL;
 	size_t pos;
-	BUF *buf;
+	BUF   *buf;
 
 	switch (type) {
 	case CVS_TRIGGER_COMMITINFO:
@@ -272,8 +274,8 @@ parse_cmd(int type, char *cmd, const char *repo,
 	}
 
 	/* before doing any stuff, check if the command starts with % */
-	for (p = cmd;
-	     *p != '%' && !isspace((unsigned char)*p) && *p != '\0'; p++)
+	for (p = cmd; *p != '%' && !isspace((unsigned char)*p) && *p != '\0';
+	    p++)
 		;
 	if (*p == '%')
 		return (NULL);
@@ -332,9 +334,9 @@ again:
 				args = argbuf;
 				break;
 			}
-	
-			if (expand_args(buf, file_info, repo, allowed_args,
-			    args))
+
+			if (expand_args(
+				buf, file_info, repo, allowed_args, args))
 				goto bad;
 			expanded = 1;
 		}
@@ -362,14 +364,15 @@ int
 cvs_trigger_handle(int type, char *repo, char *in, struct trigger_list *list,
     struct file_info_list *files)
 {
-	int r;
-	char *cmd;
+	int		     r;
+	char		    *cmd;
 	struct trigger_line *line;
 
-	TAILQ_FOREACH(line, list, flist) {
+	TAILQ_FOREACH(line, list, flist)
+	{
 		if ((cmd = parse_cmd(type, line->line, repo, files)) == NULL)
 			return (1);
-		switch(type) {
+		switch (type) {
 		case CVS_TRIGGER_COMMITINFO:
 		case CVS_TRIGGER_TAGINFO:
 		case CVS_TRIGGER_VERIFYMSG:
@@ -389,15 +392,15 @@ cvs_trigger_handle(int type, char *repo, char *in, struct trigger_list *list,
 }
 
 struct trigger_list *
-cvs_trigger_getlines(char * file, char * repo)
+cvs_trigger_getlines(char *file, char *repo)
 {
-	FILE *fp;
-	int allow_all, lineno, match = 0;
-	size_t len;
-	regex_t preg;
+	FILE		    *fp;
+	int		     allow_all, lineno, match = 0;
+	size_t		     len;
+	regex_t		     preg;
 	struct trigger_list *list;
 	struct trigger_line *tline;
-	char fpath[PATH_MAX];
+	char		     fpath[PATH_MAX];
 	char *currentline, *defaultline = NULL, *nline, *p, *q, *regex;
 
 	if (strcmp(file, CVS_PATH_EDITINFO) == 0 ||
@@ -406,8 +409,8 @@ cvs_trigger_getlines(char * file, char * repo)
 	else
 		allow_all = 1;
 
-	(void)xsnprintf(fpath, PATH_MAX, "%s/%s", current_cvsroot->cr_dir,
-	    file);
+	(void)xsnprintf(
+	    fpath, PATH_MAX, "%s/%s", current_cvsroot->cr_dir, file);
 
 	if ((fp = fopen(fpath, "r")) == NULL) {
 		if (errno != ENOENT)
@@ -417,7 +420,7 @@ cvs_trigger_getlines(char * file, char * repo)
 
 	list = xmalloc(sizeof(*list));
 	TAILQ_INIT(list);
-	
+
 	lineno = 0;
 	nline = NULL;
 	while ((currentline = pc_metadata_getln(fp, &len)) != NULL) {
@@ -461,7 +464,7 @@ cvs_trigger_getlines(char * file, char * repo)
 		    strcmp(regex, "DEFAULT") == 0) {
 			defaultline = xstrdup(q);
 		} else if (!match) {
-			if (regcomp(&preg, regex, REG_NOSUB|REG_EXTENDED))
+			if (regcomp(&preg, regex, REG_NOSUB | REG_EXTENDED))
 				goto bad;
 
 			if (regexec(&preg, repo, 0, NULL, 0) != REG_NOMATCH) {
@@ -487,7 +490,7 @@ cvs_trigger_getlines(char * file, char * repo)
 	}
 
 	(void)fclose(fp);
-	
+
 	if (TAILQ_EMPTY(list)) {
 		free(list);
 		list = NULL;
@@ -501,12 +504,12 @@ bad:
 	cvs_trigger_freelist(list);
 
 	(void)fclose(fp);
-	
+
 	return (NULL);
 }
 
 void
-cvs_trigger_freelist(struct trigger_list * list)
+cvs_trigger_freelist(struct trigger_list *list)
 {
 	struct trigger_line *line;
 
@@ -520,9 +523,9 @@ cvs_trigger_freelist(struct trigger_list * list)
 }
 
 void
-cvs_trigger_freeinfo(struct file_info_list * list)
+cvs_trigger_freeinfo(struct file_info_list *list)
 {
-	struct file_info * fi;
+	struct file_info *fi;
 
 	while ((fi = TAILQ_FIRST(list)) != NULL) {
 		TAILQ_REMOVE(list, fi, flist);
@@ -541,7 +544,7 @@ void
 cvs_trigger_loginfo_header(BUF *buf, char *repo)
 {
 	char *dir, pwd[PATH_MAX];
-	char hostname[HOST_NAME_MAX+1];
+	char  hostname[HOST_NAME_MAX + 1];
 
 	if (gethostname(hostname, sizeof(hostname)) == -1) {
 		fatal("cvs_trigger_loginfo_header: gethostname failed %s",
@@ -550,7 +553,7 @@ cvs_trigger_loginfo_header(BUF *buf, char *repo)
 
 	if (getcwd(pwd, sizeof(pwd)) == NULL)
 		fatal("cvs_trigger_loginfo_header: Cannot get working "
-		    "directory");
+		      "directory");
 
 	if ((dir = dirname(pwd)) == NULL) {
 		fatal("cvs_trigger_loginfo_header: dirname failed %s",
@@ -572,4 +575,3 @@ cvs_trigger_loginfo_header(BUF *buf, char *repo)
 	buf_putc(buf, '\n');
 	buf_putc(buf, '\n');
 }
-

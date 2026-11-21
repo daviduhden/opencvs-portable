@@ -47,49 +47,39 @@
 #include "diff.h"
 #include "remote.h"
 
-void	cvs_diff_local(struct cvs_file *);
+void cvs_diff_local(struct cvs_file *);
 
-static int	 dflags = 0;
-static int diff_exit_status;
-static int	 Nflag = 0;
-static int	 force_head = 0;
-static char	*koptstr;
-static char	*rev1 = NULL;
-static char	*rev2 = NULL;
-static time_t	 date1 = -1;
-static time_t	 date2 = -1;
-static char	*dateflag1 = NULL;
-static char	*dateflag2 = NULL;
+static int    dflags = 0;
+static int    diff_exit_status;
+static int    Nflag = 0;
+static int    force_head = 0;
+static char  *koptstr;
+static char  *rev1 = NULL;
+static char  *rev2 = NULL;
+static time_t date1 = -1;
+static time_t date2 = -1;
+static char  *dateflag1 = NULL;
+static char  *dateflag2 = NULL;
 
-struct cvs_cmd cvs_cmd_diff = {
-	CVS_OP_DIFF, CVS_USE_WDIR, "diff",
-	{ "di", "dif" },
-	"Show differences between revisions",
-	"[-abcdilNnpRuw] [[-D date] [-r rev] [-D date2 | -r rev2]] "
-	"[-k mode] [file ...]",
-	"abcfC:dD:ik:lNnpr:RuU:w",
-	NULL,
-	cvs_diff
-};
+struct cvs_cmd cvs_cmd_diff = {CVS_OP_DIFF, CVS_USE_WDIR, "diff", {"di", "dif"},
+    "Show differences between revisions",
+    "[-abcdilNnpRuw] [[-D date] [-r rev] [-D date2 | -r rev2]] "
+    "[-k mode] [file ...]",
+    "abcfC:dD:ik:lNnpr:RuU:w", NULL, cvs_diff};
 
-struct cvs_cmd cvs_cmd_rdiff = {
-	CVS_OP_RDIFF, 0, "rdiff",
-	{ "patch", "pa" },
-	"Show differences between revisions",
-	"[-flR] [-c | -u] [-s | -t] [-V ver] -D date | -r rev\n"
-	"[-D date2 | -r rev2] [-k mode] module ...",
-	"cfD:k:lr:RuV:",
-	NULL,
-	cvs_diff
-};
+struct cvs_cmd cvs_cmd_rdiff = {CVS_OP_RDIFF, 0, "rdiff", {"patch", "pa"},
+    "Show differences between revisions",
+    "[-flR] [-c | -u] [-s | -t] [-V ver] -D date | -r rev\n"
+    "[-D date2 | -r rev2] [-k mode] module ...",
+    "cfD:k:lr:RuV:", NULL, cvs_diff};
 
 int
 cvs_diff(int argc, char **argv)
 {
-	int ch, flags;
-	long long context;
-	char *arg = ".";
-	const char *errstr;
+	int		     ch, flags;
+	long long	     context;
+	char		    *arg = ".";
+	const char	    *errstr;
 	struct cvs_recursion cr;
 
 	diff_exit_status = 0;
@@ -97,8 +87,9 @@ cvs_diff(int argc, char **argv)
 	strlcpy(diffargs, cvs_cmdop == CVS_OP_DIFF ? "diff" : "rdiff",
 	    sizeof(diffargs));
 
-	while ((ch = getopt(argc, argv, cvs_cmdop == CVS_OP_DIFF ?
-	    cvs_cmd_diff.cmd_opts : cvs_cmd_rdiff.cmd_opts)) != -1) {
+	while ((ch = getopt(argc, argv,
+		    cvs_cmdop == CVS_OP_DIFF ? cvs_cmd_diff.cmd_opts :
+					       cvs_cmd_rdiff.cmd_opts)) != -1) {
 		switch (ch) {
 		case 'a':
 			strlcat(diffargs, " -a", sizeof(diffargs));
@@ -116,7 +107,8 @@ cvs_diff(int argc, char **argv)
 			context = strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr != NULL)
 				fatal("context lines %s: %s", errstr, optarg);
-			/* A successful parse is representable by the int context field. */
+			/* A successful parse is representable by the int
+			 * context field. */
 			diff_context = (int)context;
 			strlcat(diffargs, " -C ", sizeof(diffargs));
 			strlcat(diffargs, optarg, sizeof(diffargs));
@@ -137,7 +129,7 @@ cvs_diff(int argc, char **argv)
 				dateflag2 = optarg;
 			} else {
 				fatal("no more than 2 revisions/dates can"
-				    " be specified");
+				      " be specified");
 			}
 			break;
 		case 'f':
@@ -153,9 +145,10 @@ cvs_diff(int argc, char **argv)
 			if (RCS_KWEXP_INVAL(kflag)) {
 				cvs_log(LP_ERR,
 				    "invalid RCS keyword expansion mode");
-				fatal("%s", cvs_cmdop == CVS_OP_DIFF ?
-				    cvs_cmd_diff.cmd_synopsis :
-				    cvs_cmd_rdiff.cmd_synopsis);
+				fatal("%s",
+				    cvs_cmdop == CVS_OP_DIFF ?
+					cvs_cmd_diff.cmd_synopsis :
+					cvs_cmd_rdiff.cmd_synopsis);
 			}
 			break;
 		case 'l':
@@ -183,7 +176,7 @@ cvs_diff(int argc, char **argv)
 				rev2 = optarg;
 			} else {
 				fatal("no more than 2 revisions/dates can"
-				    " be specified");
+				      " be specified");
 			}
 			break;
 		case 't':
@@ -198,7 +191,8 @@ cvs_diff(int argc, char **argv)
 			context = strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr != NULL)
 				fatal("context lines %s: %s", errstr, optarg);
-			/* A successful parse is representable by the int context field. */
+			/* A successful parse is representable by the int
+			 * context field. */
 			diff_context = (int)context;
 			strlcat(diffargs, " -U ", sizeof(diffargs));
 			strlcat(diffargs, optarg, sizeof(diffargs));
@@ -206,15 +200,16 @@ cvs_diff(int argc, char **argv)
 			break;
 		case 'V':
 			fatal("the -V option is obsolete "
-			    "and should not be used");
+			      "and should not be used");
 		case 'w':
 			strlcat(diffargs, " -w", sizeof(diffargs));
 			dflags |= D_IGNOREBLANKS;
 			break;
 		default:
-			fatal("%s", cvs_cmdop == CVS_OP_DIFF ?
-			    cvs_cmd_diff.cmd_synopsis :
-			    cvs_cmd_rdiff.cmd_synopsis);
+			fatal("%s",
+			    cvs_cmdop == CVS_OP_DIFF ?
+				cvs_cmd_diff.cmd_synopsis :
+				cvs_cmd_rdiff.cmd_synopsis);
 		}
 	}
 
@@ -255,8 +250,8 @@ cvs_diff(int argc, char **argv)
 			if (cvs_cmdop == CVS_OP_RDIFF)
 				cvs_client_send_request("Argument -c");
 			else {
-				cvs_client_send_request("Argument -C %d",
-				    diff_context);
+				cvs_client_send_request(
+				    "Argument -C %d", diff_context);
 			}
 			break;
 		case D_RCSDIFF:
@@ -266,8 +261,8 @@ cvs_diff(int argc, char **argv)
 			if (cvs_cmdop == CVS_OP_RDIFF || diff_context == 3)
 				cvs_client_send_request("Argument -u");
 			else {
-				cvs_client_send_request("Argument -U %d",
-				    diff_context);
+				cvs_client_send_request(
+				    "Argument -U %d", diff_context);
 			}
 			break;
 		default:
@@ -312,8 +307,8 @@ cvs_diff(int argc, char **argv)
 		cvs_client_send_files(argv, argc);
 		cvs_client_senddir(".");
 
-		cvs_client_send_request((cvs_cmdop == CVS_OP_RDIFF) ?
-		    "rdiff" : "diff");
+		cvs_client_send_request(
+		    (cvs_cmdop == CVS_OP_RDIFF) ? "rdiff" : "diff");
 
 		cvs_client_get_responses();
 	}
@@ -324,12 +319,12 @@ cvs_diff(int argc, char **argv)
 void
 cvs_diff_local(struct cvs_file *cf)
 {
-	BUF *b1;
-	int fd1, fd2, result;
-	struct stat st;
+	BUF	      *b1;
+	int	       fd1, fd2, result;
+	struct stat    st;
 	struct timeval tv[2], tv2[2];
-	struct tm datetm;
-	char rbuf[CVS_REV_BUFSZ], tbuf[CVS_TIME_BUFSZ], *p1, *p2;
+	struct tm      datetm;
+	char	       rbuf[CVS_REV_BUFSZ], tbuf[CVS_TIME_BUFSZ], *p1, *p2;
 
 	b1 = NULL;
 	fd1 = fd2 = -1;
@@ -347,28 +342,32 @@ cvs_diff_local(struct cvs_file *cf)
 
 	if (cvs_cmdop == CVS_OP_DIFF) {
 		if (cf->file_ent == NULL) {
-			cvs_log(LP_ERR, "I know nothing about %s",
-			    cf->file_path);
+			cvs_log(
+			    LP_ERR, "I know nothing about %s", cf->file_path);
 			return;
 		}
 
 		switch (cf->file_ent->ce_status) {
 		case CVS_ENT_ADDED:
 			if (Nflag == 0) {
-				cvs_log(LP_ERR, "%s is a new entry, no "
-				    "comparison available", cf->file_path);
+				cvs_log(LP_ERR,
+				    "%s is a new entry, no "
+				    "comparison available",
+				    cf->file_path);
 				return;
 			}
 			if (!(cf->file_flags & FILE_ON_DISK)) {
-				cvs_log(LP_ERR, "cannot find %s",
-				    cf->file_path);
+				cvs_log(
+				    LP_ERR, "cannot find %s", cf->file_path);
 				return;
 			}
 			break;
 		case CVS_ENT_REMOVED:
 			if (Nflag == 0) {
-				cvs_log(LP_ERR, "%s was removed, no "
-				    "comparison available", cf->file_path);
+				cvs_log(LP_ERR,
+				    "%s was removed, no "
+				    "comparison available",
+				    cf->file_path);
 				return;
 			}
 			if (cf->file_rcs == NULL) {
@@ -422,8 +421,10 @@ cvs_diff_local(struct cvs_file *cf)
 				gmtime_r(&cvs_specified_date, &datetm);
 				strftime(tbuf, sizeof(tbuf),
 				    "%Y.%m.%d.%H.%M.%S", &datetm);
-				cvs_log(LP_ERR, "no revision for date %s in "
-				    "file %s", tbuf, cf->file_path);
+				cvs_log(LP_ERR,
+				    "no revision for date %s in "
+				    "file %s",
+				    tbuf, cf->file_path);
 				diff_exit_status = 2;
 				goto cleanup;
 			}
@@ -461,8 +462,10 @@ cvs_diff_local(struct cvs_file *cf)
 				gmtime_r(&cvs_specified_date, &datetm);
 				strftime(tbuf, sizeof(tbuf),
 				    "%Y.%m.%d.%H.%M.%S", &datetm);
-				cvs_log(LP_ERR, "no revision for date %s in "
-				    "file %s", tbuf, cf->file_path);
+				cvs_log(LP_ERR,
+				    "no revision for date %s in "
+				    "file %s",
+				    tbuf, cf->file_path);
 				diff_exit_status = 2;
 				goto cleanup;
 			}
@@ -539,13 +542,13 @@ cvs_diff_local(struct cvs_file *cf)
 	    cf->file_ent->ce_status != CVS_ENT_REMOVED) {
 		(void)xasprintf(&p2, "%s/diff2.XXXXXXXXXX", cvs_tmpdir);
 		if (cvs_server_active == 1 && cf->fd == -1) {
-			tv2[0].tv_sec = rcs_rev_getdate(cf->file_rcs,
-			    cf->file_ent->ce_rev);
+			tv2[0].tv_sec =
+			    rcs_rev_getdate(cf->file_rcs, cf->file_ent->ce_rev);
 			tv2[0].tv_usec = 0;
 			tv2[1] = tv2[0];
 
-			fd2 = rcs_rev_write_stmp(cf->file_rcs,
-			    cf->file_ent->ce_rev, p2, 0);
+			fd2 = rcs_rev_write_stmp(
+			    cf->file_rcs, cf->file_ent->ce_rev, p2, 0);
 			if (futimes(fd2, tv2) == -1)
 				fatal("cvs_diff_local: futimes failed");
 		} else {
@@ -571,8 +574,8 @@ cvs_diff_local(struct cvs_file *cf)
 			cvs_printf(" -r%s", rbuf);
 
 			if (rev2 != NULL && diff_rev2 != NULL) {
-				(void)rcsnum_tostr(diff_rev2, rbuf,
-				    sizeof(rbuf));
+				(void)rcsnum_tostr(
+				    diff_rev2, rbuf, sizeof(rbuf));
 				cvs_printf(" -r%s", rbuf);
 			}
 		}
@@ -606,8 +609,10 @@ cvs_diff_local(struct cvs_file *cf)
 		if (diff_rev2 == NULL) {
 			cvs_printf("%s:removed\n", cf->file_path);
 		} else {
-			(void)rcsnum_tostr(diff_rev2 != NULL ? diff_rev2 :
-			    cf->file_rcs->rf_head, rbuf, sizeof(rbuf));
+			(void)rcsnum_tostr(diff_rev2 != NULL ?
+				diff_rev2 :
+				cf->file_rcs->rf_head,
+			    rbuf, sizeof(rbuf));
 			cvs_printf("%s:%s\n", cf->file_path, rbuf);
 		}
 		break;
@@ -623,7 +628,8 @@ cvs_diff_local(struct cvs_file *cf)
 	}
 
 	result = diffreg(p1 != NULL ? cf->file_path : CVS_PATH_DEVNULL,
-	    p2 != NULL ? cf->file_path : CVS_PATH_DEVNULL, fd1, fd2, NULL, dflags);
+	    p2 != NULL ? cf->file_path : CVS_PATH_DEVNULL, fd1, fd2, NULL,
+	    dflags);
 	if (result == D_ERROR)
 		fatal("cvs_diff_local: failed to get RCS patch");
 	if (result != D_SAME && diff_exit_status == 0)

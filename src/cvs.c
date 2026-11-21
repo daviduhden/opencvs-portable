@@ -45,17 +45,17 @@
 #include <sys/stat.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <err.h>
 
 #include "cvs.h"
-#include "remote.h"
 #include "hash.h"
+#include "remote.h"
 
 extern char *__progname;
 
@@ -63,39 +63,39 @@ extern char *__progname;
 int verbosity = 2;
 
 /* compression level used with zlib, 0 meaning no compression taking place */
-int	cvs_compress = 0;
-int	cvs_readrc = 1;		/* read .cvsrc on startup */
-int	cvs_trace = 0;
-int	cvs_nolog = 0;
-int	cvs_readonly = 0;
-int	cvs_readonlyfs = 0;
-int	cvs_nocase = 0;	/* set to 1 to disable filename case sensitivity */
-int	cvs_noexec = 0;	/* set to 1 to disable disk operations (-n option) */
-int	cvs_cmdop;
-int	cvs_umask = CVS_UMASK_DEFAULT;
-int	cvs_server_active = 0;
-int	cvs_cleanup_failed;
+int cvs_compress = 0;
+int cvs_readrc = 1; /* read .cvsrc on startup */
+int cvs_trace = 0;
+int cvs_nolog = 0;
+int cvs_readonly = 0;
+int cvs_readonlyfs = 0;
+int cvs_nocase = 0; /* set to 1 to disable filename case sensitivity */
+int cvs_noexec = 0; /* set to 1 to disable disk operations (-n option) */
+int cvs_cmdop;
+int cvs_umask = CVS_UMASK_DEFAULT;
+int cvs_server_active = 0;
+int cvs_cleanup_failed;
 
-char	*cvs_tagname = NULL;
-char	*cvs_defargs;		/* default global arguments from .cvsrc */
-char	*cvs_rootstr;
-char	*cvs_rsh = CVS_RSH_DEFAULT;
-char	*cvs_editor = CVS_EDITOR_DEFAULT;
-char	*cvs_homedir = NULL;
-char	*cvs_tmpdir = CVS_TMPDIR_DEFAULT;
+char *cvs_tagname = NULL;
+char *cvs_defargs; /* default global arguments from .cvsrc */
+char *cvs_rootstr;
+char *cvs_rsh = CVS_RSH_DEFAULT;
+char *cvs_editor = CVS_EDITOR_DEFAULT;
+char *cvs_homedir = NULL;
+char *cvs_tmpdir = CVS_TMPDIR_DEFAULT;
 
 struct cvsroot *current_cvsroot = NULL;
-struct cvs_cmd *cmdp;			/* struct of command we are running */
+struct cvs_cmd *cmdp; /* struct of command we are running */
 
-int		cvs_getopt(int, char **);
-PC_NORETURN void	usage(void);
-static void	cvs_read_rcfile(void);
+int		 cvs_getopt(int, char **);
+PC_NORETURN void usage(void);
+static void	 cvs_read_rcfile(void);
 
 struct cvs_varhead cvs_variables;
 
 struct wklhead temp_files;
 
-void sighandler(int);
+void		      sighandler(int);
 volatile sig_atomic_t cvs_quit = 0;
 volatile sig_atomic_t sig_received = 0;
 
@@ -133,7 +133,8 @@ cvs_cleanup(void)
 	worklist_run(&temp_files, worklist_unlink);
 
 	if (cvs_server_path != NULL) {
-		/* The server working copy is private and is about to be deleted. */
+		/* The server working copy is private and is about to be
+		 * deleted. */
 		if (current_list != NULL)
 			cvs_ent_close(current_list, ENT_NOSYNC);
 		if (cvs_rmdir(cvs_server_path) == -1)
@@ -145,7 +146,8 @@ cvs_cleanup(void)
 	}
 
 	if (current_list != NULL)
-		cvs_ent_close(current_list, cvs_cleanup_failed ? ENT_NOSYNC : ENT_SYNC);
+		cvs_ent_close(
+		    current_list, cvs_cleanup_failed ? ENT_NOSYNC : ENT_SYNC);
 }
 
 PC_NORETURN void
@@ -153,14 +155,15 @@ usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: %s [-flnQqRrtvw] [-d root] [-e editor] [-s var=val]\n"
-	    "           [-T tmpdir] [-z level] command ...\n", __progname);
+	    "           [-T tmpdir] [-z level] command ...\n",
+	    __progname);
 	exit(1);
 }
 
 int
 cvs_build_cmd(char ***cmd_argv, char **argv, int argc)
 {
-	int cmd_argc, i, cur;
+	int   cmd_argc, i, cur;
 	char *cp, *linebuf, *lp;
 
 	if (cmdp->cmd_defargs == NULL) {
@@ -183,8 +186,8 @@ cvs_build_cmd(char ***cmd_argv, char **argv, int argc)
 
 		if (cmd_argc == cur) {
 			cur += 8;
-			*cmd_argv = xreallocarray(*cmd_argv, cur,
-			    sizeof(char *));
+			*cmd_argv =
+			    xreallocarray(*cmd_argv, cur, sizeof(char *));
 		}
 
 		(*cmd_argv)[cmd_argc++] = cp;
@@ -192,9 +195,8 @@ cvs_build_cmd(char ***cmd_argv, char **argv, int argc)
 
 	if (cmd_argc + argc > cur) {
 		cur = cmd_argc + argc + 1;
-		*cmd_argv = xreallocarray(*cmd_argv, cur,
-		    sizeof(char *));
-        }
+		*cmd_argv = xreallocarray(*cmd_argv, cur, sizeof(char *));
+	}
 
 	for (i = 1; i < argc; i++)
 		(*cmd_argv)[cmd_argc++] = argv[i];
@@ -213,11 +215,11 @@ cvs_metadata_failure(const char *reason)
 int
 main(int argc, char **argv)
 {
-	char *envstr, **cmd_argv, **targv;
-	int i, ret, cmd_argc;
+	char	      *envstr, **cmd_argv, **targv;
+	int	       i, ret, cmd_argc;
 	struct passwd *pw;
-	struct stat st;
-	char fpath[PATH_MAX];
+	struct stat    st;
+	char	       fpath[PATH_MAX];
 
 	pc_platform_startup(&argc, &argv);
 	pc_set_metadata_error_handler(cvs_metadata_failure);
@@ -269,8 +271,8 @@ main(int argc, char **argv)
 		fprintf(stderr, "Unknown command: `%s'\n\n", argv[0]);
 		fprintf(stderr, "CVS commands are:\n");
 		for (i = 0; cvs_cdt[i] != NULL; i++)
-			fprintf(stderr, "\t%-16s%s\n",
-			    cvs_cdt[i]->cmd_name, cvs_cdt[i]->cmd_descr);
+			fprintf(stderr, "\t%-16s%s\n", cvs_cdt[i]->cmd_name,
+			    cvs_cdt[i]->cmd_descr);
 		exit(1);
 	}
 
@@ -328,8 +330,8 @@ main(int argc, char **argv)
 	umask((mode_t)cvs_umask);
 
 	if ((current_cvsroot = cvsroot_get(".")) == NULL) {
-		cvs_log(LP_ERR,
-		    "No CVSROOT specified! Please use the '-d' option");
+		cvs_log(
+		    LP_ERR, "No CVSROOT specified! Please use the '-d' option");
 		fatal("or set the CVSROOT environment variable.");
 	}
 
@@ -338,7 +340,8 @@ main(int argc, char **argv)
 		if (cvs_client_disconnect() != 0) {
 			if (server_response == SERVER_OK)
 				cvs_log(LP_ERR,
-				    "remote changes may have been applied; verify before retrying");
+				    "remote changes may have been applied; "
+				    "verify before retrying");
 			if (ret == 0)
 				ret = 1;
 		}
@@ -348,8 +351,8 @@ main(int argc, char **argv)
 		return (ret);
 	}
 
-	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
-	    current_cvsroot->cr_dir, CVS_PATH_ROOT);
+	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s", current_cvsroot->cr_dir,
+	    CVS_PATH_ROOT);
 
 	if (stat(fpath, &st) == -1) {
 		if (cvs_cmdop == CVS_OP_INIT && errno == ENOENT)
@@ -358,12 +361,12 @@ main(int argc, char **argv)
 			fatal("repository '%s' does not exist",
 			    current_cvsroot->cr_dir);
 		else
-			fatal("%s: %s", current_cvsroot->cr_dir,
-			    strerror(errno));
+			fatal(
+			    "%s: %s", current_cvsroot->cr_dir, strerror(errno));
 	} else {
 		if (!S_ISDIR(st.st_mode))
-			fatal("'%s' is not a directory",
-			    current_cvsroot->cr_dir);
+			fatal(
+			    "'%s' is not a directory", current_cvsroot->cr_dir);
 	}
 
 repository_checked:
@@ -381,9 +384,9 @@ repository_checked:
 int
 cvs_getopt(int argc, char **argv)
 {
-	int ret;
-	long long compression;
-	char *ep;
+	int	    ret;
+	long long   compression;
+	char	   *ep;
 	const char *errstr;
 
 	while ((ret = getopt(argc, argv, "b:d:e:flnQqRrs:T:tvwxz:")) != -1) {
@@ -469,7 +472,7 @@ cvs_getopt(int argc, char **argv)
 
 	ret = optind;
 	optind = 1;
-	optreset = 1;	/* for next call */
+	optreset = 1; /* for next call */
 
 	return (ret);
 }
@@ -484,11 +487,11 @@ cvs_getopt(int argc, char **argv)
 static void
 cvs_read_rcfile(void)
 {
-	char rcpath[PATH_MAX], *buf, *lbuf, *lp, *p;
-	int cmd_parsed, cvs_parsed, i, linenum;
-	size_t len, pos;
+	char		rcpath[PATH_MAX], *buf, *lbuf, *lp, *p;
+	int		cmd_parsed, cvs_parsed, i, linenum;
+	size_t		len, pos;
 	struct cvs_cmd *tcmdp;
-	FILE *fp;
+	FILE	       *fp;
 
 	linenum = 0;
 
@@ -558,8 +561,8 @@ cvs_read_rcfile(void)
 			tcmdp = cvs_findcmd(p);
 			if (tcmdp == NULL && verbosity == 2)
 				cvs_log(LP_NOTICE,
-				    "unknown command `%s' in `%s:%d'",
-				    p, rcpath, linenum);
+				    "unknown command `%s' in `%s:%d'", p,
+				    rcpath, linenum);
 
 			if (tcmdp != cmdp || cmd_parsed)
 				continue;
@@ -590,7 +593,7 @@ cvs_read_rcfile(void)
 int
 cvs_var_set(const char *var, const char *val)
 {
-	const char *cp;
+	const char     *cp;
 	struct cvs_var *vp;
 
 	if (var == NULL || *var == '\0') {
@@ -608,8 +611,8 @@ cvs_var_set(const char *var, const char *val)
 		}
 
 	TAILQ_FOREACH(vp, &cvs_variables, cv_link)
-		if (strcmp(vp->cv_name, var) == 0)
-			break;
+	if (strcmp(vp->cv_name, var) == 0)
+		break;
 
 	if (vp == NULL) {
 		vp = xcalloc(1, sizeof(*vp));
@@ -617,7 +620,7 @@ cvs_var_set(const char *var, const char *val)
 		vp->cv_name = xstrdup(var);
 		TAILQ_INSERT_TAIL(&cvs_variables, vp, cv_link);
 
-	} else	/* free the previous value */
+	} else /* free the previous value */
 		free(vp->cv_val);
 
 	vp->cv_val = xstrdup(val);
@@ -637,13 +640,13 @@ cvs_var_unset(const char *var)
 	struct cvs_var *vp;
 
 	TAILQ_FOREACH(vp, &cvs_variables, cv_link)
-		if (strcmp(vp->cv_name, var) == 0) {
-			TAILQ_REMOVE(&cvs_variables, vp, cv_link);
-			free(vp->cv_name);
-			free(vp->cv_val);
-			free(vp);
-			return (0);
-		}
+	if (strcmp(vp->cv_name, var) == 0) {
+		TAILQ_REMOVE(&cvs_variables, vp, cv_link);
+		free(vp->cv_name);
+		free(vp->cv_val);
+		free(vp);
+		return (0);
+	}
 
 	return (-1);
 }
@@ -661,8 +664,8 @@ cvs_var_get(const char *var)
 	struct cvs_var *vp;
 
 	TAILQ_FOREACH(vp, &cvs_variables, cv_link)
-		if (strcmp(vp->cv_name, var) == 0)
-			return (vp->cv_val);
+	if (strcmp(vp->cv_name, var) == 0)
+		return (vp->cv_val);
 
 	return (NULL);
 }

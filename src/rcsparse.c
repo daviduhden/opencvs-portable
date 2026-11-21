@@ -46,132 +46,121 @@
 #include "rcsparse.h"
 #include "xmalloc.h"
 
-#define RCS_BUFSIZE	16384
-#define RCS_BUFEXTSIZE	8192
+#define RCS_BUFSIZE 16384
+#define RCS_BUFEXTSIZE 8192
 
 /* RCS token types */
-#define RCS_TOK_HEAD		(1 << 0)
-#define RCS_TOK_BRANCH		(1 << 1)
-#define RCS_TOK_ACCESS		(1 << 2)
-#define RCS_TOK_SYMBOLS		(1 << 3)
-#define RCS_TOK_LOCKS		(1 << 4)
-#define RCS_TOK_STRICT		(1 << 5)
-#define RCS_TOK_COMMENT		(1 << 6)
-#define RCS_TOK_COMMITID	(1 << 7)
-#define RCS_TOK_EXPAND		(1 << 8)
-#define RCS_TOK_DESC		(1 << 9)
-#define RCS_TOK_DATE		(1 << 10)
-#define RCS_TOK_AUTHOR		(1 << 11)
-#define RCS_TOK_STATE		(1 << 12)
-#define RCS_TOK_BRANCHES	(1 << 13)
-#define RCS_TOK_NEXT		(1 << 14)
-#define RCS_TOK_LOG		(1 << 15)
-#define RCS_TOK_TEXT		(1 << 16)
-#define RCS_TOK_COLON		(1 << 17)
-#define RCS_TOK_COMMA		(1 << 18)
-#define RCS_TOK_SCOLON		(1 << 19)
+#define RCS_TOK_HEAD (1 << 0)
+#define RCS_TOK_BRANCH (1 << 1)
+#define RCS_TOK_ACCESS (1 << 2)
+#define RCS_TOK_SYMBOLS (1 << 3)
+#define RCS_TOK_LOCKS (1 << 4)
+#define RCS_TOK_STRICT (1 << 5)
+#define RCS_TOK_COMMENT (1 << 6)
+#define RCS_TOK_COMMITID (1 << 7)
+#define RCS_TOK_EXPAND (1 << 8)
+#define RCS_TOK_DESC (1 << 9)
+#define RCS_TOK_DATE (1 << 10)
+#define RCS_TOK_AUTHOR (1 << 11)
+#define RCS_TOK_STATE (1 << 12)
+#define RCS_TOK_BRANCHES (1 << 13)
+#define RCS_TOK_NEXT (1 << 14)
+#define RCS_TOK_LOG (1 << 15)
+#define RCS_TOK_TEXT (1 << 16)
+#define RCS_TOK_COLON (1 << 17)
+#define RCS_TOK_COMMA (1 << 18)
+#define RCS_TOK_SCOLON (1 << 19)
 
-#define RCS_TYPE_STRING		(1 << 20)
-#define RCS_TYPE_NUMBER		(1 << 21)
-#define RCS_TYPE_BRANCH		(1 << 22)
-#define RCS_TYPE_REVISION	(1 << 23)
-#define RCS_TYPE_LOGIN		(1 << 24)
-#define RCS_TYPE_STATE		(1 << 25)
-#define RCS_TYPE_SYMBOL		(1 << 26)
-#define RCS_TYPE_DATE		(1 << 27)
-#define RCS_TYPE_KEYWORD	(1 << 28)
-#define RCS_TYPE_COMMITID	(1 << 29)
+#define RCS_TYPE_STRING (1 << 20)
+#define RCS_TYPE_NUMBER (1 << 21)
+#define RCS_TYPE_BRANCH (1 << 22)
+#define RCS_TYPE_REVISION (1 << 23)
+#define RCS_TYPE_LOGIN (1 << 24)
+#define RCS_TYPE_STATE (1 << 25)
+#define RCS_TYPE_SYMBOL (1 << 26)
+#define RCS_TYPE_DATE (1 << 27)
+#define RCS_TYPE_KEYWORD (1 << 28)
+#define RCS_TYPE_COMMITID (1 << 29)
 
-#define RCS_MANDATORY	0
-#define RCS_OPTIONAL	1
+#define RCS_MANDATORY 0
+#define RCS_OPTIONAL 1
 
 /* opaque parse data */
 struct rcs_pdata {
-	char			*rp_buf;
-	size_t			 rp_blen;
-	char			*rp_bufend;
-	size_t			 rp_tlen;
+	char  *rp_buf;
+	size_t rp_blen;
+	char  *rp_bufend;
+	size_t rp_tlen;
 
-	struct rcs_delta	*rp_delta;
-	int			 rp_lineno;
-	int			 rp_msglineno;
-	int			 rp_token;
+	struct rcs_delta *rp_delta;
+	int		  rp_lineno;
+	int		  rp_msglineno;
+	int		  rp_token;
 
 	union {
-		RCSNUM		*rev;
-		char		*str;
-		struct tm	 date;
+		RCSNUM	 *rev;
+		char	 *str;
+		struct tm date;
 	} rp_value;
 };
 
 struct rcs_keyword {
-	const char	*k_name;
-	int		 k_val;
+	const char *k_name;
+	int	    k_val;
 };
 
 struct rcs_section {
-	int	token;
-	int	(*parse)(RCSFILE *, struct rcs_pdata *);
-	int	opt;
+	int token;
+	int (*parse)(RCSFILE *, struct rcs_pdata *);
+	int opt;
 };
 
 /* this has to be sorted always */
-static const struct rcs_keyword keywords[] = {
-	{ "access",		RCS_TOK_ACCESS},
-	{ "author",		RCS_TOK_AUTHOR},
-	{ "branch",		RCS_TOK_BRANCH},
-	{ "branches",		RCS_TOK_BRANCHES},
-	{ "comment",		RCS_TOK_COMMENT},
-	{ "commitid",		RCS_TOK_COMMITID},
-	{ "date",		RCS_TOK_DATE},
-	{ "desc",		RCS_TOK_DESC},
-	{ "expand",		RCS_TOK_EXPAND},
-	{ "head",		RCS_TOK_HEAD},
-	{ "locks",		RCS_TOK_LOCKS},
-	{ "log",		RCS_TOK_LOG},
-	{ "next",		RCS_TOK_NEXT},
-	{ "state",		RCS_TOK_STATE},
-	{ "strict",		RCS_TOK_STRICT},
-	{ "symbols",		RCS_TOK_SYMBOLS},
-	{ "text",		RCS_TOK_TEXT}
-};
+static const struct rcs_keyword keywords[] = {{"access", RCS_TOK_ACCESS},
+    {"author", RCS_TOK_AUTHOR}, {"branch", RCS_TOK_BRANCH},
+    {"branches", RCS_TOK_BRANCHES}, {"comment", RCS_TOK_COMMENT},
+    {"commitid", RCS_TOK_COMMITID}, {"date", RCS_TOK_DATE},
+    {"desc", RCS_TOK_DESC}, {"expand", RCS_TOK_EXPAND}, {"head", RCS_TOK_HEAD},
+    {"locks", RCS_TOK_LOCKS}, {"log", RCS_TOK_LOG}, {"next", RCS_TOK_NEXT},
+    {"state", RCS_TOK_STATE}, {"strict", RCS_TOK_STRICT},
+    {"symbols", RCS_TOK_SYMBOLS}, {"text", RCS_TOK_TEXT}};
 
 /* parser functions specified in rcs_section structs */
-static int	rcsparse_head(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_branch(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_access(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_symbols(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_locks(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_strict(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_comment(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_commitid(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_expand(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_deltarevision(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_date(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_author(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_state(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_branches(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_next(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_textrevision(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_log(RCSFILE *, struct rcs_pdata *);
-static int	rcsparse_text(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_head(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_branch(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_access(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_symbols(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_locks(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_strict(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_comment(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_commitid(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_expand(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_deltarevision(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_date(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_author(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_state(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_branches(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_next(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_textrevision(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_log(RCSFILE *, struct rcs_pdata *);
+static int rcsparse_text(RCSFILE *, struct rcs_pdata *);
 
-static int	rcsparse_delta(RCSFILE *);
-static int	rcsparse_deltatext(RCSFILE *);
-static int	rcsparse_desc(RCSFILE *);
+static int rcsparse_delta(RCSFILE *);
+static int rcsparse_deltatext(RCSFILE *);
+static int rcsparse_desc(RCSFILE *);
 
-static int	kw_cmp(const void *, const void *);
-static int	rcsparse(RCSFILE *, struct rcs_section *);
-static void	rcsparse_growbuf(RCSFILE *);
-static int	rcsparse_string(RCSFILE *, int);
-static int	rcsparse_token(RCSFILE *, int);
-static void	rcsparse_warnx(RCSFILE *, char *, ...) PC_PRINTF(2, 3);
-static int	valid_login(char *);
-static int	valid_commitid(char *);
+static int  kw_cmp(const void *, const void *);
+static int  rcsparse(RCSFILE *, struct rcs_section *);
+static void rcsparse_growbuf(RCSFILE *);
+static int  rcsparse_string(RCSFILE *, int);
+static int  rcsparse_token(RCSFILE *, int);
+static void rcsparse_warnx(RCSFILE *, char *, ...) PC_PRINTF(2, 3);
+static int  valid_login(char *);
+static int  valid_commitid(char *);
 
 struct rcs_revision_ref {
 	struct rcs_delta *delta;
-	int linked;
+	int		  linked;
 };
 
 static int
@@ -183,14 +172,13 @@ rcsparse_compare_revisions(const void *left, const void *right)
 }
 
 static struct rcs_revision_ref *
-rcsparse_find_revision(struct rcs_revision_ref *refs, size_t count,
-    RCSNUM *rev)
+rcsparse_find_revision(struct rcs_revision_ref *refs, size_t count, RCSNUM *rev)
 {
-	struct rcs_delta key = { .rd_num = rev };
-	struct rcs_revision_ref ref = { .delta = &key };
+	struct rcs_delta	key = {.rd_num = rev};
+	struct rcs_revision_ref ref = {.delta = &key};
 
-	return (bsearch(&ref, refs, count, sizeof(*refs),
-	    rcsparse_compare_revisions));
+	return (bsearch(
+	    &ref, refs, count, sizeof(*refs), rcsparse_compare_revisions));
 }
 
 /* Trunk edges descend, branch edges ascend, and fork edges go deeper. */
@@ -198,15 +186,15 @@ static int
 rcsparse_check_graph(RCSFILE *rfp)
 {
 	struct rcs_revision_ref *refs, *target;
-	struct rcs_delta *rdp;
-	struct rcs_branch *branch;
-	RCSNUM *rev, *next;
-	size_t count, i;
-	int valid = 0;
+	struct rcs_delta	*rdp;
+	struct rcs_branch	*branch;
+	RCSNUM			*rev, *next;
+	size_t			 count, i;
+	int			 valid = 0;
 
 	count = 0;
 	TAILQ_FOREACH(rdp, &rfp->rf_delta, rd_list)
-		count++;
+	count++;
 	if (count == 0)
 		return (rfp->rf_head == NULL);
 	if (rfp->rf_head == NULL || rfp->rf_head->rn_len != 2)
@@ -215,7 +203,7 @@ rcsparse_check_graph(RCSFILE *rfp)
 	refs = xcalloc(count, sizeof(*refs));
 	i = 0;
 	TAILQ_FOREACH(rdp, &rfp->rf_delta, rd_list)
-		refs[i++].delta = rdp;
+	refs[i++].delta = rdp;
 	qsort(refs, count, sizeof(*refs), rcsparse_compare_revisions);
 	target = rcsparse_find_revision(refs, count, rfp->rf_head);
 	if (target == NULL)
@@ -225,24 +213,28 @@ rcsparse_check_graph(RCSFILE *rfp)
 	for (i = 0; i < count; i++) {
 		rdp = refs[i].delta;
 		rev = rdp->rd_num;
-		if ((i != 0 && rcsparse_compare_revisions(&refs[i - 1],
-		    &refs[i]) == 0) || rev->rn_len < 2 || RCSNUM_ISBRANCH(rev))
+		if ((i != 0 &&
+			rcsparse_compare_revisions(&refs[i - 1], &refs[i]) ==
+			    0) ||
+		    rev->rn_len < 2 || RCSNUM_ISBRANCH(rev))
 			goto out;
 
 		next = rdp->rd_next;
 		if (next->rn_len != 0) {
 			if (next->rn_len != rev->rn_len ||
-			    (rev->rn_len == 2 && rcsnum_cmp(rev, next, 0) != -1) ||
+			    (rev->rn_len == 2 &&
+				rcsnum_cmp(rev, next, 0) != -1) ||
 			    (rev->rn_len > 2 &&
-			    (rcsnum_cmp(rev, next, rev->rn_len - 1) != 0 ||
-			    rcsnum_cmp(rev, next, 0) != 1)))
+				(rcsnum_cmp(rev, next, rev->rn_len - 1) != 0 ||
+				    rcsnum_cmp(rev, next, 0) != 1)))
 				goto out;
 			target = rcsparse_find_revision(refs, count, next);
 			if (target == NULL || target->linked)
 				goto out;
 			target->linked = 1;
 		}
-		TAILQ_FOREACH(branch, &rdp->rd_branches, rb_list) {
+		TAILQ_FOREACH(branch, &rdp->rd_branches, rb_list)
+		{
 			next = branch->rb_num;
 			if (next->rn_len != rev->rn_len + 2 ||
 			    rcsnum_cmp(rev, next, rev->rn_len) != 0)
@@ -273,16 +265,14 @@ out:
  * [expand [@[...]@];]
  */
 static struct rcs_section sec_admin[] = {
-	{ RCS_TOK_HEAD, rcsparse_head, RCS_MANDATORY },
-	{ RCS_TOK_BRANCH, rcsparse_branch, RCS_OPTIONAL },
-	{ RCS_TOK_ACCESS, rcsparse_access, RCS_MANDATORY },
-	{ RCS_TOK_SYMBOLS, rcsparse_symbols, RCS_MANDATORY },
-	{ RCS_TOK_LOCKS, rcsparse_locks, RCS_MANDATORY },
-	{ RCS_TOK_STRICT, rcsparse_strict, RCS_OPTIONAL },
-	{ RCS_TOK_COMMENT, rcsparse_comment, RCS_OPTIONAL },
-	{ RCS_TOK_EXPAND, rcsparse_expand, RCS_OPTIONAL },
-	{ 0, NULL, 0 }
-};
+    {RCS_TOK_HEAD, rcsparse_head, RCS_MANDATORY},
+    {RCS_TOK_BRANCH, rcsparse_branch, RCS_OPTIONAL},
+    {RCS_TOK_ACCESS, rcsparse_access, RCS_MANDATORY},
+    {RCS_TOK_SYMBOLS, rcsparse_symbols, RCS_MANDATORY},
+    {RCS_TOK_LOCKS, rcsparse_locks, RCS_MANDATORY},
+    {RCS_TOK_STRICT, rcsparse_strict, RCS_OPTIONAL},
+    {RCS_TOK_COMMENT, rcsparse_comment, RCS_OPTIONAL},
+    {RCS_TOK_EXPAND, rcsparse_expand, RCS_OPTIONAL}, {0, NULL, 0}};
 
 /*
  * REVISION
@@ -294,15 +284,13 @@ static struct rcs_section sec_admin[] = {
  * [commitid ID;]
  */
 static struct rcs_section sec_delta[] = {
-	{ RCS_TYPE_REVISION, rcsparse_deltarevision, RCS_MANDATORY },
-	{ RCS_TOK_DATE, rcsparse_date, RCS_MANDATORY },
-	{ RCS_TOK_AUTHOR, rcsparse_author, RCS_MANDATORY },
-	{ RCS_TOK_STATE, rcsparse_state, RCS_MANDATORY },
-	{ RCS_TOK_BRANCHES, rcsparse_branches, RCS_MANDATORY },
-	{ RCS_TOK_NEXT, rcsparse_next, RCS_MANDATORY },
-	{ RCS_TOK_COMMITID, rcsparse_commitid, RCS_OPTIONAL },
-	{ 0, NULL, 0 }
-};
+    {RCS_TYPE_REVISION, rcsparse_deltarevision, RCS_MANDATORY},
+    {RCS_TOK_DATE, rcsparse_date, RCS_MANDATORY},
+    {RCS_TOK_AUTHOR, rcsparse_author, RCS_MANDATORY},
+    {RCS_TOK_STATE, rcsparse_state, RCS_MANDATORY},
+    {RCS_TOK_BRANCHES, rcsparse_branches, RCS_MANDATORY},
+    {RCS_TOK_NEXT, rcsparse_next, RCS_MANDATORY},
+    {RCS_TOK_COMMITID, rcsparse_commitid, RCS_OPTIONAL}, {0, NULL, 0}};
 
 /*
  * REVISION
@@ -310,11 +298,9 @@ static struct rcs_section sec_delta[] = {
  * text @[...]@
  */
 static struct rcs_section sec_deltatext[] = {
-	{ RCS_TYPE_REVISION, rcsparse_textrevision, RCS_MANDATORY },
-	{ RCS_TOK_LOG, rcsparse_log, RCS_MANDATORY },
-	{ RCS_TOK_TEXT, rcsparse_text, RCS_MANDATORY },
-	{ 0, NULL, 0 }
-};
+    {RCS_TYPE_REVISION, rcsparse_textrevision, RCS_MANDATORY},
+    {RCS_TOK_LOG, rcsparse_log, RCS_MANDATORY},
+    {RCS_TOK_TEXT, rcsparse_text, RCS_MANDATORY}, {0, NULL, 0}};
 
 /*
  * rcsparse_init()
@@ -370,7 +356,7 @@ rcsparse_init(RCSFILE *rfp)
 int
 rcsparse_deltas(RCSFILE *rfp, RCSNUM *rev)
 {
-	int ret;
+	int		  ret;
 	struct rcs_delta *enddelta;
 
 	if ((rfp->rf_flags & PARSED_DELTAS) || (rfp->rf_flags & RCS_CREATE))
@@ -391,7 +377,8 @@ rcsparse_deltas(RCSFILE *rfp, RCSNUM *rev)
 
 		if (ret == 0) {
 			if (!rcsparse_check_graph(rfp)) {
-				rcsparse_warnx(rfp, "invalid RCS revision graph");
+				rcsparse_warnx(
+				    rfp, "invalid RCS revision graph");
 				return (1);
 			}
 			rfp->rf_flags |= PARSED_DELTAS;
@@ -413,11 +400,10 @@ rcsparse_deltas(RCSFILE *rfp, RCSNUM *rev)
 int
 rcsparse_deltatexts(RCSFILE *rfp, RCSNUM *rev)
 {
-	int ret;
+	int		  ret;
 	struct rcs_delta *rdp, *delta;
 
-	if ((rfp->rf_flags & PARSED_DELTATEXTS) ||
-	    (rfp->rf_flags & RCS_CREATE))
+	if ((rfp->rf_flags & PARSED_DELTATEXTS) || (rfp->rf_flags & RCS_CREATE))
 		return (0);
 
 	if (!(rfp->rf_flags & PARSED_DESC))
@@ -433,16 +419,17 @@ rcsparse_deltatexts(RCSFILE *rfp, RCSNUM *rev)
 			break;
 		ret = rcsparse_deltatext(rfp);
 		if (ret == 0) {
-			TAILQ_FOREACH(delta, &rfp->rf_delta, rd_list) {
+			TAILQ_FOREACH(delta, &rfp->rf_delta, rd_list)
+			{
 				if (delta->rd_text == NULL) {
-					rcsparse_warnx(rfp, "missing RCS deltatext");
+					rcsparse_warnx(
+					    rfp, "missing RCS deltatext");
 					return (1);
 				}
 			}
 			rfp->rf_flags |= PARSED_DELTATEXTS;
 			break;
-		}
-		else if (ret == -1)
+		} else if (ret == -1)
 			return (1);
 	}
 
@@ -598,10 +585,10 @@ static int
 rcsparse_branches(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	struct rcs_branch *rb;
-	int type;
+	int		   type;
 
-	while ((type = rcsparse_token(rfp, RCS_TOK_SCOLON|RCS_TYPE_REVISION))
-	    == RCS_TYPE_REVISION) {
+	while ((type = rcsparse_token(rfp,
+		    RCS_TOK_SCOLON | RCS_TYPE_REVISION)) == RCS_TYPE_REVISION) {
 		rb = xmalloc(sizeof(*rb));
 		rb->rb_num = pdp->rp_value.rev;
 		TAILQ_INSERT_TAIL(&(pdp->rp_delta->rd_branches), rb, rb_list);
@@ -624,7 +611,7 @@ rcsparse_next(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	int type;
 
-	type = rcsparse_token(rfp, RCS_TYPE_REVISION|RCS_TOK_SCOLON);
+	type = rcsparse_token(rfp, RCS_TYPE_REVISION | RCS_TOK_SCOLON);
 	if (type == RCS_TYPE_REVISION) {
 		pdp->rp_delta->rd_next = pdp->rp_value.rev;
 		type = rcsparse_token(rfp, RCS_TOK_SCOLON);
@@ -671,13 +658,14 @@ rcsparse_textrevision(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	struct rcs_delta *rdp;
 
-	TAILQ_FOREACH(rdp, &rfp->rf_delta, rd_list) {
+	TAILQ_FOREACH(rdp, &rfp->rf_delta, rd_list)
+	{
 		if (rcsnum_cmp(rdp->rd_num, pdp->rp_value.rev, 0) == 0)
 			break;
 	}
 	if (rdp == NULL) {
-		rcsparse_warnx(rfp, "delta for revision \"%s\" not found",
-		    pdp->rp_buf);
+		rcsparse_warnx(
+		    rfp, "delta for revision \"%s\" not found", pdp->rp_buf);
 		free(pdp->rp_value.rev);
 		return (1);
 	}
@@ -755,7 +743,7 @@ rcsparse_head(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	int type;
 
-	type = rcsparse_token(rfp, RCS_TYPE_REVISION|RCS_TOK_SCOLON);
+	type = rcsparse_token(rfp, RCS_TYPE_REVISION | RCS_TOK_SCOLON);
 	if (type == RCS_TYPE_REVISION) {
 		rfp->rf_head = pdp->rp_value.rev;
 		type = rcsparse_token(rfp, RCS_TOK_SCOLON);
@@ -779,7 +767,7 @@ rcsparse_branch(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	int type;
 
-	type = rcsparse_token(rfp, RCS_TYPE_BRANCH|RCS_TOK_SCOLON);
+	type = rcsparse_token(rfp, RCS_TYPE_BRANCH | RCS_TOK_SCOLON);
 	if (type == RCS_TYPE_BRANCH) {
 		rfp->rf_branch = pdp->rp_value.rev;
 		type = rcsparse_token(rfp, RCS_TOK_SCOLON);
@@ -801,10 +789,10 @@ static int
 rcsparse_access(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	struct rcs_access *ap;
-	int type;
+	int		   type;
 
-	while ((type = rcsparse_token(rfp, RCS_TOK_SCOLON|RCS_TYPE_LOGIN))
-	    == RCS_TYPE_LOGIN) {
+	while ((type = rcsparse_token(rfp, RCS_TOK_SCOLON | RCS_TYPE_LOGIN)) ==
+	    RCS_TYPE_LOGIN) {
 		ap = xmalloc(sizeof(*ap));
 		ap->ra_name = pdp->rp_value.str;
 		TAILQ_INSERT_TAIL(&(rfp->rf_access), ap, ra_list);
@@ -826,10 +814,10 @@ static int
 rcsparse_symbols(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	struct rcs_sym *symp;
-	char *name;
-	int type;
+	char	       *name;
+	int		type;
 
-	while ((type = rcsparse_token(rfp, RCS_TOK_SCOLON|RCS_TYPE_SYMBOL)) ==
+	while ((type = rcsparse_token(rfp, RCS_TOK_SCOLON | RCS_TYPE_SYMBOL)) ==
 	    RCS_TYPE_SYMBOL) {
 		name = pdp->rp_value.str;
 		if (rcsparse_token(rfp, RCS_TOK_COLON) != RCS_TOK_COLON ||
@@ -859,15 +847,15 @@ static int
 rcsparse_locks(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	struct rcs_lock *lkp;
-	char *name;
-	int type;
+	char		*name;
+	int		 type;
 
-	while ((type = rcsparse_token(rfp, RCS_TOK_SCOLON|RCS_TYPE_LOGIN)) ==
+	while ((type = rcsparse_token(rfp, RCS_TOK_SCOLON | RCS_TYPE_LOGIN)) ==
 	    RCS_TYPE_LOGIN) {
 		name = pdp->rp_value.str;
 		if (rcsparse_token(rfp, RCS_TOK_COLON) != RCS_TOK_COLON ||
 		    rcsparse_token(rfp, RCS_TYPE_REVISION) !=
-		    RCS_TYPE_REVISION) {
+			RCS_TYPE_REVISION) {
 			free(name);
 			return (1);
 		}
@@ -914,7 +902,7 @@ rcsparse_comment(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	int type;
 
-	type = rcsparse_token(rfp, RCS_TYPE_STRING|RCS_TOK_SCOLON);
+	type = rcsparse_token(rfp, RCS_TYPE_STRING | RCS_TOK_SCOLON);
 	if (type == RCS_TYPE_STRING) {
 		rfp->rf_comment = pdp->rp_value.str;
 		type = rcsparse_token(rfp, RCS_TOK_SCOLON);
@@ -938,7 +926,7 @@ rcsparse_expand(RCSFILE *rfp, struct rcs_pdata *pdp)
 {
 	int type;
 
-	type = rcsparse_token(rfp, RCS_TYPE_STRING|RCS_TOK_SCOLON);
+	type = rcsparse_token(rfp, RCS_TYPE_STRING | RCS_TOK_SCOLON);
 	if (type == RCS_TYPE_STRING) {
 		rfp->rf_expand = pdp->rp_value.str;
 		type = rcsparse_token(rfp, RCS_TOK_SCOLON);
@@ -947,24 +935,24 @@ rcsparse_expand(RCSFILE *rfp, struct rcs_pdata *pdp)
 	return (type != RCS_TOK_SCOLON);
 }
 
-#define RBUF_PUTC(ch) \
-do { \
-	if (bp == pdp->rp_bufend - 1) { \
-		len = bp - pdp->rp_buf; \
-		rcsparse_growbuf(rfp); \
-		bp = pdp->rp_buf + len; \
-	} \
-	*(bp++) = (char)(unsigned char)(ch); \
-	pdp->rp_tlen++; \
-} while (0);
+#define RBUF_PUTC(ch)                                                          \
+	do {                                                                   \
+		if (bp == pdp->rp_bufend - 1) {                                \
+			len = bp - pdp->rp_buf;                                \
+			rcsparse_growbuf(rfp);                                 \
+			bp = pdp->rp_buf + len;                                \
+		}                                                              \
+		*(bp++) = (char)(unsigned char)(ch);                           \
+		pdp->rp_tlen++;                                                \
+	} while (0);
 
 static int
 rcsparse_string(RCSFILE *rfp, int allowed)
 {
 	struct rcs_pdata *pdp;
-	int c;
-	size_t len;
-	char *bp;
+	int		  c;
+	size_t		  len;
+	char		 *bp;
 
 	pdp = (struct rcs_pdata *)rfp->rf_pdata;
 
@@ -1009,11 +997,11 @@ static int
 rcsparse_token(RCSFILE *rfp, int allowed)
 {
 	const struct rcs_keyword *p;
-	struct rcs_pdata *pdp;
-	int c, pre, ret, type, year, maximum_day;
-	char *bp;
-	size_t len;
-	RCSNUM *datenum;
+	struct rcs_pdata	 *pdp;
+	int			  c, pre, ret, type, year, maximum_day;
+	char			 *bp;
+	size_t			  len;
+	RCSNUM			 *datenum;
 
 	pdp = (struct rcs_pdata *)rfp->rf_pdata;
 
@@ -1035,8 +1023,8 @@ rcsparse_token(RCSFILE *rfp, int allowed)
 				return (0);
 			}
 			if (pre != '\n')
-				rcsparse_warnx(rfp,
-				    "no newline at end of file");
+				rcsparse_warnx(
+				    rfp, "no newline at end of file");
 			return (EOF);
 		} else if (c == '\n')
 			pdp->rp_lineno++;
@@ -1081,7 +1069,7 @@ rcsparse_token(RCSFILE *rfp, int allowed)
 		}
 		break;
 	}
-	allowed &= ~(RCS_TOK_COLON|RCS_TOK_SCOLON|RCS_TOK_COMMA);
+	allowed &= ~(RCS_TOK_COLON | RCS_TOK_SCOLON | RCS_TOK_COMMA);
 
 	bp = pdp->rp_buf;
 	pdp->rp_tlen = 0;
@@ -1119,24 +1107,24 @@ rcsparse_token(RCSFILE *rfp, int allowed)
 	switch (allowed) {
 	case RCS_TYPE_COMMITID:
 		if (!valid_commitid(pdp->rp_buf)) {
-			rcsparse_warnx(rfp, "invalid commitid \"%s\"",
-			    pdp->rp_buf);
+			rcsparse_warnx(
+			    rfp, "invalid commitid \"%s\"", pdp->rp_buf);
 			return (0);
 		}
 		pdp->rp_value.str = xstrdup(pdp->rp_buf);
 		break;
 	case RCS_TYPE_LOGIN:
 		if (!valid_login(pdp->rp_buf)) {
-			rcsparse_warnx(rfp, "invalid login \"%s\"",
-			    pdp->rp_buf);
+			rcsparse_warnx(
+			    rfp, "invalid login \"%s\"", pdp->rp_buf);
 			return (0);
 		}
 		pdp->rp_value.str = xstrdup(pdp->rp_buf);
 		break;
 	case RCS_TYPE_SYMBOL:
 		if (!rcs_sym_check(pdp->rp_buf)) {
-			rcsparse_warnx(rfp, "invalid symbol \"%s\"",
-			    pdp->rp_buf);
+			rcsparse_warnx(
+			    rfp, "invalid symbol \"%s\"", pdp->rp_buf);
 			return (0);
 		}
 		pdp->rp_value.str = xstrdup(pdp->rp_buf);
@@ -1144,8 +1132,8 @@ rcsparse_token(RCSFILE *rfp, int allowed)
 		/* FALLTHROUGH */
 	case RCS_TYPE_STATE:
 		if (rcs_state_check(pdp->rp_buf)) {
-			rcsparse_warnx(rfp, "invalid state \"%s\"",
-			    pdp->rp_buf);
+			rcsparse_warnx(
+			    rfp, "invalid state \"%s\"", pdp->rp_buf);
 			return (0);
 		}
 		pdp->rp_value.str = xstrdup(pdp->rp_buf);
@@ -1164,15 +1152,20 @@ rcsparse_token(RCSFILE *rfp, int allowed)
 			return (0);
 		}
 		year = datenum->rn_id[0];
-		if (year < 1900) year += 1900;
+		if (year < 1900)
+			year += 1900;
 		maximum_day = 31;
 		if (datenum->rn_id[1] == 4 || datenum->rn_id[1] == 6 ||
-		    datenum->rn_id[1] == 9 || datenum->rn_id[1] == 11) maximum_day = 30;
+		    datenum->rn_id[1] == 9 || datenum->rn_id[1] == 11)
+			maximum_day = 30;
 		else if (datenum->rn_id[1] == 2)
-			maximum_day = 28 + (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
+			maximum_day = 28 +
+			    (year % 4 == 0 &&
+				(year % 100 != 0 || year % 400 == 0));
 		if (datenum->rn_id[2] > maximum_day) {
 			free(datenum);
-			rcsparse_warnx(rfp, "invalid calendar date \"%s\"", pdp->rp_buf);
+			rcsparse_warnx(
+			    rfp, "invalid calendar date \"%s\"", pdp->rp_buf);
 			return (0);
 		}
 		memset(&pdp->rp_value.date, 0, sizeof(pdp->rp_value.date));
@@ -1189,22 +1182,22 @@ rcsparse_token(RCSFILE *rfp, int allowed)
 	case RCS_TYPE_NUMBER:
 		pdp->rp_value.rev = rcsnum_parse(pdp->rp_buf);
 		if (pdp->rp_value.rev == NULL) {
-			rcsparse_warnx(rfp, "invalid number \"%s\"",
-			    pdp->rp_buf);
+			rcsparse_warnx(
+			    rfp, "invalid number \"%s\"", pdp->rp_buf);
 			return (0);
 		}
 		break;
 	case RCS_TYPE_BRANCH:
 		pdp->rp_value.rev = rcsnum_parse(pdp->rp_buf);
 		if (pdp->rp_value.rev == NULL) {
-			rcsparse_warnx(rfp, "invalid branch \"%s\"",
-			    pdp->rp_buf);
+			rcsparse_warnx(
+			    rfp, "invalid branch \"%s\"", pdp->rp_buf);
 			return (0);
 		}
 		if (!RCSNUM_ISBRANCH(pdp->rp_value.rev)) {
 			free(pdp->rp_value.rev);
-			rcsparse_warnx(rfp, "expected branch, got \"%s\"",
-			    pdp->rp_buf);
+			rcsparse_warnx(
+			    rfp, "expected branch, got \"%s\"", pdp->rp_buf);
 			return (0);
 		}
 		break;
@@ -1245,7 +1238,7 @@ static int
 rcsparse(RCSFILE *rfp, struct rcs_section *sec)
 {
 	struct rcs_pdata *pdp;
-	int i, token;
+	int		  i, token;
 
 	pdp = (struct rcs_pdata *)rfp->rf_pdata;
 	i = 0;
@@ -1263,12 +1256,12 @@ rcsparse(RCSFILE *rfp, struct rcs_section *sec)
 				i++;
 				continue;
 			}
-			if (i == 0 && ((sec == sec_delta &&
-			    token == RCS_TOK_DESC) ||
-			    (sec == sec_deltatext && token == EOF)))
+			if (i == 0 &&
+			    ((sec == sec_delta && token == RCS_TOK_DESC) ||
+				(sec == sec_deltatext && token == EOF)))
 				goto end;
-			rcsparse_warnx(rfp, "unexpected token \"%s\"",
-			    pdp->rp_buf);
+			rcsparse_warnx(
+			    rfp, "unexpected token \"%s\"", pdp->rp_buf);
 			return (1);
 		}
 
@@ -1340,11 +1333,11 @@ static void
 rcsparse_growbuf(RCSFILE *rfp)
 {
 	struct rcs_pdata *pdp = (struct rcs_pdata *)rfp->rf_pdata;
-	
+
 	if (pdp->rp_blen > SIZE_MAX - RCS_BUFEXTSIZE)
 		fatal("RCS parse buffer overflow");
-	pdp->rp_buf = xreallocarray(pdp->rp_buf, 1,
-		pdp->rp_blen + RCS_BUFEXTSIZE);
+	pdp->rp_buf =
+	    xreallocarray(pdp->rp_buf, 1, pdp->rp_blen + RCS_BUFEXTSIZE);
 	pdp->rp_blen += RCS_BUFEXTSIZE;
 	pdp->rp_bufend = pdp->rp_buf + pdp->rp_blen - 1;
 }
@@ -1362,14 +1355,15 @@ valid_login(char *login_name)
 	if (*login_name == '-')
 		return 0;
 
-	for (cp = (unsigned char *)login_name ; *cp ; cp++) {
+	for (cp = (unsigned char *)login_name; *cp; cp++) {
 		/* We allow '$' as the last character for samba */
 		if (!isalnum(*cp) && *cp != '.' && *cp != '_' && *cp != '-' &&
 		    !(*cp == '$' && *(cp + 1) == '\0')) {
 			return 0;
 		}
 	}
-	/* Preserve OpenBSD's historical RCS login limit, not host account policy. */
+	/* Preserve OpenBSD's historical RCS login limit, not host account
+	 * policy. */
 	if ((char *)cp - login_name > 31)
 		return 0;
 	return 1;
@@ -1381,7 +1375,7 @@ valid_commitid(char *commitid)
 	unsigned char *cp;
 
 	/* A-Za-z0-9 */
-	for (cp = (unsigned char *)commitid; *cp ; cp++) {
+	for (cp = (unsigned char *)commitid; *cp; cp++) {
 		if (!isalnum(*cp))
 			return 0;
 	}
@@ -1400,8 +1394,8 @@ static void
 rcsparse_warnx(RCSFILE *rfp, char *fmt, ...)
 {
 	struct rcs_pdata *pdp;
-	va_list ap;
-	char *msg;
+	va_list		  ap;
+	char		 *msg;
 
 	pdp = (struct rcs_pdata *)rfp->rf_pdata;
 	va_start(ap, fmt);

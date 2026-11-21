@@ -45,11 +45,12 @@
 #define WORKLIST_H
 
 #include <sys/types.h>
+
 #include <limits.h>
 
 struct worklist {
-	char				wkl_path[PATH_MAX];
-	volatile SLIST_ENTRY(worklist)	wkl_list;
+	char wkl_path[PATH_MAX];
+	volatile SLIST_ENTRY(worklist) wkl_list;
 };
 
 SLIST_HEAD(wklhead, worklist);

@@ -47,81 +47,61 @@
 #include "remote.h"
 
 struct cvs_resp cvs_responses[] = {
-	/* this is what our server uses, the client should support it */
-	{ "Valid-requests",	1,	cvs_client_validreq, RESP_NEEDED },
-	{ "ok",			0,	cvs_client_ok, RESP_NEEDED},
-	{ "error",		0,	cvs_client_error, RESP_NEEDED },
-	{ "E",			0,	cvs_client_e, RESP_NEEDED },
-	{ "M",			0,	cvs_client_m, RESP_NEEDED },
-	{ "Checked-in",		0,	cvs_client_checkedin, RESP_NEEDED },
-	{ "Updated",		0,	cvs_client_updated, RESP_NEEDED },
-	{ "Merged",		0,	cvs_client_merged, RESP_NEEDED },
-	{ "Removed",		0,	cvs_client_removed, RESP_NEEDED },
-	{ "Remove-entry",	0,	cvs_client_remove_entry, 0 },
-	{ "Set-static-directory",	0,
-	    cvs_client_set_static_directory, 0 },
-	{ "Clear-static-directory",	0,
-	    cvs_client_clear_static_directory, 0 },
-	{ "Set-sticky",		0,	cvs_client_set_sticky, 0 },
-	{ "Clear-sticky",	0,	cvs_client_clear_sticky, 0 },
+    /* this is what our server uses, the client should support it */
+    {"Valid-requests", 1, cvs_client_validreq, RESP_NEEDED},
+    {"ok", 0, cvs_client_ok, RESP_NEEDED},
+    {"error", 0, cvs_client_error, RESP_NEEDED},
+    {"E", 0, cvs_client_e, RESP_NEEDED}, {"M", 0, cvs_client_m, RESP_NEEDED},
+    {"Checked-in", 0, cvs_client_checkedin, RESP_NEEDED},
+    {"Updated", 0, cvs_client_updated, RESP_NEEDED},
+    {"Merged", 0, cvs_client_merged, RESP_NEEDED},
+    {"Removed", 0, cvs_client_removed, RESP_NEEDED},
+    {"Remove-entry", 0, cvs_client_remove_entry, 0},
+    {"Set-static-directory", 0, cvs_client_set_static_directory, 0},
+    {"Clear-static-directory", 0, cvs_client_clear_static_directory, 0},
+    {"Set-sticky", 0, cvs_client_set_sticky, 0},
+    {"Clear-sticky", 0, cvs_client_clear_sticky, 0},
 
-	/* unsupported responses until told otherwise */
-	{ "New-entry",			0,	NULL, 0 },
-	{ "Created",			0,	NULL, 0 },
-	{ "Update-existing",		0,	NULL, 0 },
-	{ "Rcs-diff",			0,	NULL, 0 },
-	{ "Patched",			0,	NULL, 0 },
-	{ "Mode",			0,	NULL, 0 },
-	{ "Mod-time",			0,	NULL, 0 },
-	{ "Checksum",			0,	NULL, 0 },
-	{ "Copy-file",			0,	NULL, 0 },
-	{ "Template",			0,	NULL, 0 },
-	{ "Set-checkin-prog",		0,	NULL, 0 },
-	{ "Set-update-prog",		0,	NULL, 0 },
-	{ "Notified",			0,	NULL, 0 },
-	{ "Module-expansion",		0,	NULL, 0 },
-	{ "Wrapper-rcsOption",		0,	NULL, 0 },
-	{ "Mbinary",			0,	NULL, 0 },
-	{ "F",				0,	NULL, 0 },
-	{ "MT",				0,	NULL, 0 },
-	{ "",				-1,	NULL, 0 }
-};
+    /* unsupported responses until told otherwise */
+    {"New-entry", 0, NULL, 0}, {"Created", 0, NULL, 0},
+    {"Update-existing", 0, NULL, 0}, {"Rcs-diff", 0, NULL, 0},
+    {"Patched", 0, NULL, 0}, {"Mode", 0, NULL, 0}, {"Mod-time", 0, NULL, 0},
+    {"Checksum", 0, NULL, 0}, {"Copy-file", 0, NULL, 0},
+    {"Template", 0, NULL, 0}, {"Set-checkin-prog", 0, NULL, 0},
+    {"Set-update-prog", 0, NULL, 0}, {"Notified", 0, NULL, 0},
+    {"Module-expansion", 0, NULL, 0}, {"Wrapper-rcsOption", 0, NULL, 0},
+    {"Mbinary", 0, NULL, 0}, {"F", 0, NULL, 0}, {"MT", 0, NULL, 0},
+    {"", -1, NULL, 0}};
 
-int	cvs_server(int, char **);
-char	*cvs_server_path = NULL;
+int   cvs_server(int, char **);
+char *cvs_server_path = NULL;
 
-static char *server_currentdir = NULL;
-static char **server_argv;
-static int server_argc = 1;
+static char	  *server_currentdir = NULL;
+static char	 **server_argv;
+static int	   server_argc = 1;
 static const char *server_allowed_root;
 
 extern int disable_fast_checkout;
 
-struct cvs_cmd cvs_cmd_server = {
-	CVS_OP_SERVER, CVS_USE_WDIR, "server", { "", "" },
-	"server mode",
-	NULL,
-	NULL,
-	NULL,
-	cvs_server
-};
-
+struct cvs_cmd cvs_cmd_server = {CVS_OP_SERVER, CVS_USE_WDIR, "server",
+    {"", ""}, "server mode", NULL, NULL, NULL, cvs_server};
 
 int
 cvs_server(int argc, char **argv)
 {
 	(void)argv;
-	char *cmd, *data, *temporary;
+	char	       *cmd, *data, *temporary;
 	struct cvs_req *req;
-	size_t requests = 0;
+	size_t		requests = 0;
 
 	if (argc > 1)
 		fatal("server does not take any extra arguments");
 	server_allowed_root = getenv("OPENCVS_SERVER_ROOT");
 	if (server_allowed_root != NULL &&
 	    (!pc_native_absolute(server_allowed_root) ||
-	    strpbrk(server_allowed_root, "\r\n") != NULL))
-		fatal("OPENCVS_SERVER_ROOT must be an absolute repository path");
+		strpbrk(server_allowed_root, "\r\n") != NULL))
+		fatal(
+		    "OPENCVS_SERVER_ROOT must be an absolute repository path");
 
 	/* Be on server-side very verbose per default. */
 	verbosity = 2;
@@ -135,8 +115,7 @@ cvs_server(int argc, char **argv)
 	server_argv = xcalloc(server_argc + 1, sizeof(*server_argv));
 	server_argv[0] = xstrdup("server");
 
-	(void)xasprintf(&temporary, "%s/cvs-serv%d", cvs_tmpdir,
-	    getpid());
+	(void)xasprintf(&temporary, "%s/cvs-serv%d", cvs_tmpdir, getpid());
 
 	if (mkdir(temporary, 0700) == -1)
 		fatal("failed to create temporary server directory: %s, %s",
@@ -156,15 +135,16 @@ cvs_server(int argc, char **argv)
 
 		req = cvs_remote_get_request_info(cmd);
 		if (req == NULL)
-			fatal("request '%s' is not supported by our server",
-			    cmd);
+			fatal(
+			    "request '%s' is not supported by our server", cmd);
 
 		if (req->hdlr == NULL)
 			fatal("opencvs server does not support '%s'", cmd);
 
 		if ((req->flags & REQ_NEEDDIR) && (server_currentdir == NULL))
 			fatal("`%s' needs a directory to be sent with "
-			    "the `Directory` request first", cmd);
+			      "the `Directory` request first",
+			    cmd);
 
 		(*req->hdlr)(data);
 		free(cmd);
@@ -174,9 +154,9 @@ cvs_server(int argc, char **argv)
 void
 cvs_server_send_response(char *fmt, ...)
 {
-	int i;
+	int	i;
 	va_list ap;
-	char *data;
+	char   *data;
 
 	va_start(ap, fmt);
 	i = vasprintf(&data, fmt, ap);
@@ -198,12 +178,15 @@ cvs_server_root(char *data)
 	if (current_cvsroot != NULL)
 		return;
 
-	if (server_allowed_root != NULL && strcmp(data, server_allowed_root) != 0)
+	if (server_allowed_root != NULL &&
+	    strcmp(data, server_allowed_root) != 0)
 		fatal("repository root is not authorized for this server");
-	if (!pc_native_absolute(data) || (current_cvsroot = cvsroot_get(data)) == NULL)
+	if (!pc_native_absolute(data) ||
+	    (current_cvsroot = cvsroot_get(data)) == NULL)
 		fatal("Invalid Root specified!");
-	if (!cvsroot_is_local() || (server_allowed_root != NULL &&
-	    strcmp(current_cvsroot->cr_dir, server_allowed_root) != 0))
+	if (!cvsroot_is_local() ||
+	    (server_allowed_root != NULL &&
+		strcmp(current_cvsroot->cr_dir, server_allowed_root) != 0))
 		fatal("repository root is not authorized for this server");
 
 	cvs_parse_configfile();
@@ -214,8 +197,8 @@ cvs_server_root(char *data)
 void
 cvs_server_validresp(char *data)
 {
-	int i;
-	char *sp, *ep;
+	int		 i;
+	char		*sp, *ep;
 	struct cvs_resp *resp;
 
 	if ((sp = data) == NULL)
@@ -235,8 +218,7 @@ cvs_server_validresp(char *data)
 
 	for (i = 0; cvs_responses[i].supported != -1; i++) {
 		resp = &cvs_responses[i];
-		if ((resp->flags & RESP_NEEDED) &&
-		    resp->supported != 1) {
+		if ((resp->flags & RESP_NEEDED) && resp->supported != 1) {
 			fatal("client does not support required '%s'",
 			    resp->name);
 		}
@@ -247,9 +229,9 @@ void
 cvs_server_validreq(char *data)
 {
 	(void)data;
-	BUF *bp;
+	BUF  *bp;
 	char *d;
-	int i, first;
+	int   i, first;
 
 	first = 0;
 	bp = buf_alloc(512);
@@ -278,10 +260,10 @@ cvs_server_static_directory(char *data)
 {
 	(void)data;
 	FILE *fp;
-	char fpath[PATH_MAX];
+	char  fpath[PATH_MAX];
 
-	(void)xsnprintf(fpath, PATH_MAX, "%s/%s",
-	    server_currentdir, CVS_PATH_STATICENTRIES);
+	(void)xsnprintf(fpath, PATH_MAX, "%s/%s", server_currentdir,
+	    CVS_PATH_STATICENTRIES);
 
 	if ((fp = fopen(fpath, "w+")) == NULL) {
 		cvs_log(LP_ERRNO, "%s", fpath);
@@ -294,13 +276,13 @@ void
 cvs_server_sticky(char *data)
 {
 	FILE *fp;
-	char tagpath[PATH_MAX];
+	char  tagpath[PATH_MAX];
 
 	if (data == NULL)
 		fatal("Missing argument for Sticky");
 
-	(void)xsnprintf(tagpath, PATH_MAX, "%s/%s",
-	    server_currentdir, CVS_PATH_TAG);
+	(void)xsnprintf(
+	    tagpath, PATH_MAX, "%s/%s", server_currentdir, CVS_PATH_TAG);
 
 	if ((fp = fopen(tagpath, "w+")) == NULL) {
 		cvs_log(LP_ERRNO, "%s", tagpath);
@@ -358,8 +340,8 @@ cvs_server_directory(char *data)
 {
 	(void)data;
 	CVSENTRIES *entlist;
-	char *dir, *repo, *parent, *entry, *dirn, *p;
-	char parentbuf[PATH_MAX], dirnbuf[PATH_MAX];
+	char	   *dir, *repo, *parent, *entry, *dirn, *p;
+	char	    parentbuf[PATH_MAX], dirnbuf[PATH_MAX];
 
 	if (current_cvsroot == NULL)
 		fatal("No Root specified for Directory");
@@ -368,10 +350,12 @@ cvs_server_directory(char *data)
 	STRIP_SLASH(dir);
 
 	if (strlen(dir) < strlen(current_cvsroot->cr_dir) ||
-	    strncmp(dir, current_cvsroot->cr_dir, strlen(current_cvsroot->cr_dir)) != 0 ||
-	    (current_cvsroot->cr_dir[strlen(current_cvsroot->cr_dir) - 1] != '/' &&
-	    dir[strlen(current_cvsroot->cr_dir)] != '\0' &&
-	    dir[strlen(current_cvsroot->cr_dir)] != '/'))
+	    strncmp(dir, current_cvsroot->cr_dir,
+		strlen(current_cvsroot->cr_dir)) != 0 ||
+	    (current_cvsroot->cr_dir[strlen(current_cvsroot->cr_dir) - 1] !=
+		    '/' &&
+		dir[strlen(current_cvsroot->cr_dir)] != '\0' &&
+		dir[strlen(current_cvsroot->cr_dir)] != '/'))
 		fatal("cvs_server_directory: bad Directory request");
 
 	repo = dir + strlen(current_cvsroot->cr_dir);
@@ -405,8 +389,8 @@ cvs_server_directory(char *data)
 
 	if (strcmp(parent, ".")) {
 		entry = xmalloc(CVS_ENT_MAXLINELEN);
-		cvs_ent_line_str(dirn, NULL, NULL, NULL, NULL, 1, 0,
-		    entry, CVS_ENT_MAXLINELEN);
+		cvs_ent_line_str(dirn, NULL, NULL, NULL, NULL, 1, 0, entry,
+		    CVS_ENT_MAXLINELEN);
 
 		entlist = cvs_ent_open(parent);
 		cvs_ent_add(entlist, entry);
@@ -434,11 +418,11 @@ cvs_server_entry(char *data)
 void
 cvs_server_modified(char *data)
 {
-	int fd;
-	size_t flen;
-	mode_t fmode;
+	int	    fd;
+	size_t	    flen;
+	mode_t	    fmode;
 	const char *errstr;
-	char *mode, *len, fpath[PATH_MAX];
+	char	   *mode, *len, fpath[PATH_MAX];
 
 	if (data == NULL)
 		fatal("Missing argument for Modified");
@@ -464,7 +448,8 @@ cvs_server_modified(char *data)
 
 	(void)xsnprintf(fpath, PATH_MAX, "%s/%s", server_currentdir, data);
 
-	if ((fd = open(fpath, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600)) == -1)
+	if ((fd = open(
+		 fpath, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600)) == -1)
 		fatal("cvs_server_modified: %s: %s", fpath, strerror(errno));
 
 	cvs_remote_receive_file(fd, flen);
@@ -485,11 +470,11 @@ cvs_server_useunchanged(char *data)
 void
 cvs_server_unchanged(char *data)
 {
-	char fpath[PATH_MAX];
-	CVSENTRIES *entlist;
+	char		fpath[PATH_MAX];
+	CVSENTRIES     *entlist;
 	struct cvs_ent *ent;
-	char sticky[CVS_ENT_MAXLINELEN];
-	char rev[CVS_REV_BUFSZ], entry[CVS_ENT_MAXLINELEN];
+	char		sticky[CVS_ENT_MAXLINELEN];
+	char		rev[CVS_REV_BUFSZ], entry[CVS_ENT_MAXLINELEN];
 
 	if (data == NULL)
 		fatal("Missing argument for Unchanged");
@@ -509,9 +494,9 @@ cvs_server_unchanged(char *data)
 		(void)xsnprintf(sticky, sizeof(sticky), "T%s", ent->ce_tag);
 
 	rcsnum_tostr(ent->ce_rev, rev, sizeof(rev));
-	(void)xsnprintf(entry, sizeof(entry), "/%s/%s/%s/%s/%s",
-	    ent->ce_name, rev, CVS_SERVER_UNCHANGED, ent->ce_opts ?
-	    ent->ce_opts : "", sticky);
+	(void)xsnprintf(entry, sizeof(entry), "/%s/%s/%s/%s/%s", ent->ce_name,
+	    rev, CVS_SERVER_UNCHANGED, ent->ce_opts ? ent->ce_opts : "",
+	    sticky);
 
 	cvs_ent_free(ent);
 	cvs_ent_add(entlist, entry);
@@ -521,13 +506,13 @@ void
 cvs_server_questionable(char *data)
 {
 	CVSENTRIES *entlist;
-	char entry[CVS_ENT_MAXLINELEN];
+	char	    entry[CVS_ENT_MAXLINELEN];
 
 	if (data == NULL)
 		fatal("Questionable request with no data attached");
 
-	(void)xsnprintf(entry, sizeof(entry), "/%s/%c///", data,
-	    CVS_SERVER_QUESTIONABLE);
+	(void)xsnprintf(
+	    entry, sizeof(entry), "/%s/%c///", data, CVS_SERVER_QUESTIONABLE);
 
 	entlist = cvs_ent_open(server_currentdir);
 	cvs_ent_add(entlist, entry);
@@ -544,8 +529,8 @@ cvs_server_argument(char *data)
 
 	if (server_argc > INT_MAX - 2)
 		fatal("too many protocol arguments");
-	server_argv = xreallocarray(server_argv, (size_t)server_argc + 2,
-	    sizeof(*server_argv));
+	server_argv = xreallocarray(
+	    server_argv, (size_t)server_argc + 2, sizeof(*server_argv));
 	server_argv[server_argc] = xstrdup(data);
 	server_argv[++server_argc] = NULL;
 }
@@ -553,7 +538,7 @@ cvs_server_argument(char *data)
 void
 cvs_server_argumentx(char *data)
 {
-	int idx;
+	int    idx;
 	size_t len, oldlen, extra;
 
 	if (data == NULL)
@@ -862,7 +847,7 @@ void
 cvs_server_update_entry(const char *resp, struct cvs_file *cf)
 {
 	char *p;
-	char repo[PATH_MAX], fpath[PATH_MAX];
+	char  repo[PATH_MAX], fpath[PATH_MAX];
 
 	if ((p = strrchr(cf->file_rpath, ',')) != NULL)
 		*p = '\0';
@@ -909,7 +894,7 @@ cvs_server_exp_modules(char *module)
 {
 	(void)module;
 	struct module_checkout *mo;
-	struct cvs_filelist *fl;
+	struct cvs_filelist    *fl;
 
 	if (server_argc != 2)
 		fatal("expand-modules with no arguments");
@@ -917,7 +902,7 @@ cvs_server_exp_modules(char *module)
 	mo = cvs_module_lookup(server_argv[1]);
 
 	RB_FOREACH(fl, cvs_flisthead, &(mo->mc_modules))
-		cvs_server_send_response("Module-expansion %s", fl->file_path);
+	cvs_server_send_response("Module-expansion %s", fl->file_path);
 	if (mo->mc_canfree) {
 		cvs_file_freelist(&mo->mc_modules);
 		cvs_file_freelist(&mo->mc_ignores);

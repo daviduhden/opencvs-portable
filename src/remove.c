@@ -42,29 +42,23 @@
 
 extern char *__progname;
 
-void		cvs_remove_force(struct cvs_file *);
+void cvs_remove_force(struct cvs_file *);
 
-static int	removed = 0;
-static int	existing = 0;
+static int removed = 0;
+static int existing = 0;
 
-struct cvs_cmd cvs_cmd_remove = {
-	CVS_OP_REMOVE, CVS_USE_WDIR, "remove",
-	{ "rm", "delete" },
-	"Remove an entry from the repository",
-	"[-flR] [file ...]",
-	"flR",
-	NULL,
-	cvs_remove
-};
+struct cvs_cmd cvs_cmd_remove = {CVS_OP_REMOVE, CVS_USE_WDIR, "remove",
+    {"rm", "delete"}, "Remove an entry from the repository",
+    "[-flR] [file ...]", "flR", NULL, cvs_remove};
 
 int
 cvs_remove(int argc, char **argv)
 {
-	int ch;
-	int flags;
-	char *arg = ".";
+	int		     ch;
+	int		     flags;
+	char		    *arg = ".";
 	struct cvs_recursion cr;
-	int force_remove = 0;
+	int		     force_remove = 0;
 
 	flags = CR_RECURSE_DIRS;
 	while ((ch = getopt(argc, argv, cvs_cmd_remove.cmd_opts)) != -1) {
@@ -120,17 +114,21 @@ cvs_remove(int argc, char **argv)
 		cvs_client_get_responses();
 	} else {
 		if (existing != 0) {
-			cvs_log(LP_ERR, (existing == 1) ?
-			    "%d file exists; remove it first" :
-			    "%d files exist; remove them first", existing);
+			cvs_log(LP_ERR,
+			    (existing == 1) ?
+				"%d file exists; remove it first" :
+				"%d files exist; remove them first",
+			    existing);
 		}
 
 		if (removed != 0) {
 			if (verbosity > 0) {
 				cvs_log(LP_NOTICE,
 				    "use '%s commit' to remove %s "
-				    "permanently", __progname, (removed > 1) ?
-				    "these files" : "this file");
+				    "permanently",
+				    __progname,
+				    (removed > 1) ? "these files" :
+						    "this file");
 			}
 		}
 	}
@@ -156,7 +154,7 @@ cvs_remove_local(struct cvs_file *cf)
 {
 	CVSENTRIES *entlist;
 	char *entry, buf[PATH_MAX], tbuf[CVS_TIME_BUFSZ], rbuf[CVS_REV_BUFSZ];
-	char sticky[CVS_ENT_MAXLINELEN];
+	char  sticky[CVS_ENT_MAXLINELEN];
 
 	cvs_log(LP_TRACE, "cvs_remove_local(%s)", cf->file_path);
 
@@ -194,8 +192,8 @@ cvs_remove_local(struct cvs_file *cf)
 			(void)unlink(buf);
 
 			if (verbosity > 1) {
-				cvs_log(LP_NOTICE, "removed `%s'",
-				    cf->file_name);
+				cvs_log(
+				    LP_NOTICE, "removed `%s'", cf->file_name);
 			}
 			return;
 		case FILE_REMOVED:
@@ -218,9 +216,8 @@ cvs_remove_local(struct cvs_file *cf)
 
 			entry = xmalloc(CVS_ENT_MAXLINELEN);
 			cvs_ent_line_str(cf->file_name, rbuf, tbuf,
-			    cf->file_ent->ce_opts ? 
-			    cf->file_ent->ce_opts : "", sticky, 0, 1,
-			    entry, CVS_ENT_MAXLINELEN);
+			    cf->file_ent->ce_opts ? cf->file_ent->ce_opts : "",
+			    sticky, 0, 1, entry, CVS_ENT_MAXLINELEN);
 
 			if (cvs_server_active == 1) {
 				cvs_server_update_entry("Checked-in", cf);

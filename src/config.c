@@ -33,16 +33,16 @@
  */
 
 #include <sys/types.h>
-#include <dirent.h>
 #include <sys/resource.h>
 
+#include <dirent.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "cvs.h"
 #include "config.h"
+#include "cvs.h"
 
 void
 cvs_parse_configfile(void)
@@ -56,8 +56,8 @@ config_parse_line(char *line, int lineno)
 {
 	(void)lineno;
 	struct rlimit rl;
-	const char *errstr;
-	char *val, *opt, *ep;
+	const char   *errstr;
+	char	     *val, *opt, *ep;
 
 	opt = line;
 	if ((val = strrchr(opt, '=')) == NULL)
@@ -74,18 +74,18 @@ config_parse_line(char *line, int lineno)
 		errno = 0;
 		mask = strtol(val, &ep, 8);
 
-		if (errno == ERANGE || val == ep || *ep != '\0' ||
-		    mask < 0 || mask > 07777)
+		if (errno == ERANGE || val == ep || *ep != '\0' || mask < 0 ||
+		    mask > 07777)
 			fatal("cvs_parse_configfile: umask %s is "
-			    "invalid", val);
+			      "invalid",
+			    val);
 		cvs_umask = (int)mask;
 	} else if (!strcmp(opt, "dlimit")) {
 		if (getrlimit(RLIMIT_DATA, &rl) != -1) {
-			rl.rlim_cur = (int)strtonum(val, 0, INT_MAX,
-			    &errstr);
+			rl.rlim_cur = (int)strtonum(val, 0, INT_MAX, &errstr);
 			if (errstr != NULL)
-				fatal("cvs_parse_configfile: %s: %s",
-				    val, errstr);
+				fatal("cvs_parse_configfile: %s: %s", val,
+				    errstr);
 			rl.rlim_cur = rl.rlim_cur * 1024;
 			(void)setrlimit(RLIMIT_DATA, &rl);
 		}
@@ -99,13 +99,13 @@ config_parse_line(char *line, int lineno)
 void
 cvs_read_config(char *name, int (*cb)(char *, int))
 {
-	FILE *fp;
+	FILE  *fp;
 	size_t len;
-	int lineno;
-	char *p, *buf, *lbuf, fpath[PATH_MAX];
+	int    lineno;
+	char  *p, *buf, *lbuf, fpath[PATH_MAX];
 
-	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
-	    current_cvsroot->cr_dir, name);
+	(void)xsnprintf(
+	    fpath, sizeof(fpath), "%s/%s", current_cvsroot->cr_dir, name);
 
 	if ((fp = fopen(fpath, "r")) == NULL)
 		return;

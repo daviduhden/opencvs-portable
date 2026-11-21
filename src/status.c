@@ -41,43 +41,37 @@
 #include "cvs.h"
 #include "remote.h"
 
-void	cvs_status_local(struct cvs_file *);
+void cvs_status_local(struct cvs_file *);
 
 static int show_sym = 0;
 
-struct cvs_cmd cvs_cmd_status = {
-	CVS_OP_STATUS, CVS_USE_WDIR, "status",
-	{ "st", "stat" },
-	"Display status information on checked out files",
-	"[-lRv]",
-	"lRv",
-	NULL,
-	cvs_status
-};
+struct cvs_cmd cvs_cmd_status = {CVS_OP_STATUS, CVS_USE_WDIR, "status",
+    {"st", "stat"}, "Display status information on checked out files", "[-lRv]",
+    "lRv", NULL, cvs_status};
 
-#define CVS_STATUS_SEP	\
+#define CVS_STATUS_SEP                                                         \
 	"==================================================================="
 
 const char *status_tab[] = {
-	"Unknown",
-	"Locally Added",
-	"Locally Removed",
-	"Locally Modified",
-	"Up-to-date",
-	"Needs Checkout",
-	"Needs Checkout",
-	"Needs Merge",
-	"Needs Patch",
-	"Entry Invalid",
-	"Unresolved Conflict",
-	"Classifying error",
+    "Unknown",
+    "Locally Added",
+    "Locally Removed",
+    "Locally Modified",
+    "Up-to-date",
+    "Needs Checkout",
+    "Needs Checkout",
+    "Needs Merge",
+    "Needs Patch",
+    "Entry Invalid",
+    "Unresolved Conflict",
+    "Classifying error",
 };
 
 int
 cvs_status(int argc, char **argv)
 {
-	int ch, flags;
-	char *arg = ".";
+	int		     ch, flags;
+	char		    *arg = ".";
 	struct cvs_recursion cr;
 
 	flags = CR_RECURSE_DIRS;
@@ -136,13 +130,13 @@ cvs_status(int argc, char **argv)
 void
 cvs_status_local(struct cvs_file *cf)
 {
-	size_t len;
-	RCSNUM *head, *brev;
-	const char *status;
+	size_t		  len;
+	RCSNUM		 *head, *brev;
+	const char	 *status;
 	struct rcs_delta *rdp;
-	char buf[PATH_MAX + CVS_REV_BUFSZ + 128];
-	char timebuf[CVS_TIME_BUFSZ], revbuf[CVS_REV_BUFSZ];
-	struct rcs_sym *sym;
+	char		  buf[PATH_MAX + CVS_REV_BUFSZ + 128];
+	char		  timebuf[CVS_TIME_BUFSZ], revbuf[CVS_REV_BUFSZ];
+	struct rcs_sym	 *sym;
 
 	cvs_log(LP_TRACE, "cvs_status_local(%s)", cf->file_path);
 
@@ -176,17 +170,16 @@ cvs_status_local(struct cvs_file *cf)
 		status = "File had conflicts on merge";
 
 	if (!(cf->file_flags & FILE_ON_DISK)) {
-		(void)xsnprintf(buf, sizeof(buf), "no file %s\t",
-		    cf->file_name);
-	} else
-		if (strlcpy(buf, cf->file_name, sizeof(buf)) >= sizeof(buf))
-			fatal("cvs_status_local: overflow");
+		(void)xsnprintf(
+		    buf, sizeof(buf), "no file %s\t", cf->file_name);
+	} else if (strlcpy(buf, cf->file_name, sizeof(buf)) >= sizeof(buf))
+		fatal("cvs_status_local: overflow");
 
 	cvs_printf("File: %-17s\tStatus: %s\n\n", buf, status);
 
 	if (cf->file_ent == NULL) {
-		(void)xsnprintf(buf, sizeof(buf),
-		    "No entry for %s", cf->file_name);
+		(void)xsnprintf(
+		    buf, sizeof(buf), "No entry for %s", cf->file_name);
 	} else if (cf->file_ent->ce_status == CVS_ENT_ADDED) {
 		len = strlcpy(buf, "New file!", sizeof(buf));
 		if (len >= sizeof(buf))
@@ -228,8 +221,8 @@ cvs_status_local(struct cvs_file *cf)
 			fatal("cvs_status_local: truncation");
 	} else {
 		rcsnum_tostr(head, revbuf, sizeof(revbuf));
-		(void)xsnprintf(buf, sizeof(buf), "%s\t%s", revbuf,
-		    cf->file_rpath);
+		(void)xsnprintf(
+		    buf, sizeof(buf), "%s\t%s", revbuf, cf->file_rpath);
 	}
 
 	cvs_printf("   Repository revision:\t%s\n", buf);
@@ -246,8 +239,8 @@ cvs_status_local(struct cvs_file *cf)
 
 	if (cf->file_ent != NULL) {
 		if (cf->file_ent->ce_tag != NULL) {
-			if ((brev = rcs_sym_getrev(cf->file_rcs,
-			    cf->file_ent->ce_tag)) == NULL) {
+			if ((brev = rcs_sym_getrev(
+				 cf->file_rcs, cf->file_ent->ce_tag)) == NULL) {
 				(void)strlcpy(buf, "- MISSING from RCS file!",
 				    sizeof(buf));
 			} else {
@@ -270,19 +263,19 @@ cvs_status_local(struct cvs_file *cf)
 
 		if (cf->file_ent->ce_date != -1) {
 			struct tm datetm;
-			char datetmp[CVS_TIME_BUFSZ];
+			char	  datetmp[CVS_TIME_BUFSZ];
 
 			gmtime_r(&(cf->file_ent->ce_date), &datetm);
-                        (void)strftime(datetmp, sizeof(datetmp),
-			    CVS_DATE_FMT, &datetm);
+			(void)strftime(
+			    datetmp, sizeof(datetmp), CVS_DATE_FMT, &datetm);
 
 			cvs_printf("   Sticky Date:\t\t%s\n", datetmp);
 		} else if (verbosity > 0)
 			cvs_printf("   Sticky Date:\t\t(none)\n");
 
 		if (cf->file_ent->ce_opts != NULL)
-			cvs_printf("   Sticky Options:\t%s\n",
-			    cf->file_ent->ce_opts);
+			cvs_printf(
+			    "   Sticky Options:\t%s\n", cf->file_ent->ce_opts);
 		else if (verbosity > 0)
 			cvs_printf("   Sticky Options:\t(none)\n");
 	}
@@ -292,15 +285,16 @@ cvs_status_local(struct cvs_file *cf)
 		cvs_printf("   Existing Tags:\n");
 
 		if (!TAILQ_EMPTY(&(cf->file_rcs->rf_symbols))) {
-			TAILQ_FOREACH(sym,
-			    &(cf->file_rcs->rf_symbols), rs_list) {
-				(void)rcsnum_tostr(sym->rs_num, revbuf,
-				    sizeof(revbuf));
+			TAILQ_FOREACH(sym, &(cf->file_rcs->rf_symbols), rs_list)
+			{
+				(void)rcsnum_tostr(
+				    sym->rs_num, revbuf, sizeof(revbuf));
 
 				cvs_printf("\t%-25s\t(%s: %s)\n", sym->rs_name,
 				    RCSNUM_ISBRANCH(sym->rs_num) ? "branch" :
-				    "revision", revbuf);
-			 }
+								   "revision",
+				    revbuf);
+			}
 		} else
 			cvs_printf("\tNo Tags Exist\n");
 	}

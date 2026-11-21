@@ -42,8 +42,8 @@
 #include "cvs.h"
 #include "remote.h"
 
-#define CVS_ENTRIES_NFIELDS	6
-#define CVS_ENTRIES_DELIM	'/'
+#define CVS_ENTRIES_NFIELDS 6
+#define CVS_ENTRIES_DELIM '/'
 
 static struct cvs_ent_line *ent_get_line(CVSENTRIES *, const char *);
 
@@ -63,12 +63,12 @@ static void
 ent_append_log(CVSENTRIES *ep, int operation, const char *line)
 {
 	FILE *fp;
-	int saved = 0;
+	int   saved = 0;
 
 	if ((fp = fopen(ep->cef_lpath, "a")) == NULL)
 		fatal("open %s: %s", ep->cef_lpath, strerror(errno));
-	if (fprintf(fp, "%c %s\n", operation, line) < 0 ||
-	    fflush(fp) == EOF || fsync(fileno(fp)) == -1)
+	if (fprintf(fp, "%c %s\n", operation, line) < 0 || fflush(fp) == EOF ||
+	    fsync(fileno(fp)) == -1)
 		saved = errno != 0 ? errno : EIO;
 	if (fclose(fp) == EOF && saved == 0)
 		saved = errno != 0 ? errno : EIO;
@@ -84,11 +84,11 @@ ent_append_log(CVSENTRIES *ep, int operation, const char *line)
 static time_t
 entries_date(const char *text)
 {
-	static const int min[] = { 1, 1, 1, 0, 0, 0 };
-	static const int max[] = { 9999, 12, 31, 23, 59, 59 };
-	struct tm date = { 0 }, roundtrip;
-	int fields[6], i, value, digit;
-	time_t stamp;
+	static const int min[] = {1, 1, 1, 0, 0, 0};
+	static const int max[] = {9999, 12, 31, 23, 59, 59};
+	struct tm	 date = {0}, roundtrip;
+	int		 fields[6], i, value, digit;
+	time_t		 stamp;
 
 	for (i = 0; i < 6; i++) {
 		value = 0;
@@ -118,10 +118,8 @@ entries_date(const char *text)
 	if (gmtime_r(&stamp, &roundtrip) == NULL ||
 	    roundtrip.tm_year != fields[0] - 1900 ||
 	    roundtrip.tm_mon != fields[1] - 1 ||
-	    roundtrip.tm_mday != fields[2] ||
-	    roundtrip.tm_hour != fields[3] ||
-	    roundtrip.tm_min != fields[4] ||
-	    roundtrip.tm_sec != fields[5])
+	    roundtrip.tm_mday != fields[2] || roundtrip.tm_hour != fields[3] ||
+	    roundtrip.tm_min != fields[4] || roundtrip.tm_sec != fields[5])
 		fatal("invalid or unrepresentable date");
 	return stamp;
 }
@@ -131,9 +129,9 @@ CVSENTRIES *current_list = NULL;
 CVSENTRIES *
 cvs_ent_open(const char *dir)
 {
-	FILE *fp;
-	CVSENTRIES *ep;
-	char *p, buf[PATH_MAX], cwd[PATH_MAX], absolute[PATH_MAX];
+	FILE	       *fp;
+	CVSENTRIES     *ep;
+	char	       *p, buf[PATH_MAX], cwd[PATH_MAX], absolute[PATH_MAX];
 	struct cvs_ent *ent;
 	struct cvs_ent_line *line;
 
@@ -159,8 +157,7 @@ cvs_ent_open(const char *dir)
 	ep = xcalloc(1, sizeof(*ep));
 	ep->cef_path = xstrdup(buf);
 
-	(void)xsnprintf(buf, sizeof(buf), "%s/%s",
-	    dir, CVS_PATH_BACKUPENTRIES);
+	(void)xsnprintf(buf, sizeof(buf), "%s/%s", dir, CVS_PATH_BACKUPENTRIES);
 
 	ep->cef_bpath = xstrdup(buf);
 
@@ -198,15 +195,16 @@ cvs_ent_open(const char *dir)
 
 			p = &buf[2];
 			if ((ent = cvs_ent_parse(p)) == NULL)
-				fatal("cvs_ent_open: invalid entry in %s", ep->cef_lpath);
+				fatal("cvs_ent_open: invalid entry in %s",
+				    ep->cef_lpath);
 			ent_forget_lines(ep, ent->ce_name);
 			cvs_ent_free(ent);
 
 			if (buf[0] == 'A') {
 				line = xmalloc(sizeof(*line));
 				line->buf = xstrdup(p);
-				TAILQ_INSERT_TAIL(&(ep->cef_ent), line,
-				    entries_list);
+				TAILQ_INSERT_TAIL(
+				    &(ep->cef_ent), line, entries_list);
 			}
 		}
 
@@ -222,10 +220,10 @@ cvs_ent_open(const char *dir)
 struct cvs_ent *
 cvs_ent_parse(const char *entry)
 {
-	int i;
-	struct tm t = { 0 };
+	int		i;
+	struct tm	t = {0};
 	struct cvs_ent *ent;
-	char *fields[CVS_ENTRIES_NFIELDS], *buf, *sp, *dp, *p;
+	char	       *fields[CVS_ENTRIES_NFIELDS], *buf, *sp, *dp, *p;
 
 	buf = sp = xstrdup(entry);
 	i = 0;
@@ -280,13 +278,13 @@ cvs_ent_parse(const char *entry)
 
 		if (fields[3][0] == '\0' ||
 		    strncmp(fields[3], CVS_DATE_DUMMY,
-		    sizeof(CVS_DATE_DUMMY) - 1) == 0 ||
+			sizeof(CVS_DATE_DUMMY) - 1) == 0 ||
 		    strncmp(fields[3], "Initial ", 8) == 0 ||
 		    strcmp(fields[3], "Result of merge") == 0) {
 			ent->ce_mtime = CVS_DATE_DMSEC;
 		} else if (cvs_server_active == 1 &&
 		    strncmp(fields[3], CVS_SERVER_UNCHANGED,
-		    strlen(CVS_SERVER_UNCHANGED)) == 0) {
+			strlen(CVS_SERVER_UNCHANGED)) == 0) {
 			ent->ce_mtime = CVS_SERVER_UPTODATE;
 		} else {
 			p = fields[3];
@@ -335,7 +333,7 @@ cvs_ent_parse(const char *entry)
 struct cvs_ent *
 cvs_ent_get(CVSENTRIES *ep, const char *name)
 {
-	struct cvs_ent *ent;
+	struct cvs_ent	    *ent;
 	struct cvs_ent_line *l;
 
 	l = ent_get_line(ep, name);
@@ -349,10 +347,10 @@ cvs_ent_get(CVSENTRIES *ep, const char *name)
 void
 cvs_ent_close(CVSENTRIES *ep, int writefile)
 {
-	FILE *fp;
+	FILE		    *fp;
 	struct cvs_ent_line *l;
-	int dflag, fd, saved;
-	char *temporary = NULL;
+	int		     dflag, fd, saved;
+	char		    *temporary = NULL;
 
 	dflag = 1;
 	cvs_log(LP_TRACE, "cvs_ent_close(%s, %d)", ep->cef_bpath, writefile);
@@ -365,7 +363,8 @@ cvs_ent_close(CVSENTRIES *ep, int writefile)
 	if (writefile) {
 		xasprintf(&temporary, "%s.XXXXXXXX", ep->cef_bpath);
 		if ((fd = mkstemp(temporary)) == -1)
-			fatal("cvs_ent_close: create temporary: %s", strerror(errno));
+			fatal("cvs_ent_close: create temporary: %s",
+			    strerror(errno));
 		worklist_add(temporary, &temp_files);
 		if ((fp = fdopen(fd, "w")) == NULL)
 			fatal("cvs_ent_close: fdopen: %s", strerror(errno));
@@ -390,7 +389,8 @@ cvs_ent_close(CVSENTRIES *ep, int writefile)
 			fputc('D', fp);
 			fputc('\n', fp);
 		}
-		if (fflush(fp) == EOF || ferror(fp) || fsync(fileno(fp)) == -1) {
+		if (fflush(fp) == EOF || ferror(fp) ||
+		    fsync(fileno(fp)) == -1) {
 			saved = errno;
 			(void)fclose(fp);
 			(void)unlink(temporary);
@@ -409,12 +409,14 @@ cvs_ent_close(CVSENTRIES *ep, int writefile)
 		free(temporary);
 
 		if (pc_sync_parent_directory(ep->cef_path) == -1)
-			fatal("published %s but could not sync its directory: %s",
+			fatal(
+			    "published %s but could not sync its directory: %s",
 			    ep->cef_path, strerror(errno));
 		if (unlink(ep->cef_lpath) == -1 && errno != ENOENT)
 			fatal("cvs_ent_close: remove log: %s", strerror(errno));
 		if (pc_sync_parent_directory(ep->cef_path) == -1)
-			fatal("compacted %s but could not sync its directory: %s",
+			fatal(
+			    "compacted %s but could not sync its directory: %s",
 			    ep->cef_path, strerror(errno));
 	}
 
@@ -430,7 +432,7 @@ void
 cvs_ent_add(CVSENTRIES *ep, const char *line)
 {
 	struct cvs_ent_line *l;
-	struct cvs_ent *ent;
+	struct cvs_ent	    *ent;
 
 	if ((ent = cvs_ent_parse(line)) == NULL)
 		fatal("cvs_ent_add: parsing failed '%s'", line);
@@ -477,8 +479,8 @@ cvs_ent_line_str(const char *name, char *rev, char *tstamp, char *opts,
 		return;
 	}
 
-	(void)xsnprintf(buf, len, "/%s/%s%s/%s/%s/%s",
-	    name, isremoved == 1 ? "-" : "", rev, tstamp, opts, sticky);
+	(void)xsnprintf(buf, len, "/%s/%s%s/%s/%s/%s", name,
+	    isremoved == 1 ? "-" : "", rev, tstamp, opts, sticky);
 }
 
 void
@@ -493,10 +495,11 @@ cvs_ent_free(struct cvs_ent *ent)
 static struct cvs_ent_line *
 ent_get_line(CVSENTRIES *ep, const char *name)
 {
-	char *p, *s;
+	char		    *p, *s;
 	struct cvs_ent_line *l;
 
-	TAILQ_FOREACH(l, &(ep->cef_ent), entries_list) {
+	TAILQ_FOREACH(l, &(ep->cef_ent), entries_list)
+	{
 		if (l->buf[0] == 'D')
 			p = &(l->buf[2]);
 		else
@@ -521,10 +524,10 @@ ent_get_line(CVSENTRIES *ep, const char *name)
 void
 cvs_parse_tagfile(char *dir, char **tagp, char **datep, int *nbp)
 {
-	FILE *fp;
-	int i, linenum;
+	FILE  *fp;
+	int    i, linenum;
 	size_t len;
-	char linebuf[128], tagpath[PATH_MAX];
+	char   linebuf[128], tagpath[PATH_MAX];
 
 	cvs_directory_date = -1;
 
@@ -546,7 +549,7 @@ cvs_parse_tagfile(char *dir, char **tagp, char **datep, int *nbp)
 			cvs_log(LP_NOTICE, "failed to open `%s' : %s", tagpath,
 			    strerror(errno));
 		return;
-        }
+	}
 
 	linenum = 0;
 
@@ -555,8 +558,8 @@ cvs_parse_tagfile(char *dir, char **tagp, char **datep, int *nbp)
 		if ((len = strlen(linebuf)) == 0)
 			continue;
 		if (linebuf[len - 1] != '\n') {
-			cvs_log(LP_NOTICE, "line too long in `%s:%d'",
-			    tagpath, linenum);
+			cvs_log(LP_NOTICE, "line too long in `%s:%d'", tagpath,
+			    linenum);
 			break;
 		}
 		linebuf[--len] = '\0';
@@ -591,12 +594,12 @@ cvs_parse_tagfile(char *dir, char **tagp, char **datep, int *nbp)
 void
 cvs_write_tagfile(const char *dir, char *tag, char *date)
 {
-	FILE *fp;
-	RCSNUM *rev;
-	char tagpath[PATH_MAX];
-	char sticky[CVS_REV_BUFSZ];
+	FILE	 *fp;
+	RCSNUM	 *rev;
+	char	  tagpath[PATH_MAX];
+	char	  sticky[CVS_REV_BUFSZ];
 	struct tm datetm;
-	int i;
+	int	  i;
 
 	cvs_log(LP_TRACE, "cvs_write_tagfile(%s, %s, %s)", dir,
 	    tag != NULL ? tag : "", date != NULL ? date : "");
@@ -620,20 +623,20 @@ cvs_write_tagfile(const char *dir, char *tag, char *date)
 
 		if (tag != NULL) {
 			if ((rev = rcsnum_parse(tag)) != NULL) {
-				(void)xsnprintf(sticky, sizeof(sticky),
-				    "N%s", tag);
+				(void)xsnprintf(
+				    sticky, sizeof(sticky), "N%s", tag);
 				free(rev);
 			} else {
-				(void)xsnprintf(sticky, sizeof(sticky),
-				    "T%s", tag);
+				(void)xsnprintf(
+				    sticky, sizeof(sticky), "T%s", tag);
 			}
 		} else {
 			if (cvs_specified_date != -1)
 				gmtime_r(&cvs_specified_date, &datetm);
 			else
 				gmtime_r(&cvs_directory_date, &datetm);
-			(void)strftime(sticky, sizeof(sticky),
-			    "D"CVS_DATE_FMT, &datetm);
+			(void)strftime(
+			    sticky, sizeof(sticky), "D" CVS_DATE_FMT, &datetm);
 		}
 
 		(void)fprintf(fp, "%s\n", sticky);

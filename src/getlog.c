@@ -33,70 +33,61 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <unistd.h>
+#include <ctype.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <ctype.h>
+#include <unistd.h>
 
 #include "cvs.h"
 #include "remote.h"
 
-#define L_HEAD		0x01
-#define L_HEAD_DESCR	0x02
-#define L_NAME		0x04
-#define L_NOTAGS	0x08
-#define L_LOGINS	0x10
-#define L_STATES	0x20
+#define L_HEAD 0x01
+#define L_HEAD_DESCR 0x02
+#define L_NAME 0x04
+#define L_NOTAGS 0x08
+#define L_LOGINS 0x10
+#define L_STATES 0x20
 
-#define LDATE_LATER	0x01
-#define LDATE_EARLIER	0x02
-#define LDATE_SINGLE	0x04
-#define LDATE_RANGE	0x08
-#define LDATE_INCLUSIVE	0x10
+#define LDATE_LATER 0x01
+#define LDATE_EARLIER 0x02
+#define LDATE_SINGLE 0x04
+#define LDATE_RANGE 0x08
+#define LDATE_INCLUSIVE 0x10
 
-void		 cvs_log_local(struct cvs_file *);
-static void	 log_rev_print(struct rcs_delta *);
-static char 	*push_date(char *dest, const char *);
-static u_int	 date_select(RCSFILE *, char *);
+void	     cvs_log_local(struct cvs_file *);
+static void  log_rev_print(struct rcs_delta *);
+static char *push_date(char *dest, const char *);
+static u_int date_select(RCSFILE *, char *);
 
-int	 runflags = 0;
-char	*logrev = NULL;
-char	*logdate = NULL;
-char	*slist = NULL;
-char	*wlist = NULL;
+int   runflags = 0;
+char *logrev = NULL;
+char *logdate = NULL;
+char *slist = NULL;
+char *wlist = NULL;
 
-struct cvs_cmd cvs_cmd_log = {
-	CVS_OP_LOG, CVS_USE_WDIR, "log",
-	{ "lo" },
-	"Print out history information for files",
-	"[-bhlNRt] [-d dates] [-r revisions] [-s states] [-w logins]",
-	"bd:hlNRr:s:tw:",
-	NULL,
-	cvs_getlog
-};
+struct cvs_cmd cvs_cmd_log = {CVS_OP_LOG, CVS_USE_WDIR, "log", {"lo"},
+    "Print out history information for files",
+    "[-bhlNRt] [-d dates] [-r revisions] [-s states] [-w logins]",
+    "bd:hlNRr:s:tw:", NULL, cvs_getlog};
 
-struct cvs_cmd cvs_cmd_rlog = {
-	CVS_OP_RLOG, 0, "rlog",
-	{ "rlo" },
-	"Print out history information for files",
-	"[-bhlNRt] [-d dates] [-r revisions] [-s states] [-w logins]",
-	"bd:hlNRr:s:tw:",
-	NULL,
-	cvs_getlog
-};
+struct cvs_cmd cvs_cmd_rlog = {CVS_OP_RLOG, 0, "rlog", {"rlo"},
+    "Print out history information for files",
+    "[-bhlNRt] [-d dates] [-r revisions] [-s states] [-w logins]",
+    "bd:hlNRr:s:tw:", NULL, cvs_getlog};
 
 int
 cvs_getlog(int argc, char **argv)
 {
-	int ch, flags, i;
-	char *arg = ".";
+	int		     ch, flags, i;
+	char		    *arg = ".";
 	struct cvs_recursion cr;
 
 	flags = CR_RECURSE_DIRS;
 
-	while ((ch = getopt(argc, argv, cvs_cmdop == CVS_OP_LOG ?
-	    cvs_cmd_log.cmd_opts : cvs_cmd_rlog.cmd_opts)) != -1) {
+	while ((ch = getopt(argc, argv,
+		    cvs_cmdop == CVS_OP_LOG ? cvs_cmd_log.cmd_opts :
+					      cvs_cmd_rlog.cmd_opts)) != -1) {
 		switch (ch) {
 		case 'd':
 			logdate = push_date(logdate, optarg);
@@ -128,9 +119,10 @@ cvs_getlog(int argc, char **argv)
 			wlist = optarg;
 			break;
 		default:
-			fatal("%s", cvs_cmdop == CVS_OP_LOG ?
-			    cvs_cmd_log.cmd_synopsis :
-			    cvs_cmd_rlog.cmd_synopsis);
+			fatal("%s",
+			    cvs_cmdop == CVS_OP_LOG ?
+				cvs_cmd_log.cmd_synopsis :
+				cvs_cmd_rlog.cmd_synopsis);
 		}
 	}
 
@@ -203,8 +195,8 @@ cvs_getlog(int argc, char **argv)
 		cvs_client_send_files(argv, argc);
 		cvs_client_senddir(".");
 
-		cvs_client_send_request((cvs_cmdop == CVS_OP_RLOG) ?
-		    "rlog" : "log");
+		cvs_client_send_request(
+		    (cvs_cmdop == CVS_OP_RLOG) ? "rlog" : "log");
 
 		cvs_client_get_responses();
 	}
@@ -215,13 +207,13 @@ cvs_getlog(int argc, char **argv)
 void
 cvs_log_local(struct cvs_file *cf)
 {
-	u_int nrev;
-	RCSNUM *rev;
-	struct rcs_sym *sym;
-	struct rcs_lock *lkp;
-	struct rcs_delta *rdp;
+	u_int		   nrev;
+	RCSNUM		  *rev;
+	struct rcs_sym	  *sym;
+	struct rcs_lock	  *lkp;
+	struct rcs_delta  *rdp;
 	struct rcs_access *acp;
-	char numb[CVS_REV_BUFSZ];
+	char		   numb[CVS_REV_BUFSZ];
 
 	cvs_log(LP_TRACE, "cvs_log_local(%s)", cf->file_path);
 
@@ -264,28 +256,30 @@ cvs_log_local(struct cvs_file *cf)
 
 	cvs_printf("\nhead:");
 	if (cf->file_rcs->rf_head != NULL)
-		cvs_printf(" %s", rcsnum_tostr(cf->file_rcs->rf_head,
-		    numb, sizeof(numb)));
+		cvs_printf(" %s",
+		    rcsnum_tostr(cf->file_rcs->rf_head, numb, sizeof(numb)));
 
 	cvs_printf("\nbranch:");
 	if (rcs_branch_get(cf->file_rcs) != NULL) {
-		cvs_printf(" %s", rcsnum_tostr(rcs_branch_get(cf->file_rcs),
-		    numb, sizeof(numb)));
+		cvs_printf(" %s",
+		    rcsnum_tostr(
+			rcs_branch_get(cf->file_rcs), numb, sizeof(numb)));
 	}
 
-	cvs_printf("\nlocks: %s", (cf->file_rcs->rf_flags & RCS_SLOCK)
-	    ? "strict" : "");
+	cvs_printf("\nlocks: %s",
+	    (cf->file_rcs->rf_flags & RCS_SLOCK) ? "strict" : "");
 	TAILQ_FOREACH(lkp, &(cf->file_rcs->rf_locks), rl_list)
-		cvs_printf("\n\t%s: %s", lkp->rl_name,
-		    rcsnum_tostr(lkp->rl_num, numb, sizeof(numb)));
+	cvs_printf("\n\t%s: %s", lkp->rl_name,
+	    rcsnum_tostr(lkp->rl_num, numb, sizeof(numb)));
 
 	cvs_printf("\naccess list:\n");
 	TAILQ_FOREACH(acp, &(cf->file_rcs->rf_access), ra_list)
-		cvs_printf("\t%s\n", acp->ra_name);
+	cvs_printf("\t%s\n", acp->ra_name);
 
 	if (!(runflags & L_NOTAGS)) {
 		cvs_printf("symbolic names:\n");
-		TAILQ_FOREACH(sym, &(cf->file_rcs->rf_symbols), rs_list) {
+		TAILQ_FOREACH(sym, &(cf->file_rcs->rf_symbols), rs_list)
+		{
 			rev = rcsnum_alloc();
 			rcsnum_cpy(sym->rs_num, rev, 0);
 			if (RCSNUM_ISBRANCH(sym->rs_num))
@@ -302,8 +296,8 @@ cvs_log_local(struct cvs_file *cf)
 
 	cvs_printf("total revisions: %u", cf->file_rcs->rf_ndelta);
 
-	if (cf->file_rcs->rf_head != NULL &&
-	    !(runflags & L_HEAD) && !(runflags & L_HEAD_DESCR))
+	if (cf->file_rcs->rf_head != NULL && !(runflags & L_HEAD) &&
+	    !(runflags & L_HEAD_DESCR))
 		cvs_printf(";\tselected revisions: %u", nrev);
 
 	cvs_printf("\n");
@@ -312,7 +306,8 @@ cvs_log_local(struct cvs_file *cf)
 		cvs_printf("description:\n%s", cf->file_rcs->rf_desc);
 
 	if (!(runflags & L_HEAD) && !(runflags & L_HEAD_DESCR)) {
-		TAILQ_FOREACH(rdp, &(cf->file_rcs->rf_delta), rd_list) {
+		TAILQ_FOREACH(rdp, &(cf->file_rcs->rf_delta), rd_list)
+		{
 			/*
 			 * if selections are enabled verify that entry is
 			 * selected.
@@ -329,11 +324,11 @@ cvs_log_local(struct cvs_file *cf)
 static void
 log_rev_print(struct rcs_delta *rdp)
 {
-	int i, found;
-	char numb[CVS_REV_BUFSZ], timeb[CVS_TIME_BUFSZ];
+	int		      i, found;
+	char		      numb[CVS_REV_BUFSZ], timeb[CVS_TIME_BUFSZ];
 	struct cvs_argvector *sargv, *wargv;
-	struct rcs_branch *rb;
-	struct rcs_delta *nrdp;
+	struct rcs_branch    *rb;
+	struct rcs_delta     *nrdp;
 
 	i = found = 0;
 
@@ -363,7 +358,7 @@ log_rev_print(struct rcs_delta *rdp)
 		cvs_argv_destroy(wargv);
 	}
 
-	if ((runflags & (L_STATES|L_LOGINS)) && found == 0)
+	if ((runflags & (L_STATES | L_LOGINS)) && found == 0)
 		return;
 
 	cvs_printf("%s\n", LOG_REVSEP);
@@ -372,8 +367,8 @@ log_rev_print(struct rcs_delta *rdp)
 	cvs_printf("revision %s", numb);
 
 	strftime(timeb, sizeof(timeb), "%Y/%m/%d %H:%M:%S", &rdp->rd_date);
-	cvs_printf("\ndate: %s;  author: %s;  state: %s;",
-	    timeb, rdp->rd_author, rdp->rd_state);
+	cvs_printf("\ndate: %s;  author: %s;  state: %s;", timeb,
+	    rdp->rd_author, rdp->rd_state);
 
 	/*
 	 * If we are a branch revision, the diff of this revision is stored
@@ -405,7 +400,8 @@ log_rev_print(struct rcs_delta *rdp)
 
 	if (!TAILQ_EMPTY(&(rdp->rd_branches))) {
 		cvs_printf("branches:");
-		TAILQ_FOREACH(rb, &(rdp->rd_branches), rb_list) {
+		TAILQ_FOREACH(rb, &(rdp->rd_branches), rb_list)
+		{
 			RCSNUM *branch;
 			branch = rcsnum_revtobr(rb->rb_num);
 			rcsnum_tostr(branch, numb, sizeof(numb));
@@ -438,12 +434,12 @@ push_date(char *dest, const char *src)
 static u_int
 date_select(RCSFILE *file, char *date)
 {
-	int i, flags;
-	u_int nrev;
-	struct rcs_delta *rdp;
+	int		      i, flags;
+	u_int		      nrev;
+	struct rcs_delta     *rdp;
 	struct cvs_argvector *args;
-	char *first, *last, delim;
-	time_t firstdate, lastdate, rcsdate;
+	char		     *first, *last, delim;
+	time_t		      firstdate, lastdate, rcsdate;
 
 	nrev = 0;
 	args = cvs_strsplit(date, ";");
@@ -525,7 +521,8 @@ date_select(RCSFILE *file, char *date)
 				goto invalid;
 		}
 
-		TAILQ_FOREACH(rdp, &(file->rf_delta), rd_list) {
+		TAILQ_FOREACH(rdp, &(file->rf_delta), rd_list)
+		{
 			rcsdate = mktime(&(rdp->rd_date));
 
 			if (flags & LDATE_SINGLE) {
@@ -588,7 +585,7 @@ date_select(RCSFILE *file, char *date)
 
 				if (flags & LDATE_INCLUSIVE &&
 				    ((rcsdate >= firstdate) &&
-				    (rcsdate <= lastdate))) {
+					(rcsdate <= lastdate))) {
 					rdp->rd_flags |= RCS_RD_SELECT;
 					if (nrev == UINT_MAX - 1)
 						goto invalid;

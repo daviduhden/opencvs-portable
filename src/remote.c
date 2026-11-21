@@ -46,8 +46,8 @@
 #include "cvs.h"
 #include "remote.h"
 
-#define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
-#define _MAXBSIZE	(64 * 1024)
+#define MINIMUM(a, b) (((a) < (b)) ? (a) : (b))
+#define _MAXBSIZE (64 * 1024)
 #define SERVER_INPUT_LIMIT (UINT64_C(64) * 1024 * 1024 * 1024)
 #define SERVER_METADATA_LIMIT (UINT64_C(256) * 1024 * 1024)
 
@@ -64,7 +64,8 @@ server_account_input(size_t len, int metadata)
 	if (metadata) {
 		if (len + 1 > SERVER_METADATA_LIMIT - received_metadata)
 			fatal("server session metadata limit exceeded");
-		received_metadata += len + 1; /* CRLF conversion can remove one byte. */
+		received_metadata +=
+		    len + 1; /* CRLF conversion can remove one byte. */
 	}
 }
 
@@ -97,9 +98,9 @@ cvs_remote_get_request_info(const char *request)
 void
 cvs_remote_output(char *data)
 {
-	FILE *out;
+	FILE  *out;
 	size_t len;
-	char nl = '\n';
+	char   nl = '\n';
 
 	if (cvs_server_active)
 		out = stdout;
@@ -120,10 +121,10 @@ cvs_remote_output(char *data)
 char *
 cvs_remote_input(void)
 {
-	FILE *in;
+	FILE  *in;
 	size_t len;
-	char nl = '\n';
-	char *data, *ldata;
+	char   nl = '\n';
+	char  *data, *ldata;
 
 	if (cvs_server_active)
 		in = stdin;
@@ -169,8 +170,8 @@ cvs_remote_input(void)
 void
 cvs_remote_receive_file(int fd, size_t len)
 {
-	FILE *in;
-	char data[_MAXBSIZE];
+	FILE  *in;
+	char   data[_MAXBSIZE];
 	size_t nread, nleft, toread;
 
 	if (cvs_server_active)
@@ -192,8 +193,8 @@ cvs_remote_receive_file(int fd, size_t len)
 			fatal("failed to write %zu bytes", nread);
 
 		if (cvs_server_active == 0 && cvs_client_outlog_fd != -1 &&
-		    atomicio(vwrite, cvs_client_outlog_fd, data, nread)
-		    != nread)
+		    atomicio(vwrite, cvs_client_outlog_fd, data, nread) !=
+			nread)
 			fatal("failed to write to log file");
 
 		nleft -= nread;
@@ -203,12 +204,12 @@ cvs_remote_receive_file(int fd, size_t len)
 void
 cvs_remote_send_file(const char *path, int _fd)
 {
-	int fd;
-	FILE *out, *in;
-	size_t ret, rw;
-	off_t total;
+	int	    fd;
+	FILE	   *out, *in;
+	size_t	    ret, rw;
+	off_t	    total;
 	struct stat st;
-	char buf[32], data[_MAXBSIZE];
+	char	    buf[32], data[_MAXBSIZE];
 
 	if (cvs_server_active)
 		out = stdout;
@@ -256,7 +257,8 @@ cvs_remote_send_file(const char *path, int _fd)
 	if (ferror(in))
 		fatal("read error while sending %s", path);
 	if (total != st.st_size)
-		fatal("length mismatch, %jd vs %jd", (intmax_t)total, (intmax_t)st.st_size);
+		fatal("length mismatch, %jd vs %jd", (intmax_t)total,
+		    (intmax_t)st.st_size);
 
 	(void)fclose(in);
 }
@@ -264,9 +266,9 @@ cvs_remote_send_file(const char *path, int _fd)
 void
 cvs_remote_send_file_buf(char *file, BUF *bp, mode_t mode)
 {
-	char buf[32];
+	char	buf[32];
 	u_char *data;
-	size_t len, ret;
+	size_t	len, ret;
 
 	if (cvs_server_active != 1)
 		fatal("cvs_remote_send_file_buf is server only");
@@ -337,14 +339,12 @@ cvs_remote_classify_file(struct cvs_file *cf)
 		cf->file_status = FILE_MODIFIED;
 }
 
-
 void
 cvs_validate_directory(const char *path)
 {
 	char *dir, *sp, *dp;
 
-	if (path == NULL || *path == '\0' ||
-	    strpbrk(path, "\r\n") != NULL)
+	if (path == NULL || *path == '\0' || strpbrk(path, "\r\n") != NULL)
 		fatal("invalid relative CVS path");
 	dir = xstrdup(path);
 

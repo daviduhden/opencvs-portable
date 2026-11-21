@@ -60,9 +60,9 @@
 #include "cvs.h"
 #include "remote.h"
 
-#define CVS_IGN_STATIC	0x01	/* pattern is static, no need to glob */
+#define CVS_IGN_STATIC 0x01 /* pattern is static, no need to glob */
 
-#define CVS_CHAR_ISMETA(c)	((c == '*') || (c == '?') || (c == '['))
+#define CVS_CHAR_ISMETA(c) ((c == '*') || (c == '?') || (c == '['))
 
 extern int print_stdout;
 extern int build_dirs;
@@ -71,31 +71,31 @@ extern int build_dirs;
  * Standard patterns to ignore.
  */
 static const char *cvs_ign_std[] = {
-	".",
-	"..",
-	"*.o",
-	"*.a",
-	"*.bak",
-	"*.orig",
-	"*.rej",
-	"*.old",
-	"*.exe",
-	"*.depend",
-	"*.obj",
-	"*.elc",
-	"*.ln",
-	"*.olb",
-	"CVS",
-	"core",
-	"cvslog*",
-	"*.core",
-	".#*",
-	"*~",
-	"_$*",
-	"*$",
+    ".",
+    "..",
+    "*.o",
+    "*.a",
+    "*.bak",
+    "*.orig",
+    "*.rej",
+    "*.old",
+    "*.exe",
+    "*.depend",
+    "*.obj",
+    "*.elc",
+    "*.ln",
+    "*.olb",
+    "CVS",
+    "core",
+    "cvslog*",
+    "*.core",
+    ".#*",
+    "*~",
+    "_$*",
+    "*$",
 };
 
-char *cvs_directory_tag = NULL;
+char		  *cvs_directory_tag = NULL;
 struct ignore_head cvs_ign_pats;
 struct ignore_head dir_ign_pats;
 struct ignore_head checkout_ign_pats;
@@ -105,16 +105,16 @@ RB_GENERATE(cvs_flisthead, cvs_filelist, flist, cvs_filelist_cmp)
 void
 cvs_file_init(void)
 {
-	int i;
+	int   i;
 	FILE *ifp;
-	char path[PATH_MAX], buf[MAXNAMLEN];
+	char  path[PATH_MAX], buf[MAXNAMLEN];
 
 	TAILQ_INIT(&cvs_ign_pats);
 	TAILQ_INIT(&dir_ign_pats);
 	TAILQ_INIT(&checkout_ign_pats);
 
 	/* standard patterns to ignore */
-	for (i = 0; i < (int)(sizeof(cvs_ign_std)/sizeof(char *)); i++)
+	for (i = 0; i < (int)(sizeof(cvs_ign_std) / sizeof(char *)); i++)
 		cvs_file_ignore(cvs_ign_std[i], &cvs_ign_pats);
 
 	if (cvs_homedir == NULL)
@@ -144,8 +144,8 @@ cvs_file_init(void)
 void
 cvs_file_ignore(const char *pat, struct ignore_head *list)
 {
-	char *cp;
-	size_t len;
+	char		  *cp;
+	size_t		   len;
 	struct cvs_ignpat *ip;
 
 	ip = xmalloc(sizeof(*ip));
@@ -168,14 +168,15 @@ cvs_file_ignore(const char *pat, struct ignore_head *list)
 int
 cvs_file_chkign(const char *file)
 {
-	int flags;
+	int		   flags;
 	struct cvs_ignpat *ip;
 
 	flags = FNM_PERIOD;
 	if (cvs_nocase)
 		flags |= FNM_CASEFOLD;
 
-	TAILQ_FOREACH(ip, &cvs_ign_pats, ip_list) {
+	TAILQ_FOREACH(ip, &cvs_ign_pats, ip_list)
+	{
 		if (ip->ip_flags & CVS_IGN_STATIC) {
 			if (cvs_file_cmpname(file, ip->ip_pat) == 0)
 				return (1);
@@ -183,7 +184,8 @@ cvs_file_chkign(const char *file)
 			return (1);
 	}
 
-	TAILQ_FOREACH(ip, &dir_ign_pats, ip_list) {
+	TAILQ_FOREACH(ip, &dir_ign_pats, ip_list)
+	{
 		if (ip->ip_flags & CVS_IGN_STATIC) {
 			if (cvs_file_cmpname(file, ip->ip_pat) == 0)
 				return (1);
@@ -191,7 +193,8 @@ cvs_file_chkign(const char *file)
 			return (1);
 	}
 
-	TAILQ_FOREACH(ip, &checkout_ign_pats, ip_list) {
+	TAILQ_FOREACH(ip, &checkout_ign_pats, ip_list)
+	{
 		if (ip->ip_flags & CVS_IGN_STATIC) {
 			if (cvs_file_cmpname(file, ip->ip_pat) == 0)
 				return (1);
@@ -205,7 +208,7 @@ cvs_file_chkign(const char *file)
 void
 cvs_file_run(int argc, char **argv, struct cvs_recursion *cr)
 {
-	int i;
+	int		     i;
 	struct cvs_flisthead fl;
 
 	RB_INIT(&fl);
@@ -222,7 +225,7 @@ cvs_file_run(int argc, char **argv, struct cvs_recursion *cr)
 struct cvs_filelist *
 cvs_file_get(char *name, int flags, struct cvs_flisthead *fl, int type)
 {
-	char *p;
+	char		    *p;
 	struct cvs_filelist *l, find;
 
 	for (p = name; p[0] == '.' && p[1] == '/';)
@@ -244,9 +247,9 @@ cvs_file_get(char *name, int flags, struct cvs_flisthead *fl, int type)
 
 struct cvs_file *
 cvs_file_get_cf(const char *d, const char *f, const char *fpath, int fd,
-	int type, int flags)
+    int type, int flags)
 {
-	const char *p;
+	const char	*p;
 	struct cvs_file *cf;
 
 	for (p = fpath; p[0] == '.' && p[1] == '/';)
@@ -277,19 +280,19 @@ cvs_file_get_cf(const char *d, const char *f, const char *fpath, int fd,
 void
 cvs_file_walklist(struct cvs_flisthead *fl, struct cvs_recursion *cr)
 {
-	int fd, type;
-	struct stat st;
-	struct cvs_file *cf;
+	int		     fd, type;
+	struct stat	     st;
+	struct cvs_file	    *cf;
 	struct cvs_filelist *l, *nxt;
-	char *d, dbuf[PATH_MAX], *f, fbuf[PATH_MAX];
-	char repo[PATH_MAX], fpath[PATH_MAX];
+	char		    *d, dbuf[PATH_MAX], *f, fbuf[PATH_MAX];
+	char		     repo[PATH_MAX], fpath[PATH_MAX];
 
 	for (l = RB_MIN(cvs_flisthead, fl); l != NULL; l = nxt) {
 		if (cvs_quit)
 			fatal("received signal %d", sig_received);
 
-		cvs_log(LP_TRACE, "cvs_file_walklist: element '%s'",
-		    l->file_path);
+		cvs_log(
+		    LP_TRACE, "cvs_file_walklist: element '%s'", l->file_path);
 
 		if (strlcpy(fbuf, l->file_path, sizeof(fbuf)) >= sizeof(fbuf))
 			fatal("cvs_file_walklist: truncation");
@@ -335,8 +338,7 @@ cvs_file_walklist(struct cvs_flisthead *fl, struct cvs_recursion *cr)
 				}
 
 			cvs_get_repository_path(d, repo, PATH_MAX);
-			(void)xsnprintf(fpath, PATH_MAX, "%s/%s",
-			    repo, f);
+			(void)xsnprintf(fpath, PATH_MAX, "%s/%s", repo, f);
 
 			if ((fd = open(fpath, O_RDONLY)) == -1) {
 				strlcat(fpath, RCS_FILE_EXT, PATH_MAX);
@@ -346,7 +348,7 @@ cvs_file_walklist(struct cvs_flisthead *fl, struct cvs_recursion *cr)
 			if (fd != -1 && type == 0) {
 				if (fstat(fd, &st) == -1)
 					fatal("cvs_file_walklist: %s: %s",
-					     fpath, strerror(errno));
+					    fpath, strerror(errno));
 
 				if (S_ISDIR(st.st_mode))
 					type = CVS_DIR;
@@ -384,8 +386,8 @@ cvs_file_walklist(struct cvs_flisthead *fl, struct cvs_recursion *cr)
 					    xstrdup(cvs_specified_tag);
 
 				if (cvsroot_is_local()) {
-					cvs_get_repository_path(cf->file_wd,
-					    repo, PATH_MAX);
+					cvs_get_repository_path(
+					    cf->file_wd, repo, PATH_MAX);
 					cvs_repository_lock(repo,
 					    (cmdp->cmd_flags & CVS_LOCK_REPO));
 				}
@@ -405,7 +407,7 @@ cvs_file_walklist(struct cvs_flisthead *fl, struct cvs_recursion *cr)
 			}
 		}
 
-next:
+	next:
 		nxt = RB_NEXT(cvs_flisthead, fl, l);
 	}
 }
@@ -413,17 +415,17 @@ next:
 void
 cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 {
-	int l, type;
-	FILE *fp;
-	DIR *directory;
-	struct stat st;
-	struct dirent *dp;
-	struct cvs_ent *ent;
-	struct cvs_ignpat *ip;
+	int		     l, type;
+	FILE		    *fp;
+	DIR		    *directory;
+	struct stat	     st;
+	struct dirent	    *dp;
+	struct cvs_ent	    *ent;
+	struct cvs_ignpat   *ip;
 	struct cvs_ent_line *line;
 	struct cvs_flisthead fl, dl;
-	CVSENTRIES *entlist;
-	char repo[PATH_MAX], fpath[PATH_MAX];
+	CVSENTRIES	    *entlist;
+	char		     repo[PATH_MAX], fpath[PATH_MAX];
 
 	cvs_log(LP_TRACE, "cvs_file_walkdir(%s)", cf->file_path);
 
@@ -450,8 +452,8 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 	 * If we do not have an admin directory inside here, dont bother,
 	 * unless we are running export or import.
 	 */
-	(void)xsnprintf(fpath, PATH_MAX, "%s/%s", cf->file_path,
-	    CVS_PATH_CVSDIR);
+	(void)xsnprintf(
+	    fpath, PATH_MAX, "%s/%s", cf->file_path, CVS_PATH_CVSDIR);
 
 	l = stat(fpath, &st);
 	if (cvs_cmdop != CVS_OP_EXPORT && cvs_cmdop != CVS_OP_IMPORT &&
@@ -481,24 +483,25 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 	RB_INIT(&fl);
 	RB_INIT(&dl);
 	if ((directory = pc_directory_open(cf->fd, cf->file_path)) == NULL)
-		fatal("cvs_file_walkdir: %s: %s", cf->file_path, strerror(errno));
+		fatal(
+		    "cvs_file_walkdir: %s: %s", cf->file_path, strerror(errno));
 	for (;;) {
 		errno = 0;
 		dp = readdir(directory);
 		if (dp == NULL) {
 			if (errno != 0)
-				fatal("cvs_file_walkdir: %s: %s", cf->file_path, strerror(errno));
+				fatal("cvs_file_walkdir: %s: %s", cf->file_path,
+				    strerror(errno));
 			break;
 		}
 		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..") ||
 		    !strcmp(dp->d_name, CVS_PATH_CVSDIR))
 			continue;
 
-		(void)xsnprintf(fpath, PATH_MAX, "%s/%s",
-		    cf->file_path, dp->d_name);
+		(void)xsnprintf(
+		    fpath, PATH_MAX, "%s/%s", cf->file_path, dp->d_name);
 
-		if (cvs_file_chkign(dp->d_name) &&
-		    cvs_cmdop != CVS_OP_RLOG &&
+		if (cvs_file_chkign(dp->d_name) && cvs_cmdop != CVS_OP_RLOG &&
 		    cvs_cmdop != CVS_OP_RTAG) {
 			if (cvs_cmdop == CVS_OP_IMPORT)
 				cvs_import_ignored(fpath);
@@ -512,8 +515,7 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 		 */
 		if (dp->d_type == DT_UNKNOWN) {
 			if (lstat(fpath, &st) == -1)
-				fatal("'%s': %s", fpath,
-				    strerror(errno));
+				fatal("'%s': %s", fpath, strerror(errno));
 
 			switch (st.st_mode & S_IFMT) {
 			case S_IFDIR:
@@ -542,8 +544,7 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 
 		if (type == FILE_SKIP) {
 			if (verbosity > 1) {
-				cvs_log(LP_NOTICE, "ignoring `%s'",
-				    dp->d_name);
+				cvs_log(LP_NOTICE, "ignoring `%s'", dp->d_name);
 			}
 			continue;
 		}
@@ -557,10 +558,8 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 			cvs_file_get(fpath, 0, &fl, CVS_FILE);
 			break;
 		default:
-			fatal("type %d unknown, shouldn't happen",
-			    type);
+			fatal("type %d unknown, shouldn't happen", type);
 		}
-
 	}
 	if (closedir(directory) == -1)
 		fatal("cvs_file_walkdir: closedir: %s", strerror(errno));
@@ -574,11 +573,12 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 	if (cvs_cmdop == CVS_OP_IMPORT || cvs_cmdop == CVS_OP_EXPORT)
 		goto walkrepo;
 	entlist = cvs_ent_open(cf->file_path);
-	TAILQ_FOREACH(line, &(entlist->cef_ent), entries_list) {
+	TAILQ_FOREACH(line, &(entlist->cef_ent), entries_list)
+	{
 		ent = cvs_ent_parse(line->buf);
 
-		(void)xsnprintf(fpath, PATH_MAX, "%s/%s", cf->file_path,
-		    ent->ce_name);
+		(void)xsnprintf(
+		    fpath, PATH_MAX, "%s/%s", cf->file_path, ent->ce_name);
 
 		if (!(cr->flags & CR_RECURSE_DIRS) &&
 		    ent->ce_type == CVS_ENT_DIR) {
@@ -606,8 +606,8 @@ walkrepo:
 		if (!(cmdp->cmd_flags & CVS_USE_WDIR) ||
 		    stat(fpath, &st) == -1 || build_dirs == 1)
 			cvs_repository_getdir(repo, cf->file_path, &fl, &dl,
-			    (cr->flags & CR_RECURSE_DIRS) ?
-			    REPOSITORY_DODIRS : 0);
+			    (cr->flags & CR_RECURSE_DIRS) ? REPOSITORY_DODIRS :
+							    0);
 	}
 
 	cvs_file_walklist(&fl, cr);
@@ -645,14 +645,14 @@ cvs_file_freelist(struct cvs_flisthead *fl)
 void
 cvs_file_classify(struct cvs_file *cf, const char *tag)
 {
-	size_t len;
+	size_t	    len;
 	struct stat st;
-	BUF *b1, *b2;
-	int server_has_file, notag;
-	int rflags, ismodified, rcsdead;
+	BUF	   *b1, *b2;
+	int	    server_has_file, notag;
+	int	    rflags, ismodified, rcsdead;
 	CVSENTRIES *entlist = NULL;
 	const char *state;
-	char repo[PATH_MAX], rcsfile[PATH_MAX];
+	char	    repo[PATH_MAX], rcsfile[PATH_MAX];
 
 	cvs_log(LP_TRACE, "cvs_file_classify(%s, %s)", cf->file_path,
 	    (tag != NULL) ? tag : "none");
@@ -662,7 +662,8 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 		return;
 	}
 
-	/* Classification may run again after pre-commit checks; release owned cache. */
+	/* Classification may run again after pre-commit checks; release owned
+	 * cache. */
 	cf->in_attic = 0;
 	free(cf->file_rpath);
 	cf->file_rpath = NULL;
@@ -683,8 +684,7 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 	}
 
 	cvs_get_repository_path(cf->file_wd, repo, PATH_MAX);
-	(void)xsnprintf(rcsfile, PATH_MAX, "%s/%s",
-	    repo, cf->file_name);
+	(void)xsnprintf(rcsfile, PATH_MAX, "%s/%s", repo, cf->file_name);
 
 	if (cf->file_type == CVS_FILE) {
 		len = strlcat(rcsfile, RCS_FILE_EXT, PATH_MAX);
@@ -774,15 +774,15 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 		if (cf->file_rcs == NULL)
 			fatal("cvs_file_classify: failed to parse RCS");
 	} else {
-		(void)xsnprintf(rcsfile, PATH_MAX, "%s/%s/%s%s",
-		     repo, CVS_PATH_ATTIC, cf->file_name, RCS_FILE_EXT);
+		(void)xsnprintf(rcsfile, PATH_MAX, "%s/%s/%s%s", repo,
+		    CVS_PATH_ATTIC, cf->file_name, RCS_FILE_EXT);
 
 		cf->repo_fd = open(rcsfile, O_RDONLY);
 		if (cf->repo_fd != -1) {
 			free(cf->file_rpath);
 			cf->file_rpath = xstrdup(rcsfile);
-			cf->file_rcs = rcs_open(cf->file_rpath,
-			    cf->repo_fd, rflags);
+			cf->file_rcs =
+			    rcs_open(cf->file_rpath, cf->repo_fd, rflags);
 			if (cf->file_rcs == NULL)
 				fatal("cvs_file_classify: failed to parse RCS");
 			cf->in_attic = 1;
@@ -794,8 +794,8 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 	notag = 0;
 	cf->file_flags |= FILE_HAS_TAG;
 	if (tag != NULL && cf->file_rcs != NULL) {
-		if ((cf->file_rcsrev = rcs_translate_tag(tag, cf->file_rcs))
-		    == NULL) {
+		if ((cf->file_rcsrev = rcs_translate_tag(tag, cf->file_rcs)) ==
+		    NULL) {
 			cf->file_rcsrev = rcs_translate_tag(NULL, cf->file_rcs);
 			if (cf->file_rcsrev != NULL) {
 				notag = 1;
@@ -831,9 +831,9 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 	if ((server_has_file == 1) || (cf->fd != -1))
 		cf->file_flags |= FILE_ON_DISK;
 
-	if (ismodified == 1 &&
-	    (cf->file_flags & FILE_ON_DISK) && cf->file_rcs != NULL &&
-	    cf->file_ent != NULL && !RCSNUM_ISBRANCH(cf->file_ent->ce_rev) &&
+	if (ismodified == 1 && (cf->file_flags & FILE_ON_DISK) &&
+	    cf->file_rcs != NULL && cf->file_ent != NULL &&
+	    !RCSNUM_ISBRANCH(cf->file_ent->ce_rev) &&
 	    cf->file_ent->ce_status != CVS_ENT_ADDED) {
 		b1 = rcs_rev_getbuf(cf->file_rcs, cf->file_ent->ce_rev, 0);
 		b2 = buf_load_fd(cf->fd);
@@ -871,8 +871,7 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 	if (cf->file_ent == NULL) {
 		if (cf->file_rcs == NULL) {
 			if (!(cf->file_flags & FILE_ON_DISK)) {
-				cvs_log(LP_NOTICE,
-				    "nothing known about '%s'",
+				cvs_log(LP_NOTICE, "nothing known about '%s'",
 				    cf->file_path);
 			}
 
@@ -920,8 +919,9 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 		} else if (cf->file_rcs == NULL || rcsdead == 1) {
 			cf->file_status = FILE_REMOVE_ENTRY;
 		} else {
-			if (rcsnum_differ(cf->file_ent->ce_rev,
-			    cf->file_rcsrev) && cvs_cmdop != CVS_OP_ADD) {
+			if (rcsnum_differ(
+				cf->file_ent->ce_rev, cf->file_rcsrev) &&
+			    cvs_cmdop != CVS_OP_ADD) {
 				cvs_log(LP_NOTICE,
 				    "conflict: removed %s was modified"
 				    " by a second party",
@@ -941,7 +941,7 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 				    "warning: %s's entry exists but"
 				    " is no longer in the repository,"
 				    " removing entry",
-				     cf->file_path);
+				    cf->file_path);
 				cf->file_status = FILE_REMOVE_ENTRY;
 			} else {
 				if (ismodified) {
@@ -979,7 +979,7 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 				else
 					cf->file_status = FILE_UPTODATE;
 				if (rcsnum_differ(cf->file_ent->ce_rev,
-				    cf->file_rcsrev)) {
+					cf->file_rcsrev)) {
 					if (cf->file_status == FILE_MODIFIED)
 						cf->file_status = FILE_MERGE;
 					else
@@ -1023,16 +1023,16 @@ int
 cvs_file_cmpname(const char *name1, const char *name2)
 {
 	return (cvs_nocase == 0) ? (strcmp(name1, name2)) :
-	    (strcasecmp(name1, name2));
+				   (strcasecmp(name1, name2));
 }
 
 int
 cvs_file_cmp(const char *file1, const char *file2)
 {
-	struct stat a, b;
+	struct stat   a, b;
 	unsigned char left[65536], right[65536];
-	int first, second, result = 0;
-	ssize_t na, nb;
+	int	      first, second, result = 0;
+	ssize_t	      na, nb;
 
 	if ((first = open(file1, O_RDONLY | O_NOFOLLOW)) == -1)
 		fatal("cvs_file_cmp: %s: %s", file1, strerror(errno));
@@ -1050,8 +1050,9 @@ cvs_file_cmp(const char *file1, const char *file2)
 		goto out;
 	}
 	for (;;) {
-		do { na = read(first, left, sizeof(left)); }
-		while (na < 0 && errno == EINTR);
+		do {
+			na = read(first, left, sizeof(left));
+		} while (na < 0 && errno == EINTR);
 		if (na < 0)
 			fatal("cvs_file_cmp: read: %s", strerror(errno));
 		nb = 0;
@@ -1060,7 +1061,8 @@ cvs_file_cmp(const char *file1, const char *file2)
 			if (n < 0 && errno == EINTR)
 				continue;
 			if (n < 0)
-				fatal("cvs_file_cmp: read: %s", strerror(errno));
+				fatal(
+				    "cvs_file_cmp: read: %s", strerror(errno));
 			if (n == 0)
 				break;
 			nb += n;
@@ -1070,10 +1072,12 @@ cvs_file_cmp(const char *file1, const char *file2)
 			break;
 		}
 		if (na == 0) {
-			do { nb = read(second, right, 1); }
-			while (nb < 0 && errno == EINTR);
+			do {
+				nb = read(second, right, 1);
+			} while (nb < 0 && errno == EINTR);
 			if (nb < 0)
-				fatal("cvs_file_cmp: read: %s", strerror(errno));
+				fatal(
+				    "cvs_file_cmp: read: %s", strerror(errno));
 			result = nb != 0;
 			break;
 		}
@@ -1087,12 +1091,12 @@ out:
 int
 cvs_file_copy(const char *from, const char *to)
 {
-	struct stat st;
+	struct stat	st;
 	struct timespec times[2];
-	unsigned char data[65536];
-	char *temporary;
-	ssize_t count;
-	int src, dst, saved;
+	unsigned char	data[65536];
+	char	       *temporary;
+	ssize_t		count;
+	int		src, dst, saved;
 
 	if (cvs_noexec)
 		return 0;
@@ -1105,10 +1109,13 @@ cvs_file_copy(const char *from, const char *to)
 		fatal("cvs_file_copy: %s: %s", temporary, strerror(errno));
 	worklist_add(temporary, &temp_files);
 	for (;;) {
-		do { count = read(src, data, sizeof(data)); }
-		while (count < 0 && errno == EINTR);
-		if (count < 0 || (count > 0 &&
-		    atomicio(vwrite, dst, data, (size_t)count) != (size_t)count))
+		do {
+			count = read(src, data, sizeof(data));
+		} while (count < 0 && errno == EINTR);
+		if (count < 0 ||
+		    (count > 0 &&
+			atomicio(vwrite, dst, data, (size_t)count) !=
+			    (size_t)count))
 			goto failed;
 		if (count == 0)
 			break;
@@ -1116,11 +1123,14 @@ cvs_file_copy(const char *from, const char *to)
 	times[0] = st.st_atim;
 	times[1] = st.st_mtim;
 	if (futimens(dst, times) == -1 ||
-	    fchmod(dst, st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO) &
-	    ~cvs_umask) == -1 || fsync(dst) == -1)
+	    fchmod(
+		dst, st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO) & ~cvs_umask) ==
+		-1 ||
+	    fsync(dst) == -1)
 		goto failed;
 	if (close(dst) == -1)
-		fatal("cvs_file_copy: close %s: %s", temporary, strerror(errno));
+		fatal(
+		    "cvs_file_copy: close %s: %s", temporary, strerror(errno));
 	(void)close(src);
 	if (rename(temporary, to) == -1)
 		fatal("cvs_file_copy: publish %s: %s", to, strerror(errno));
