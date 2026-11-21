@@ -41,11 +41,11 @@ permission to execute them on the local workstation.
 
 ## Build, test, install, and package
 
-The manual [native portability workflow](.github/workflows/ci.yml) generates
-`generated/date.c` with Berkeley Yacc on a hosted runner, then supplies that
-artifact to all build jobs. Generated source distributions include the parser;
-ordinary consumers do not need Yacc. The generation procedure and tool version
-are recorded in `generated/GENERATOR.txt` when the artifact is produced.
+The manual [native portability workflow](.github/workflows/ci.yml) regenerates
+the date parser in a temporary directory and compares it with the checked-in
+`generated/date.c`. Build jobs and source distributions use the checked-in
+parser. Users can build without Yacc. The [parser record](generated/GENERATOR.txt)
+identifies the generator and the grammar used to produce it.
 
 Hosted Linux build interface:
 

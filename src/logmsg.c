@@ -47,6 +47,7 @@
 #include <unistd.h>
 
 #include "cvs.h"
+#include "atomicio.h"
 #include "pc_process.h"
 
 #define CVS_LOGMSG_PREFIX		"CVS:"
@@ -321,8 +322,8 @@ cvs_logmsg_edit(const char *pathname)
 int
 cvs_logmsg_verify(char *logmsg)
 {
-	(void)logmsg;
-	int fd, ret = 0;
+	int fd, saved, ret = 0;
+	size_t len;
 	char *fpath;
 	struct trigger_list *line_list;
 	struct file_info_list files_info;
@@ -335,6 +336,17 @@ cvs_logmsg_verify(char *logmsg)
 		(void)xasprintf(&fpath, "%s/cvsXXXXXXXXXX", cvs_tmpdir);
 		if ((fd = mkstemp(fpath)) == -1)
 			fatal("cvs_logmsg_verify: mkstemp %s", strerror(errno));
+		len = strlen(logmsg);
+		saved = 0;
+		if (atomicio(vwrite, fd, logmsg, len) != len)
+			saved = errno != 0 ? errno : EIO;
+		if (close(fd) == -1 && saved == 0)
+			saved = errno;
+		if (saved != 0) {
+			(void)unlink(fpath);
+			fatal("cannot prepare log message for verification: %s",
+			    strerror(saved));
+		}
 
 		fi = xcalloc(1, sizeof(*fi));
 		fi->file_path = xstrdup(fpath);
@@ -347,7 +359,6 @@ cvs_logmsg_verify(char *logmsg)
 		}
 
 		cvs_trigger_freeinfo(&files_info);
-		(void)close(fd);
 		(void)unlink(fpath);
 		free(fpath);
 		cvs_trigger_freelist(line_list);

@@ -169,6 +169,99 @@ static void	rcsparse_warnx(RCSFILE *, char *, ...) PC_PRINTF(2, 3);
 static int	valid_login(char *);
 static int	valid_commitid(char *);
 
+struct rcs_revision_ref {
+	struct rcs_delta *delta;
+	int linked;
+};
+
+static int
+rcsparse_compare_revisions(const void *left, const void *right)
+{
+	const struct rcs_revision_ref *a = left, *b = right;
+
+	return (rcsnum_cmp(a->delta->rd_num, b->delta->rd_num, 0));
+}
+
+static struct rcs_revision_ref *
+rcsparse_find_revision(struct rcs_revision_ref *refs, size_t count,
+    RCSNUM *rev)
+{
+	struct rcs_delta key = { .rd_num = rev };
+	struct rcs_revision_ref ref = { .delta = &key };
+
+	return (bsearch(&ref, refs, count, sizeof(*refs),
+	    rcsparse_compare_revisions));
+}
+
+/* Trunk edges descend, branch edges ascend, and fork edges go deeper. */
+static int
+rcsparse_check_graph(RCSFILE *rfp)
+{
+	struct rcs_revision_ref *refs, *target;
+	struct rcs_delta *rdp;
+	struct rcs_branch *branch;
+	RCSNUM *rev, *next;
+	size_t count, i;
+	int valid = 0;
+
+	count = 0;
+	TAILQ_FOREACH(rdp, &rfp->rf_delta, rd_list)
+		count++;
+	if (count == 0)
+		return (rfp->rf_head == NULL);
+	if (rfp->rf_head == NULL || rfp->rf_head->rn_len != 2)
+		return (0);
+
+	refs = xcalloc(count, sizeof(*refs));
+	i = 0;
+	TAILQ_FOREACH(rdp, &rfp->rf_delta, rd_list)
+		refs[i++].delta = rdp;
+	qsort(refs, count, sizeof(*refs), rcsparse_compare_revisions);
+	target = rcsparse_find_revision(refs, count, rfp->rf_head);
+	if (target == NULL)
+		goto out;
+	target->linked = 1;
+
+	for (i = 0; i < count; i++) {
+		rdp = refs[i].delta;
+		rev = rdp->rd_num;
+		if ((i != 0 && rcsparse_compare_revisions(&refs[i - 1],
+		    &refs[i]) == 0) || rev->rn_len < 2 || RCSNUM_ISBRANCH(rev))
+			goto out;
+
+		next = rdp->rd_next;
+		if (next->rn_len != 0) {
+			if (next->rn_len != rev->rn_len ||
+			    (rev->rn_len == 2 && rcsnum_cmp(rev, next, 0) != -1) ||
+			    (rev->rn_len > 2 &&
+			    (rcsnum_cmp(rev, next, rev->rn_len - 1) != 0 ||
+			    rcsnum_cmp(rev, next, 0) != 1)))
+				goto out;
+			target = rcsparse_find_revision(refs, count, next);
+			if (target == NULL || target->linked)
+				goto out;
+			target->linked = 1;
+		}
+		TAILQ_FOREACH(branch, &rdp->rd_branches, rb_list) {
+			next = branch->rb_num;
+			if (next->rn_len != rev->rn_len + 2 ||
+			    rcsnum_cmp(rev, next, rev->rn_len) != 0)
+				goto out;
+			target = rcsparse_find_revision(refs, count, next);
+			if (target == NULL || target->linked)
+				goto out;
+			target->linked = 1;
+		}
+	}
+	for (i = 0; i < count; i++)
+		if (!refs[i].linked)
+			goto out;
+	valid = 1;
+out:
+	free(refs);
+	return (valid);
+}
+
 /*
  * head [REVISION];
  * [branch BRANCH];
@@ -285,7 +378,9 @@ rcsparse_deltas(RCSFILE *rfp, RCSNUM *rev)
 
 	for (;;) {
 		ret = rcsparse_delta(rfp);
-		if (rev != NULL) {
+		if (ret < 0)
+			return (1);
+		if (ret > 0 && rev != NULL) {
 			enddelta = TAILQ_LAST(&(rfp->rf_delta), rcs_dlist);
 			if (enddelta == NULL)
 				return (1);
@@ -295,11 +390,13 @@ rcsparse_deltas(RCSFILE *rfp, RCSNUM *rev)
 		}
 
 		if (ret == 0) {
+			if (!rcsparse_check_graph(rfp)) {
+				rcsparse_warnx(rfp, "invalid RCS revision graph");
+				return (1);
+			}
 			rfp->rf_flags |= PARSED_DELTAS;
 			break;
 		}
-		else if (ret == -1)
-			return (1);
 	}
 
 	return (0);
@@ -317,7 +414,7 @@ int
 rcsparse_deltatexts(RCSFILE *rfp, RCSNUM *rev)
 {
 	int ret;
-	struct rcs_delta *rdp;
+	struct rcs_delta *rdp, *delta;
 
 	if ((rfp->rf_flags & PARSED_DELTATEXTS) ||
 	    (rfp->rf_flags & RCS_CREATE))
@@ -328,12 +425,20 @@ rcsparse_deltatexts(RCSFILE *rfp, RCSNUM *rev)
 			return (1);
 
 	rdp = (rev != NULL) ? rcs_findrev(rfp, rev) : NULL;
+	if (rev != NULL && rdp == NULL)
+		return (1);
 
 	for (;;) {
 		if (rdp != NULL && rdp->rd_text != NULL)
 			break;
 		ret = rcsparse_deltatext(rfp);
 		if (ret == 0) {
+			TAILQ_FOREACH(delta, &rfp->rf_delta, rd_list) {
+				if (delta->rd_text == NULL) {
+					rcsparse_warnx(rfp, "missing RCS deltatext");
+					return (1);
+				}
+			}
 			rfp->rf_flags |= PARSED_DELTATEXTS;
 			break;
 		}
@@ -572,6 +677,12 @@ rcsparse_textrevision(RCSFILE *rfp, struct rcs_pdata *pdp)
 	}
 	if (rdp == NULL) {
 		rcsparse_warnx(rfp, "delta for revision \"%s\" not found",
+		    pdp->rp_buf);
+		free(pdp->rp_value.rev);
+		return (1);
+	}
+	if (rdp->rd_text != NULL) {
+		rcsparse_warnx(rfp, "duplicate deltatext for revision \"%s\"",
 		    pdp->rp_buf);
 		free(pdp->rp_value.rev);
 		return (1);
@@ -1152,8 +1263,9 @@ rcsparse(RCSFILE *rfp, struct rcs_section *sec)
 				i++;
 				continue;
 			}
-			if (token == EOF || (!(rfp->rf_flags & PARSED_DELTAS) &&
-			    token == RCS_TOK_DESC))
+			if (i == 0 && ((sec == sec_delta &&
+			    token == RCS_TOK_DESC) ||
+			    (sec == sec_deltatext && token == EOF)))
 				goto end;
 			rcsparse_warnx(rfp, "unexpected token \"%s\"",
 			    pdp->rp_buf);
@@ -1189,10 +1301,7 @@ rcsparse_deltatext(RCSFILE *rfp)
 	if (rcsparse(rfp, sec_deltatext))
 		return (-1);
 
-	if (rfp->rf_flags & RCS_PARSED)
-		rfp->rf_flags |= PARSED_DELTATEXTS;
-
-	return (1);
+	return ((rfp->rf_flags & RCS_PARSED) ? 0 : 1);
 }
 
 static int
@@ -1204,10 +1313,8 @@ rcsparse_delta(RCSFILE *rfp)
 		return (0);
 
 	pdp = (struct rcs_pdata *)rfp->rf_pdata;
-	if (pdp->rp_token == RCS_TOK_DESC) {
-		rfp->rf_flags |= PARSED_DELTAS;
+	if (pdp->rp_token == RCS_TOK_DESC)
 		return (0);
-	}
 
 	if (rcsparse(rfp, sec_delta))
 		return (-1);

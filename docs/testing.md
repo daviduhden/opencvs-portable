@@ -39,3 +39,15 @@ On Windows, `--fs-probe` selects the native C filesystem helper for UTF-8 and
 long-path reads, writes, and cleanup; this avoids treating Perl's ANSI filesystem
 interfaces as product behavior. Its guarded cleanup operation is restricted to
 private generated test sandboxes and must never target a real working copy.
+# Hosted transport and performance checks
+
+The manual native workflow can use a dedicated loopback SSH daemon with ephemeral
+keys to exercise checkout and commit. The test compares the resulting bytes in a
+fresh checkout. Ordinary CTest runs retain the process transport fixture for
+deterministic protocol and exit-status coverage.
+
+The `benchmark` suite in `tests/integration.pl` is intended for hosted runners.
+It reports elapsed times for fixed history depths and tree sizes. Linux can also
+record peak RSS and file syscalls through `time` and `strace`. Compare samples
+within the same runner and compiler configuration. These observations establish a
+baseline for any index or path optimization and have no fixed timing threshold.

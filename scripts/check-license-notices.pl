@@ -99,13 +99,18 @@ for my $path (sort keys %imports) {
     push @modified, $path if sha256_hex(read_file($path)) ne $imports{$path}{sha256};
 }
 my %derived = map { safe_path($_->{path}) => $_ } @{$inventory->{derived_code_files} // []};
+my $parser_record = read_file('generated/GENERATOR.txt');
+my $grammar_sha = sha256_hex(read_file('src/date.y'));
+push @errors, "generated parser record is stale: regenerate from the current date grammar"
+    unless $parser_record =~ /^Grammar SHA256: \Q$grammar_sha\E\r?$/m;
 if ($update && -f "$root/generated/date.c") {
     my $generated = read_file('generated/date.c');
     die "generated date parser lacks its public-domain provenance\n"
         unless $generated =~ /#define YYBYACC 1/ && $generated =~ /This code is in the public domain and has no copyright/;
     $derived{'generated/date.c'} = {path => 'generated/date.c', sha256 => sha256_hex($generated),
-        source => 'src/date.y', generator_record => 'generated/GENERATOR.txt', license => 'public-domain',
-        reason => 'Unmodified byacc output; not authored or relicensed as portability code.'};
+        source => 'src/date.y', generator_record => 'generated/GENERATOR.txt',
+        license => 'public-domain skeleton; grammar notices retained',
+        reason => 'Unmodified byacc output retains the notices copied from the grammar.'};
 }
 my @new;
 find({no_chdir => 1, wanted => sub {

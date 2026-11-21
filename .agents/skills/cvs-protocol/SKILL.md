@@ -17,3 +17,9 @@ For an ordinary modified file upload, the Entry timestamp field is empty.
 The following Modified request carries the state and bytes. A checkout
 timestamp on the wire can match the peer's temporary file timestamp and hide
 a real modification. Preserve conflict markers independently.
+
+Treat a terminal protocol error and a later transport failure as distinct
+observations. An acknowledged command may have published changes before an SSH
+exit failure. Check the repository before retrying a write. Use the loopback SSH
+job to verify real authentication and transport, and keep the process fixture
+for repeatable framing and failure tests.

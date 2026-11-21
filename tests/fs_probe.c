@@ -220,7 +220,7 @@ fixture_server(const char *response)
 				if (fwrite(block, 1, count, stdout) != count) { fclose(fixture); return 74; }
 			if (ferror(fixture)) { fclose(fixture); return 74; }
 			if (fclose(fixture) != 0 || fflush(stdout) != 0) return 74;
-			return 0;
+			return getenv("PC_TEST_SERVER_FAIL_AFTER_RESPONSE") != NULL ? 23 : 0;
 		}
 	}
 	return 74;
@@ -240,6 +240,23 @@ main(int argc, char **argv)
 	if (argc == 2 && strcmp(argv[1], "server") == 0 &&
 	    getenv("PC_TEST_SERVER_RESPONSE") != NULL)
 		return fixture_server(getenv("PC_TEST_SERVER_RESPONSE"));
+	if (argc == 5 && strcmp(argv[1], "verify-message") == 0) {
+		FILE *message = fopen(argv[4], "rb"), *record;
+		int failed;
+		if (message == NULL)
+			return 24;
+		n = fread(buffer, 1, sizeof(buffer), message);
+		failed = ferror(message);
+		if (fclose(message) != 0 || failed)
+			return 24;
+		record = fopen(argv[2], "wb");
+		if (record == NULL)
+			return 24;
+		failed = fwrite(buffer, 1, n, record) != n;
+		if (fclose(record) != 0 || failed)
+			return 24;
+		return n == strlen(argv[3]) && memcmp(buffer, argv[3], n) == 0 ? 0 : 23;
+	}
 	if (argc == 4 && strcmp(argv[1], "editor-check-template") == 0) {
 		static const char expected[] = "Portable OpenCVS template sentinel";
 		FILE *message = fopen(argv[3], "rb"), *marker;

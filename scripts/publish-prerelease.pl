@@ -78,12 +78,15 @@ for my $target (@targets) {
     }
     if ($target eq 'source') {
         die "source archive omits generated/date.c\n" unless grep { m{(?:\A|/)generated/date\.c\z} } @entries;
+        die "source archive omits generated/GENERATOR.txt\n" unless grep { m{(?:\A|/)generated/GENERATOR\.txt\z} } @entries;
+        die "source archive omits parser provenance\n" unless grep { m{(?:\A|/)provenance/portability-changes\.json\z} } @entries;
         die "source archive includes Git metadata\n" if grep { m{(?:\A|/)\.git(?:/|\z)} } @entries;
     } else {
         my $binary = $extension eq 'zip' ? 'opencvs.exe' : 'opencvs';
         die "binary absent in $name\n" unless grep { m{(?:\A|/)bin/\Q$binary\E\z} } @entries;
         die "upstream license notices absent in $name\n" unless grep { m{(?:\A|/)licenses/Upstream-notices\.txt\z} } @entries;
         die "upstream version record absent in $name\n" unless grep { m{(?:\A|/)UPSTREAM\z} } @entries;
+        die "build metadata absent in $name\n" unless grep { m{(?:\A|/)build-info\.txt\z} } @entries;
     }
     push @archives, $path;
 }

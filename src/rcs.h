@@ -1,3 +1,18 @@
+/* Portable OpenCVS modifications.
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: rcs.h,v 1.104 2024/05/21 05:00:48 jsg Exp $	*/
 /*
  * Copyright (c) 2004 Jean-Francois Brousseau <jfb@openbsd.org>
@@ -239,6 +254,7 @@ int			 rcs_state_set(RCSFILE *, RCSNUM *, const char *);
 const char		*rcs_state_get(RCSFILE *, RCSNUM *);
 int			 rcs_state_check(const char *);
 void			 rcs_write(RCSFILE *);
+void			 rcs_write_to(RCSFILE *, const char *);
 int			 rcs_rev_write_stmp(RCSFILE *,  RCSNUM *, char *, int);
 void			 rcs_rev_write_fd(RCSFILE *, RCSNUM *, int, int);
 struct rcs_lines	*rcs_rev_getlines(RCSFILE *, RCSNUM *,

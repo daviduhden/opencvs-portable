@@ -7,6 +7,20 @@ transport configuration are additional trust boundaries. SSH protects the
 connection; it does not validate those payloads or choose an authorized server
 repository root by itself.
 
+For a restricted SSH service, set `OPENCVS_SERVER_ROOT` in the trusted server
+launcher to one existing absolute repository path, with no trailing directory
+separator. Clients must request that exact spelling. The restriction also blocks
+remote initialization. Keep this variable under the launcher's control and keep
+the repository path ancestors and administrative configuration under trusted
+ownership. With the variable unset, the service account's OS permissions govern
+repository access. Use separate accounts or launchers for distinct access scopes.
+
+Each server process accepts up to one million requests, 256 MiB of protocol
+metadata and 64 GiB of aggregate input. Individual text lines retain the 16 MiB
+limit, and individual uploads retain the signed 32-bit length limit. These caps
+apply per session. Use service-level disk and process quotas for aggregate usage
+across sessions.
+
 [The initial audit](initial-audit.md) identifies inherited prefix-validation,
 file-creation-mode, same-user lock, shell-command, zero-length mmap and allocation
 addition hazards. Track remediation through code review and behavioral regression

@@ -353,7 +353,12 @@ posix_process_contracts(const char *self)
 	expect(pc_wait(&child, &status) == 0 && status == 0, "wait for shared redirect child");
 
 	if (pc_pipe(fds) != 0) { expect(0, "create descriptor leakage fixture"); return; }
+	flags = fcntl(fds[0], F_GETFD);
+	expect(flags != -1 && (flags & FD_CLOEXEC) != 0,
+	    "pipe read end closes on exec");
 	flags = fcntl(fds[1], F_GETFD);
+	expect(flags != -1 && (flags & FD_CLOEXEC) != 0,
+	    "pipe write end closes on exec");
 	expect(flags != -1 && fcntl(fds[1], F_SETFD, flags & ~FD_CLOEXEC) == 0,
 	    "make caller redirect source explicitly inheritable");
 	(void)snprintf(number, sizeof(number), "%d", fds[1]); leak_args[2] = number;
@@ -409,6 +414,63 @@ positional_reads(void)
 }
 
 #ifdef _WIN32
+static void
+readonly_permissions(void)
+{
+	char *path = NULL;
+	wchar_t *wide = NULL;
+	HANDLE deny_delete = INVALID_HANDLE_VALUE;
+	DWORD attributes;
+	int fd = -1;
+
+	if (asprintf(&path, "%s/pc-readonly-XXXXXXXXXX", pc_default_tmpdir()) < 0 ||
+	    (fd = mkstemp(path)) == -1 ||
+	    (wide = pc_windows_path(path)) == NULL) {
+		expect(0, "create native read-only permission fixture");
+		goto done;
+	}
+	if (!SetFileAttributesW(wide, FILE_ATTRIBUTE_READONLY)) {
+		expect(0, "set only the read-only file attribute");
+		goto done;
+	}
+	expect(fchmod(fd, 0644) == 0, "descriptor change clears read-only bit");
+	attributes = GetFileAttributesW(wide);
+	expect(attributes != INVALID_FILE_ATTRIBUTES &&
+	    (attributes & FILE_ATTRIBUTE_READONLY) == 0,
+	    "clearing the last attribute makes the file writable");
+	if (!SetFileAttributesW(wide, FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN)) {
+		expect(0, "set hidden and read-only file attributes");
+		goto done;
+	}
+	expect(fchmod(fd, 0644) == 0, "descriptor change preserves unrelated attributes");
+	attributes = GetFileAttributesW(wide);
+	expect(attributes != INVALID_FILE_ATTRIBUTES &&
+	    (attributes & (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN)) ==
+	    FILE_ATTRIBUTE_HIDDEN, "writable file remains hidden");
+	expect(fchmod(fd, 0444) == 0, "set read-only before attempted deletion");
+	deny_delete = CreateFileW(wide, FILE_READ_ATTRIBUTES,
+	    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+	if (deny_delete == INVALID_HANDLE_VALUE) {
+		expect(0, "open fixture without sharing delete");
+		goto done;
+	}
+	expect(unlink(path) == -1, "unlink fails while another handle denies deletion");
+	attributes = GetFileAttributesW(wide);
+	expect(attributes != INVALID_FILE_ATTRIBUTES &&
+	    (attributes & (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN)) ==
+	    (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN),
+	    "failed unlink restores read-only and preserves hidden attribute");
+
+done:
+	if (deny_delete != INVALID_HANDLE_VALUE) CloseHandle(deny_delete);
+	if (fd != -1) {
+		(void)close(fd);
+		expect(unlink(path) == 0, "remove native read-only permission fixture");
+	}
+	free(wide);
+	free(path);
+}
+
 static void
 readonly_replacement_case(int source_open, int destination_open, int exists)
 {
@@ -586,6 +648,7 @@ main(int argc, char **argv)
 	stream_lines();
 	directory_descriptors();
 #ifdef _WIN32
+	readonly_permissions();
 	readonly_replacement();
 #endif
 	positional_reads();

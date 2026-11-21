@@ -80,7 +80,7 @@ int
 cvs_commit(int argc, char **argv)
 {
 	int flags;
-	int ch, Fflag, mflag;
+	int ch, Fflag, mflag, result = 0;
 	struct module_checkout *mc;
 	struct cvs_recursion cr;
 	struct cvs_filelist *l;
@@ -208,8 +208,10 @@ cvs_commit(int argc, char **argv)
 				fatal("This shouldnt happen, honestly!");
 		}
 
-		if (cvs_logmsg_verify(logmsg))
+		if (cvs_logmsg_verify(logmsg)) {
+			result = 1;
 			goto end;
+		}
 
 		cr.fileproc = cvs_commit_lock_dirs;
 		cvs_file_walklist(&files_affected, &cr);
@@ -244,7 +246,7 @@ cvs_commit(int argc, char **argv)
 end:
 	cvs_trigger_freeinfo(&files_info);
 	free(logmsg);
-	return (0);
+	return (result);
 }
 
 void
@@ -435,11 +437,12 @@ cvs_commit_local(struct cvs_file *cf)
 	BUF *b, *d;
 	int onbranch, isnew, histtype, branchadded;
 	RCSNUM *nrev, *crev, *rrev, *brev;
-	int openflags, rcsflags;
+	const char *destination = NULL;
 	char rbuf[CVS_REV_BUFSZ], nbuf[CVS_REV_BUFSZ];
 	CVSENTRIES *entlist;
 	char attic[PATH_MAX], repo[PATH_MAX], rcsfile[PATH_MAX];
 	struct file_info *fi;
+	struct stat st;
 
 	cvs_log(LP_TRACE, "cvs_commit_local(%s)", cf->file_path);
 	cvs_file_classify(cf, cvs_directory_tag);
@@ -510,7 +513,8 @@ cvs_commit_local(struct cvs_file *cf)
 			    rcsnum_cmp(crev, rrev, 0)) {
 				nrev = rcsnum_alloc();
 				rcsnum_cpy(crev, nrev, 0);
-				rcsnum_inc(nrev);
+				if (rcsnum_inc(nrev) == NULL)
+					fatal("commit: revision number limit reached");
 			} else if (!RCSNUM_ISBRANCH(crev)) {
 				nrev = rcsnum_brtorev(brev);
 				if (nrev == NULL)
@@ -533,51 +537,19 @@ cvs_commit_local(struct cvs_file *cf)
 	}
 
 	free(rrev);
-	isnew = 0;
+	isnew = cf->file_rcs == NULL;
 	if (cf->file_status == FILE_ADDED) {
-		isnew = 1;
-		rcsflags = RCS_CREATE;
-		openflags = O_CREAT | O_RDONLY;
-		if (cf->file_rcs != NULL) {
-			if (!onbranch) {
-				if (cf->in_attic == 0)
-					cvs_log(LP_ERR, "warning: expected %s "
-					    "to be in the Attic",
-					    cf->file_path);
-
-				if (cf->file_rcs->rf_dead == 0)
-					cvs_log(LP_ERR, "warning: expected %s "
-					    "to be dead", cf->file_path);
-
-				cvs_get_repository_path(cf->file_wd, repo,
-				    PATH_MAX);
-				(void)xsnprintf(rcsfile, PATH_MAX, "%s/%s%s",
-				    repo, cf->file_name, RCS_FILE_EXT);
-
-				if (rename(cf->file_rpath, rcsfile) == -1)
-					fatal("cvs_commit_local: failed to "
-					    "move %s outside the Attic: %s",
-					    cf->file_path, strerror(errno));
-
-				free(cf->file_rpath);
-				cf->file_rpath = xstrdup(rcsfile);
-				isnew = 0;
-			}
-
-			rcsflags = RCS_READ | RCS_PARSE_FULLY;
-			openflags = O_RDONLY;
-			rcs_close(cf->file_rcs);
+		if (isnew) {
+			cf->file_rcs = rcs_open(cf->file_rpath, -1, RCS_CREATE,
+			    0444);
+			if (cf->file_rcs == NULL)
+				fatal("could not create archive for %s", cf->file_path);
+		} else if (!onbranch && cf->in_attic) {
+			cvs_get_repository_path(cf->file_wd, repo, sizeof(repo));
+			(void)xsnprintf(rcsfile, sizeof(rcsfile), "%s/%s%s",
+			    repo, cf->file_name, RCS_FILE_EXT);
+			destination = rcsfile;
 		}
-
-		cf->repo_fd = open(cf->file_rpath, openflags | O_NOFOLLOW, 0444);
-		if (cf->repo_fd == -1)
-			fatal("cvs_commit_local: %s", strerror(errno));
-
-		cf->file_rcs = rcs_open(cf->file_rpath, cf->repo_fd,
-		    rcsflags, 0444);
-		if (cf->file_rcs == NULL)
-			fatal("cvs_commit_local: failed to create RCS file "
-			    "for %s", cf->file_path);
 
 		commit_desc_set(cf);
 
@@ -622,6 +594,18 @@ cvs_commit_local(struct cvs_file *cf)
 	if (cf->file_status == FILE_REMOVED) {
 		if (rcs_state_set(cf->file_rcs, nrev, RCS_STATE_DEAD) == -1)
 			fatal("cvs_commit_local: failed to set state");
+		if (!cf->in_attic && !onbranch) {
+			cvs_get_repository_path(cf->file_wd, repo, sizeof(repo));
+			(void)xsnprintf(attic, sizeof(attic), "%s/%s", repo,
+			    CVS_PATH_ATTIC);
+			if (mkdir(attic, 0755) == -1 && (errno != EEXIST ||
+			    lstat(attic, &st) == -1 || !S_ISDIR(st.st_mode)))
+				fatal("commit: could not create Attic %s: %s", attic,
+				    strerror(errno));
+			(void)xsnprintf(rcsfile, sizeof(rcsfile), "%s/%s%s",
+			    attic, cf->file_name, RCS_FILE_EXT);
+			destination = rcsfile;
+		}
 	}
 
 	if (cf->file_status == FILE_ADDED && cf->file_ent->ce_opts != NULL) {
@@ -631,7 +615,11 @@ cvs_commit_local(struct cvs_file *cf)
 		rcs_kwexp_set(cf->file_rcs, cf_kflag);
 	}
 
-	rcs_write(cf->file_rcs);
+	rcs_write_to(cf->file_rcs, destination);
+	if (destination != NULL) {
+		free(cf->file_rpath);
+		cf->file_rpath = xstrdup(destination);
+	}
 
 	if (cf->file_status == FILE_REMOVED) {
 		strlcpy(nbuf, "Removed", sizeof(nbuf));
@@ -658,21 +646,6 @@ cvs_commit_local(struct cvs_file *cf)
 		cf->fd = -1;
 		entlist = cvs_ent_open(cf->file_wd);
 		cvs_ent_remove(entlist, cf->file_name);
-
-		cvs_get_repository_path(cf->file_wd, repo, PATH_MAX);
-
-		(void)xsnprintf(attic, PATH_MAX, "%s/%s",
-		    repo, CVS_PATH_ATTIC);
-
-		if (mkdir(attic, 0755) == -1 && errno != EEXIST)
-			fatal("cvs_commit_local: failed to create Attic");
-
-		(void)xsnprintf(attic, PATH_MAX, "%s/%s/%s%s", repo,
-		    CVS_PATH_ATTIC, cf->file_name, RCS_FILE_EXT);
-
-		if (rename(cf->file_rpath, attic) == -1)
-			fatal("cvs_commit_local: failed to move %s to Attic",
-			    cf->file_path);
 
 		if (cvs_server_active == 1)
 			cvs_server_update_entry("Remove-entry", cf);

@@ -54,28 +54,38 @@ jobs:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     runs-on: ubuntu-24.04
     timeout-minutes: 35
-    outputs:
-      artifact: generated-date-parser
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ needs.release-metadata.outputs.sha }}
       - name: Install the parser generator on the runner
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y byacc
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y byacc=1:2.0.20221106-1
       - name: Generate the public-domain date parser
         run: |
-          mkdir -p generated
-          byacc -l -o generated/date.c src/date.y
-          byacc -V > generated/GENERATOR.txt 2>&1
-          printf '\nCommand: byacc -l -o generated/date.c src/date.y\n' >> generated/GENERATOR.txt
+          mkdir -p "$RUNNER_TEMP/parser-check/src" "$RUNNER_TEMP/parser-check/generated"
+          cp src/date.y "$RUNNER_TEMP/parser-check/src/date.y"
+          (
+            cd "$RUNNER_TEMP/parser-check"
+            byacc -l -o generated/date.c src/date.y
+            {
+              byacc -V 2>&1
+              printf '\nCommand: byacc -l -o generated/date.c src/date.y\n'
+              printf 'Package: byacc=%s\n' "$(dpkg-query -W -f='${Version}' byacc)"
+              printf 'Grammar SHA256: %s\n' "$(sha256sum src/date.y | cut -d' ' -f1)"
+            } > generated/GENERATOR.txt
+          )
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: generated-date-parser
           path: |
-            generated/date.c
-            generated/GENERATOR.txt
+            ${{ runner.temp }}/parser-check/generated/date.c
+            ${{ runner.temp }}/parser-check/generated/GENERATOR.txt
           if-no-files-found: error
+      - name: Verify the distributed parser and generator record
+        run: |
+          cmp generated/date.c "$RUNNER_TEMP/parser-check/generated/date.c"
+          diff -u generated/GENERATOR.txt "$RUNNER_TEMP/parser-check/generated/GENERATOR.txt"
 
   linux:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -97,23 +107,23 @@ jobs:
             sanitizers: 'ON'
     env:
       CC: ${{ matrix.cc }}
+      PC_SOURCE_REVISION: ${{ needs.release-metadata.outputs.sha }}
+      PC_BUILD_ABI: glibc
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ needs.release-metadata.outputs.sha }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: generated-date-parser
-          path: generated
       - name: Install native test dependencies
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y gcc clang cmake ninja-build perl cvs
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_SANITIZERS=${{ matrix.sanitizers }}
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_SANITIZERS=${{ matrix.sanitizers }} -DPC_REQUIRE_GNU_CVS=ON
       - name: Compile
-        run: cmake --build build --parallel 2 2>&1 | tee build/compile.log
+        run: |
+          set -o pipefail
+          cmake --build build --parallel 2 2>&1 | tee build/compile.log
       - name: Run unit, integration, security, and GNU CVS interoperability tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --no-tests=error --verbose
       - name: Validate agent knowledge
         run: perl scripts/check-project-guidance.pl
       - name: Create the glibc distribution
@@ -123,6 +133,7 @@ jobs:
         run: |
           cpack --config build/CPackConfig.cmake -G TGZ -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
           ldd build/opencvs > "dist/$PACKAGE_NAME-runtime.txt"
+          perl scripts/check-package.pl --archive "dist/$PACKAGE_NAME.tar.gz" --binary build/opencvs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.sanitizers == 'OFF'
         with:
@@ -135,7 +146,9 @@ jobs:
         if: matrix.compiler == 'gcc'
         env:
           SOURCE_PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-source
-        run: cpack --config build/CPackSourceConfig.cmake -G TGZ -B dist-source -D "CPACK_PACKAGE_FILE_NAME=$SOURCE_PACKAGE_NAME"
+        run: |
+          cpack --config build/CPackSourceConfig.cmake -G TGZ -B dist-source -D "CPACK_PACKAGE_FILE_NAME=$SOURCE_PACKAGE_NAME"
+          perl scripts/check-package.pl --archive "dist-source/$SOURCE_PACKAGE_NAME.tar.gz" --source
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.compiler == 'gcc'
         with:
@@ -159,6 +172,9 @@ jobs:
     needs: [parser, release-metadata]
     runs-on: windows-2025
     timeout-minutes: 45
+    env:
+      PC_SOURCE_REVISION: ${{ needs.release-metadata.outputs.sha }}
+      PC_BUILD_ABI: windows-nt
     strategy:
       fail-fast: false
       matrix:
@@ -172,10 +188,6 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.release-metadata.outputs.sha }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: generated-date-parser
-          path: generated
       - name: Check native Perl
         shell: pwsh
         run: |
@@ -206,13 +218,16 @@ jobs:
           cmake --build build --parallel 2 2>&1 | Tee-Object -FilePath build/compile.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run native Windows tests
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build -C Release --no-tests=error --verbose
       - name: Check native executable dependencies
         run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool "C:/Program Files/LLVM/bin/llvm-readobj.exe" --exe build/opencvs.exe
       - name: Create the Windows ZIP
         env:
           PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-windows-x86_64-${{ matrix.compiler }}
-        run: cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$env:PACKAGE_NAME"
+        run: |
+          cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$env:PACKAGE_NAME"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$env:PACKAGE_NAME.zip" --binary build/opencvs.exe
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-windows-${{ matrix.compiler }}
@@ -235,6 +250,9 @@ jobs:
     needs: [parser, release-metadata]
     runs-on: windows-2025
     timeout-minutes: 45
+    env:
+      PC_SOURCE_REVISION: ${{ needs.release-metadata.outputs.sha }}
+      PC_BUILD_ABI: windows-ucrt
     defaults:
       run:
         shell: msys2 {0}
@@ -243,10 +261,6 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.release-metadata.outputs.sha }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: generated-date-parser
-          path: generated
       - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
           msystem: UCRT64
@@ -255,15 +269,19 @@ jobs:
       - name: Configure the native MinGW executable
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
       - name: Compile
-        run: cmake --build build --parallel 2 2>&1 | tee build/compile.log
+        run: |
+          set -o pipefail
+          cmake --build build --parallel 2 2>&1 | tee build/compile.log
       - name: Run tests using native Windows Perl
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --no-tests=error --verbose
       - name: Reject POSIX and compiler runtime dependencies
         run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool objdump --exe build/opencvs.exe
       - name: Create the native Windows ZIP
         env:
           PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-windows-x86_64-mingw
-        run: cpack --config build/CPackConfig.cmake -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
+        run: |
+          cpack --config build/CPackConfig.cmake -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
+          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$PACKAGE_NAME.zip" --binary build/opencvs.exe
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-windows-mingw
@@ -291,23 +309,23 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.release-metadata.outputs.sha }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: generated-date-parser
-          path: generated
       - name: Compile and test against musl inside the hosted runner
         env:
+          PC_SOURCE_REVISION: ${{ needs.release-metadata.outputs.sha }}
+          PC_BUILD_ABI: musl
           PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-linux-x86_64-musl
         run: |
-          docker run --rm -e PACKAGE_NAME -v "$PWD:/source" -w /source alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 sh -ec '
+          docker run --rm -e PACKAGE_NAME -e PC_SOURCE_REVISION -e PC_BUILD_ABI -v "$PWD:/source" -w /source alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 sh -ec '
             apk add --no-cache build-base cmake ninja perl cvs
             cmake -S . -B build-musl -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_REQUIRE_GNU_CVS=ON
             cmake --build build-musl --parallel 2 > build-musl/compile.log 2>&1 || { status=$?; cat build-musl/compile.log; exit "$status"; }
             cat build-musl/compile.log
             # GNU CVS refuses commits as root. Keep dependency installation separate from test identity.
             chown -R nobody build-musl
-            su -s /bin/sh nobody -c "ctest --test-dir build-musl --output-on-failure"
+            su -s /bin/sh nobody -c "ctest --test-dir build-musl --no-tests=error --verbose"
             cpack --config build-musl/CPackConfig.cmake -G TGZ -B dist-musl -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
+            readelf -l build-musl/opencvs > "dist-musl/$PACKAGE_NAME-runtime.txt"
+            perl scripts/check-package.pl --archive "dist-musl/$PACKAGE_NAME.tar.gz" --binary build-musl/opencvs
           '
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -343,6 +361,7 @@ jobs:
           perl scripts/check-license-notices.pl
           perl -c scripts/upstream-stage.pl
           perl -c scripts/check-windows-imports.pl
+          perl -c scripts/check-package.pl
           perl -c scripts/release-check.pl
           perl -c scripts/publish-prerelease.pl
       - name: Exercise non-destructive upstream staging against the pinned baseline

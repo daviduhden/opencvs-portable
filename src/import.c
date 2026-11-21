@@ -71,7 +71,7 @@ char *import_repository = NULL;
 int import_conflicts = 0;
 
 struct cvs_cmd cvs_cmd_import = {
-	CVS_OP_IMPORT, CVS_USE_WDIR, "import",
+	CVS_OP_IMPORT, CVS_USE_WDIR | CVS_LOCK_REPO, "import",
 	{ "im", "imp" },
 	"Import sources into CVS, using vendor branches",
 	"[-b branch] [-d] [-k mode] [-m message] "
@@ -145,9 +145,11 @@ cvs_import(int argc, char **argv)
 	}
 
 	if (cvsroot_is_remote()) {
+		if (dflag)
+			fatal("remote import -d requires file timestamp transport");
 		cvs_client_connect_to_server();
 
-		cvs_client_send_request("Argument -b%s", IMPORT_DEFAULT_BRANCH);
+		cvs_client_send_request("Argument -b%s", import_branch);
 
 		if (kflag)
 			cvs_client_send_request("Argument -k%s", koptstr);
@@ -172,7 +174,7 @@ cvs_import(int argc, char **argv)
 	}
 
 	if (cvs_logmsg_verify(logmsg))
-		return (0);
+		return (1);
 
 	(void)xsnprintf(repo, sizeof(repo), "%s/%s",
 	    current_cvsroot->cr_dir, import_repository);
@@ -354,11 +356,7 @@ import_new(struct cvs_file *cf)
 	if ((brev = rcsnum_brtorev(branch)) == NULL)
 		fatal("import_new: failed to get first branch revision");
 
-	cf->repo_fd = open(cf->file_rpath, O_CREAT | O_RDONLY | O_NOFOLLOW, 0444);
-	if (cf->repo_fd == -1)
-		fatal("import_new: %s: %s", cf->file_rpath, strerror(errno));
-
-	cf->file_rcs = rcs_open(cf->file_rpath, cf->repo_fd, RCS_CREATE,
+	cf->file_rcs = rcs_open(cf->file_rpath, -1, RCS_CREATE,
 	    (mode & ~(S_IWUSR | S_IWGRP | S_IWOTH)));
 	if (cf->file_rcs == NULL)
 		fatal("import_new: failed to create RCS file for %s",
@@ -392,6 +390,8 @@ import_new(struct cvs_file *cf)
 	if (rcs_deltatext_set(cf->file_rcs,
 	    cf->file_rcs->rf_head, bp) == -1)
 		fatal("import_new: failed to set deltatext");
+	if (rcs_deltatext_set(cf->file_rcs, brev, buf_alloc(1)) == -1)
+		fatal("import_new: failed to set initial vendor delta");
 
 	if (kflag)
 		rcs_kwexp_set(cf->file_rcs, kflag);
@@ -407,6 +407,8 @@ static void
 import_update(struct cvs_file *cf)
 {
 	int ret;
+	time_t tstamp = -1;
+	struct stat st;
 	BUF *b1, *b2, *d;
 	char branch[CVS_REV_BUFSZ];
 	RCSNUM *newrev, *rev, *brev;
@@ -452,10 +454,17 @@ import_update(struct cvs_file *cf)
 	if (cvs_noexec == 1)
 		return;
 
+	if (dflag) {
+		if (fstat(cf->fd, &st) == -1)
+			fatal("import_update: %s", strerror(errno));
+		tstamp = st.st_mtime;
+	}
 	d = import_get_rcsdiff(cf, rev);
 	newrev = rcsnum_inc(rev);
+	if (newrev == NULL)
+		fatal("import_update: revision number limit reached");
 
-	if (rcs_rev_add(cf->file_rcs, newrev, logmsg, -1, NULL) == -1)
+	if (rcs_rev_add(cf->file_rcs, newrev, logmsg, tstamp, NULL) == -1)
 		fatal("import_update: failed to add new revision");
 
 	if (rcs_deltatext_set(cf->file_rcs, newrev, d) == -1)

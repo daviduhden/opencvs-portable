@@ -453,6 +453,18 @@ pc_lstat(const char *path, struct pc_stat *st)
 	return pc_stat(path, st);
 }
 
+/* FileBasicInfo interprets zero as "leave attributes unchanged". */
+static DWORD
+readonly_attributes(DWORD attrs, int readonly)
+{
+	attrs &= ~FILE_ATTRIBUTE_NORMAL;
+	if (readonly)
+		attrs |= FILE_ATTRIBUTE_READONLY;
+	else
+		attrs &= ~FILE_ATTRIBUTE_READONLY;
+	return attrs != 0 ? attrs : FILE_ATTRIBUTE_NORMAL;
+}
+
 static HANDLE
 clear_readonly(const wchar_t *path, FILE_BASIC_INFO *original, int *changed)
 {
@@ -470,9 +482,8 @@ clear_readonly(const wchar_t *path, FILE_BASIC_INFO *original, int *changed)
 		DWORD error = GetLastError();
 		pc_windows_errno(error); CloseHandle(h); SetLastError(error); return NULL;
 	}
-	writable = *original; writable.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
-	if (writable.FileAttributes == 0)
-		writable.FileAttributes = FILE_ATTRIBUTE_NORMAL;
+	memset(&writable, 0, sizeof(writable));
+	writable.FileAttributes = readonly_attributes(original->FileAttributes, 0);
 	if (!SetFileInformationByHandle(h, FileBasicInfo, &writable, (DWORD)sizeof(writable))) {
 		DWORD error = GetLastError();
 		pc_windows_errno(error); CloseHandle(h); SetLastError(error); return NULL;
@@ -483,11 +494,13 @@ clear_readonly(const wchar_t *path, FILE_BASIC_INFO *original, int *changed)
 static int
 restore_readonly(HANDLE h, const FILE_BASIC_INFO *original, int changed)
 {
+	FILE_BASIC_INFO attributes = {0};
 	int saved = errno, result = 0;
 	DWORD error = GetLastError();
 	if (h != INVALID_HANDLE_VALUE && h != NULL) {
+		attributes.FileAttributes = original->FileAttributes;
 		if (changed && !SetFileInformationByHandle(h, FileBasicInfo,
-		    (void *)original, (DWORD)sizeof(*original))) {
+		    &attributes, (DWORD)sizeof(attributes))) {
 			error = GetLastError();
 			result = pc_windows_errno(error);
 		}
@@ -511,7 +524,11 @@ pc_unlink(const char *path)
 	h = clear_readonly(wide, &original, &changed);
 	if (h == NULL) { free(wide); return -1; }
 	result = DeleteFileW(wide) ? 0 : pc_windows_errno(GetLastError());
-	restore_readonly(h, &original, changed);
+	if (restore_readonly(h, &original, changed) == -1 && result == -1) {
+		/* Expose restoration failure when the name still exists. */
+		free(wide);
+		return -1;
+	}
 	free(wide); return result;
 }
 
@@ -725,7 +742,7 @@ pc_chmod(const char *path, mode_t mode)
 	if (attrs == INVALID_FILE_ATTRIBUTES) { free(wide); return pc_windows_errno(GetLastError()); }
 	if (attrs & FILE_ATTRIBUTE_REPARSE_POINT) { free(wide); errno = ELOOP; return -1; }
 	if (!(attrs & FILE_ATTRIBUTE_DIRECTORY) && (mode & 0111)) { free(wide); errno = ENOTSUP; return -1; }
-	attrs = (mode & 0222) ? attrs & ~FILE_ATTRIBUTE_READONLY : attrs | FILE_ATTRIBUTE_READONLY;
+	attrs = readonly_attributes(attrs, !(mode & 0222));
 	result = SetFileAttributesW(wide, attrs) ? 0 : pc_windows_errno(GetLastError());
 	free(wide); return result;
 }
@@ -734,7 +751,7 @@ int
 pc_fchmod(int fd, mode_t mode)
 {
 	HANDLE original = (HANDLE)_get_osfhandle(fd), h;
-	FILE_BASIC_INFO info;
+	FILE_BASIC_INFO info, attributes = {0};
 	int result;
 	if (original == INVALID_HANDLE_VALUE) { errno = EBADF; return -1; }
 	h = ReOpenFile(original, FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
@@ -745,8 +762,10 @@ pc_fchmod(int fd, mode_t mode)
 	}
 	if (info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) { CloseHandle(h); errno = ELOOP; return -1; }
 	if (!(info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) && (mode & 0111)) { CloseHandle(h); errno = ENOTSUP; return -1; }
-	info.FileAttributes = (mode & 0222) ? info.FileAttributes & ~FILE_ATTRIBUTE_READONLY : info.FileAttributes | FILE_ATTRIBUTE_READONLY;
-	result = SetFileInformationByHandle(h, FileBasicInfo, &info, (DWORD)sizeof(info)) ? 0 : pc_windows_errno(GetLastError());
+	attributes.FileAttributes = readonly_attributes(info.FileAttributes,
+	    !(mode & 0222));
+	result = SetFileInformationByHandle(h, FileBasicInfo, &attributes,
+	    (DWORD)sizeof(attributes)) ? 0 : pc_windows_errno(GetLastError());
 	CloseHandle(h); return result;
 }
 

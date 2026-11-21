@@ -10,10 +10,10 @@ for CI and later authorized developer use; they do not supersede that restrictio
 ## Common interface
 
 Requirements are CMake, a C99-capable compiler, and optionally Ninja. Perl and GNU
-CVS are test tools; neither is linked into the product. An existing generated
-`generated/date.c` avoids an end-user Yacc dependency. The bootstrap parser CI job
-supplies that file and a generator-version record. No OpenSSL/LibreSSL or zlib
-library is required by the selected engine revision.
+CVS are test tools, separate from the compiled product. The included date parser
+allows users to build without Yacc. The manual parser job checks the checked-in
+output against the pinned generator and records the grammar digest. The selected
+engine revision builds without OpenSSL, LibreSSL or zlib.
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
@@ -34,7 +34,8 @@ with `vswhere`, initializes its developer environment, and uses Ninja with
 with native Windows Perl; MSYS2 is a build environment only. See
 [Windows](windows.md) and [Linux](linux.md) for specific runtime boundaries.
 
-CPack generates native ZIP/TGZ artifacts only after their runner tests pass.
-Installation/package rules must include the original notices, manuals, and
-project documentation. Use the recorded runner/library versions to determine
-runtime compatibility; a glibc binary is not a universal Linux binary.
+CPack generates native ZIP/TGZ artifacts after the runner tests pass. Package
+jobs extract the archives and run the contained executable on the native host.
+The archive includes the original notices, manuals, documentation and build
+metadata. Use the recorded ABI, runner and library versions to determine runtime
+compatibility.

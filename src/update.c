@@ -255,13 +255,16 @@ void
 cvs_update_leavedir(struct cvs_file *cf)
 {
 	int isempty;
+	char admin[PATH_MAX];
 	DIR *directory;
 	struct dirent *dp;
 	CVSENTRIES *entlist;
 
 	cvs_log(LP_TRACE, "cvs_update_leavedir(%s)", cf->file_path);
 
-	if (cvs_server_active == 1 && !strcmp(cf->file_name, "."))
+	if (!strcmp(cf->file_name, "."))
+		return;
+	if (cvs_server_active == 0 && cvs_noexec)
 		return;
 
 	entlist = cvs_ent_open(cf->file_path);
@@ -293,8 +296,18 @@ cvs_update_leavedir(struct cvs_file *cf)
 prune_it:
 	if ((isempty == 1 && prune_dirs == 1) ||
 	    (cvs_server_active == 1 && cvs_cmdop == CVS_OP_CHECKOUT)) {
-		/* XXX */
-		cvs_rmdir(cf->file_path);
+		cvs_ent_close(entlist, cvs_server_active ? ENT_NOSYNC : ENT_SYNC);
+		if (cvs_server_active) {
+			if (cvs_rmdir(cf->file_path) == -1)
+				fatal("could not prune %s", cf->file_path);
+		} else {
+			(void)xsnprintf(admin, sizeof(admin), "%s/%s",
+			    cf->file_path, CVS_PATH_CVSDIR);
+			if (cvs_rmdir(admin) == -1 ||
+			    rmdir(cf->file_path) == -1)
+				fatal("could not prune %s: %s", cf->file_path,
+				    strerror(errno));
+		}
 
 		if (cvs_server_active == 0 && cvs_cmdop != CVS_OP_EXPORT) {
 			entlist = cvs_ent_open(cf->file_wd);
@@ -728,6 +741,6 @@ cvs_backup_file(struct cvs_file *cf)
 
 	(void)xsnprintf(backup_name, PATH_MAX, ".#%s.%s",
 	    cf->file_name, revstr);
-	cvs_printf("(Locally modified %s moved to %s)\n",
+	cvs_printf("(Locally modified %s copied to %s)\n",
 		   cf->file_name, backup_name);
 }

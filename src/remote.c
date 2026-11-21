@@ -37,6 +37,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -47,6 +48,25 @@
 
 #define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
 #define _MAXBSIZE	(64 * 1024)
+#define SERVER_INPUT_LIMIT (UINT64_C(64) * 1024 * 1024 * 1024)
+#define SERVER_METADATA_LIMIT (UINT64_C(256) * 1024 * 1024)
+
+static void
+server_account_input(size_t len, int metadata)
+{
+	static uint64_t received, received_metadata;
+
+	if (!cvs_server_active)
+		return;
+	if (len > SERVER_INPUT_LIMIT - received)
+		fatal("server session input limit exceeded");
+	received += len;
+	if (metadata) {
+		if (len + 1 > SERVER_METADATA_LIMIT - received_metadata)
+			fatal("server session metadata limit exceeded");
+		received_metadata += len + 1; /* CRLF conversion can remove one byte. */
+	}
+}
 
 struct cvs_resp *
 cvs_remote_get_response_info(const char *response)
@@ -129,6 +149,7 @@ cvs_remote_input(void)
 		fatal("NUL byte in protocol text line");
 	if (len == 0)
 		fatal("empty protocol input buffer");
+	server_account_input(len, 1);
 	if (data[len - 1] == '\n') {
 		data[len - 1] = '\0';
 		ldata = xstrdup(data);
@@ -157,6 +178,7 @@ cvs_remote_receive_file(int fd, size_t len)
 	else
 		in = current_cvsroot->cr_srvout;
 
+	server_account_input(len, 0);
 	nleft = len;
 
 	while (nleft > 0) {
@@ -260,11 +282,7 @@ cvs_remote_send_file_buf(char *file, BUF *bp, mode_t mode)
 
 	ret = fwrite(data, sizeof(char), len, stdout);
 	if (ret != len)
-		cvs_log(LP_ERR, "warning: sent %s truncated", file);
-
-	if (cvs_server_active == 0 && cvs_client_inlog_fd != -1 &&
-	    atomicio(vwrite, cvs_client_inlog_fd, data, len) != len)
-		fatal("failed to write to log file");
+		fatal("failed to send complete file %s", file);
 
 	free(data);
 }

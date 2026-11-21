@@ -20,6 +20,9 @@
 #include "pc_process.h"
 #include <ctype.h>
 #include <fcntl.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 #undef fclose
 
 char *pc_progname = "opencvs";
@@ -55,6 +58,51 @@ pc_default_tmpdir(void)
 	return pc_windows_tempdir();
 #else
 	return "/tmp";
+#endif
+}
+
+int
+pc_sync_parent_directory(const char *path)
+{
+#ifdef _WIN32
+	(void)path;
+	return (1);
+#else
+	const char *base;
+	char *parent;
+	size_t length;
+	int fd, result, saved;
+
+	base = strrchr(path, '/');
+	if (base == NULL)
+		parent = strdup(".");
+	else {
+		length = (size_t)(base - path);
+		if (length == 0)
+			length = 1;
+		parent = malloc(length + 1);
+		if (parent != NULL) {
+			memcpy(parent, path, length);
+			parent[length] = '\0';
+		}
+	}
+	if (parent == NULL)
+		return (-1);
+	fd = open(parent, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	saved = errno;
+	free(parent);
+	if (fd == -1) {
+		errno = saved;
+		return (-1);
+	}
+	do {
+		result = fsync(fd);
+	} while (result == -1 && errno == EINTR);
+	saved = errno;
+	if (close(fd) == -1 && result == 0)
+		return (-1);
+	errno = saved;
+	return (result);
 #endif
 }
 

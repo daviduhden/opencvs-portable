@@ -76,3 +76,16 @@ checks file bytes and the absence of CVS administrative directories.
 DATA-701. The failing Win32 replacement must keep the old archive. Continue checking bytes and read-only attributes in all handle variants. DATA-702. Server cleanup deleted its private tree before flushing the cached Entries list. Local cleanup discards that private cache before removal and preserves ordinary working-copy synchronization.
 
 Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 44923879403](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879403) and [OpenBSD 44923879331](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879331). Local changes await validation.
+# Publication and recovery contract
+
+OpenCVS coordinates its writers with the repository directory lock. New RCS
+files are staged beside their destination. For an Attic transition, the completed
+destination is published before removing the old name. A failure after publication
+can leave both names and produces a partial-publication diagnostic. External
+writers that disregard the lock can race the destination check.
+
+On POSIX, archive publication and Entries journal compaction synchronize the
+parent directory. Windows flushes file data and uses the native rename contract.
+Directory-entry durability after power loss is unverified on Windows. A reported
+directory sync failure can arrive after publication and requires checking the
+repository state before retrying.

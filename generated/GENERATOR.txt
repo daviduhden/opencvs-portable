@@ -1,3 +1,5 @@
 byacc - 2.0 20221106
 
 Command: byacc -l -o generated/date.c src/date.y
+Package: byacc=1:2.0.20221106-1
+Grammar SHA256: 8e750220d68147eff642df34b175e9e31d6477ff3a3038b14e06261e777f60ae

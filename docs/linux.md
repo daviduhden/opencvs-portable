@@ -6,6 +6,13 @@ compatibility implementations. The namespaced BSD getopt parser preserves
 OpenBSD `optreset` behavior across glibc and musl; it must not accidentally bind
 its private globals to GNU getopt.
 
+The POSIX process backend uses `pipe2(O_CLOEXEC)` when the toolchain exposes it
+and the kernel implements it. Older targets use `pipe` followed by
+`fcntl(FD_CLOEXEC)`. The fallback is intended for the current single-threaded
+engine. Other descriptors retain their normal POSIX inheritance behavior. Open
+project-owned descriptors with close-on-exec semantics when they must stay
+private across SSH, hook, or editor launches.
+
 The manual CI matrix targets Ubuntu 24.04 with GCC and Clang, Clang sanitizers,
 and Alpine 3.23 with musl inside a container on the hosted Ubuntu runner. The
 container is test infrastructure, not a product runtime requirement. No local

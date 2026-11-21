@@ -46,8 +46,7 @@ jobs:
         shell: openbsd {0}
         run: |
           set -eu
-          mkdir -p build generated
-          yacc -l -o generated/date.c src/date.y
+          mkdir -p build
           uname -a > build/platform.txt
           cc --version >> build/platform.txt 2>&1
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_REQUIRE_GNU_CVS=OFF > build/configure.log 2>&1 || { status=$?; cat build/configure.log; exit "$status"; }
@@ -56,7 +55,7 @@ jobs:
           cat build/compile.log
       - name: Run native unit, integration, and security tests
         shell: openbsd {0}
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --no-tests=error --verbose
       - name: Preserve native VM evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

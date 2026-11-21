@@ -52,7 +52,7 @@ GetOptions('opencvs=s' => \$opencvs, 'gnu-cvs=s' => \$gnu_cvs,
     'report=s' => \$report, 'require-gnu' => \$require_gnu)
     or die "Invalid options\n";
 die "--opencvs is required\n" unless defined $opencvs;
-die "Unknown suite $suite\n" unless $suite =~ /\A(?:all|core|security|interop)\z/;
+die "Unknown suite $suite\n" unless $suite =~ /\A(?:all|core|security|interop|benchmark)\z/;
 die "--timeout must be positive\n" unless $timeout > 0;
 die "--require-gnu requires --gnu-cvs\n" if $require_gnu && !defined $gnu_cvs;
 for my $executable (\$opencvs, \$gnu_cvs, \$ssh_shim, \$fs_probe) {
@@ -63,6 +63,7 @@ for my $executable (\$opencvs, \$gnu_cvs, \$ssh_shim, \$fs_probe) {
 my @events;
 my @failures;
 my @skips;
+my @measurements;
 my $current_test;
 my $TEXT = "alpha\nbase\nomega\n";
 my $BINARY = pack('C*', 0 .. 255) x 3 . "\r\n\0\$Id\$\xff\n";
@@ -103,7 +104,7 @@ sub sandbox {
         CLEANUP => $native_cleanup ? 0 : 1);
     my $base = "$object";
     my $env = {%ENV};
-    delete @{$env}{qw(CVSROOT CVS_RSH CVS_SERVER CVSREAD CVSREADONLYFS CVSIGNORE CVSWRAPPERS)};
+    delete @{$env}{qw(CVSROOT CVS_RSH CVS_SERVER CVSREAD CVSREADONLYFS CVSIGNORE CVSWRAPPERS OPENCVS_SERVER_ROOT)};
     @{$env}{qw(LC_ALL TZ CVSEDITOR)} = ('C', 'UTC', 'false');
     my $s = {object => $object, base => $base, repo => path($base, 'repository'),
         seed => path($base, 'seed'), tmp => path($base, 'temporary'), env => $env,
@@ -133,7 +134,7 @@ sub cleanup_sandbox {
 }
 sub invoke {
     my ($s, $exe, $args, %options) = @_;
-    my @command = ($exe, @$args);
+    my @command = (@{$options{prefix} // []}, $exe, @$args);
     my ($in_fh, $in_name) = tempfile('stdin-XXXXXXXX', DIR => $s->{base}, UNLINK => 1);
     binmode $in_fh;
     print {$in_fh} ($options{input} // '') or die "write subprocess input: $!\n";
@@ -711,6 +712,181 @@ test_case core => native_remote_rlog_reads_repository => sub {
         'Remote rlog did not report archive history');
 };
 
+test_case security => configured_server_root => sub {
+    my ($s) = @_;
+    initialize($s);
+    my $root = slash_path($s->{repo});
+    my $env = {%{$s->{env}}, OPENCVS_SERVER_ROOT => $root};
+    my $args = ['-f', '-T', $s->{tmp}, 'server'];
+    my $allowed = invoke($s, $opencvs, $args, env => $env,
+        input => "Root $root\nvalid-requests\n");
+    check($allowed->{text} =~ /Valid-requests/, 'Configured root was rejected');
+    my $denied = invoke($s, $opencvs, $args, env => $env,
+        input => "Root $root-unconfigured\n", allowed => [1]);
+    check($denied->{text} =~ /not authorized/, 'Expected root authorization diagnostic');
+};
+
+test_case core => verify_message_hook => sub {
+    my ($s) = @_;
+    skip_case('Native verification helper required') unless defined $fs_probe;
+    my $work = populated($s);
+    my $record = path($s->{base}, 'message-record');
+    my $hook = 'DEFAULT "' . slash_path($fs_probe) . '" verify-message "'
+        . slash_path($record) . '" "accepted message"' . "\n";
+    replace_fixture(path($s->{repo}, 'CVSROOT', 'verifymsg'), $hook);
+    my $file = path($work, 'sample.txt');
+    my $archive = path($s->{repo}, 'module', 'sample.txt,v');
+    changed($file, "verified content\n");
+    cvs($s, ['commit', '-m', 'accepted message', 'sample.txt'], cwd => $work);
+    equal(read_bytes($record), 'accepted message', 'Verifier did not receive accepted message');
+    my $before = sha256_hex(read_bytes($archive));
+    changed($file, "uncommitted content\n");
+    my $rejected = cvs($s, ['commit', '-m', 'rejected message', 'sample.txt'],
+        cwd => $work, allowed => [1]);
+    equal(read_bytes($record), 'rejected message', 'Verifier did not receive rejected message');
+    check($rejected->{text} =~ /Log message check failed/, 'Missing rejection diagnostic');
+    equal(sha256_hex(read_bytes($archive)), $before, 'Rejected commit changed archive');
+};
+
+test_case core => entries_replay_after_compaction => sub {
+    my ($s) = @_;
+    my $work = populated($s);
+    my $entries = path($work, 'CVS', 'Entries');
+    my ($entry) = read_bytes($entries) =~ m{^(/sample\.txt/[^\r\n]*)}m;
+    check(defined($entry), 'Missing working-copy entry');
+    my $journal = path($work, 'CVS', 'Entries.Log');
+    write_bytes($journal, "A $entry\nA $entry\n");
+    cvs($s, ['update', 'sample.txt'], cwd => $work);
+    my @entries = read_bytes($entries) =~ m{^/sample\.txt/}mg;
+    check(@entries == 1 && !-e $journal, 'Entries replay did not compact idempotently');
+    equal(read_bytes(path($work, 'sample.txt')), $TEXT);
+};
+
+test_case core => concurrent_tags_preserve_both_updates => sub {
+    my ($s) = @_;
+    skip_case('This test coordinates independent POSIX processes with fork') if $^O eq 'MSWin32';
+    my $left = populated($s);
+    my $right = checkout($s, 'other-work');
+    pipe(my $start, my $ready) or die "pipe: $!\n";
+    my $child = fork();
+    die "fork: $!\n" unless defined $child;
+    if ($child == 0) {
+        close $ready;
+        my $token;
+        POSIX::_exit(1) unless sysread($start, $token, 1) == 1;
+        close $start;
+        my $ok = eval { cvs($s, ['tag', 'CONCURRENT_A', 'sample.txt'], cwd => $left); 1 };
+        print STDERR $@ unless $ok;
+        POSIX::_exit($ok ? 0 : 1);
+    }
+    close $start;
+    my $sent = syswrite($ready, '1');
+    close $ready;
+    my $ok = eval { cvs($s, ['tag', 'CONCURRENT_B', 'sample.txt'], cwd => $right); 1 };
+    my $failure = $@;
+    my $waited = waitpid($child, 0);
+    check(defined($sent) && $sent == 1 && $waited == $child && $? == 0,
+        'Concurrent tag subprocess failed');
+    die $failure unless $ok;
+    my $log = cvs($s, ['log', 'sample.txt'], cwd => $left)->{text};
+    check($log =~ /CONCURRENT_A:/ && $log =~ /CONCURRENT_B:/,
+        'An archive update was lost during concurrent tag operations');
+};
+
+test_case core => transport_failure_after_response => sub {
+    my ($s) = @_;
+    skip_case('Native protocol fixture required') unless defined $fs_probe;
+    my $work = populated($s);
+    my $response = path($s->{base}, 'terminal-response');
+    write_bytes($response, "ok\n");
+    my $env = {%{remote_environment($s, $fs_probe)},
+        PC_TEST_SERVER_RESPONSE => $response, PC_TEST_SERVER_FAIL_AFTER_RESPONSE => '1'};
+    my $root = ':ext:test.invalid:' . slash_path($s->{repo});
+    my $result = cvs($s, ['update', 'sample.txt'], root => $root, env => $env,
+        cwd => $work, allowed => [1]);
+    check($result->{text} =~ /SSH transport exited with status 23/, 'Missing transport exit status');
+};
+
+test_case core => hosted_ssh => sub {
+    my ($s) = @_;
+    skip_case('Hosted loopback sshd is available in its dedicated CI step')
+        unless defined($ENV{PC_HOSTED_SSH_RSH}) && defined($ENV{PC_HOSTED_SSH_HOST});
+    initialize($s);
+    import_tree($s);
+    my $env = {%{$s->{env}}, CVS_RSH => $ENV{PC_HOSTED_SSH_RSH}};
+    my $root = ':ext:' . $ENV{PC_HOSTED_SSH_HOST} . ':' . slash_path($s->{repo});
+    my $work = checkout($s, 'ssh-checkout', root => $root, env => $env);
+    equal(read_bytes(path($work, 'sample.txt')), $TEXT, 'SSH checkout differed');
+    my $updated = "checked through OpenSSH\n";
+    changed(path($work, 'sample.txt'), $updated);
+    cvs($s, ['commit', '-m', 'SSH commit', 'sample.txt'], cwd => $work, root => $root, env => $env);
+    equal(read_bytes(path(checkout($s, 'ssh-readback'), 'sample.txt')), $updated,
+        'Repository checkout differed after SSH commit');
+};
+
+sub benchmark_checkout {
+    my ($s, $label, $arguments) = @_;
+    for my $sample (1 .. 3) {
+        my $measure = path($s->{base}, 'measurement');
+        my @prefix = (-x '/usr/bin/time' && $^O eq 'linux') ?
+            ('/usr/bin/time', '-f', 'max_rss_kib=%M', '-o', $measure) : ();
+        my $start = time();
+        my $result = cvs($s, $arguments, prefix => \@prefix);
+        my $elapsed = time() - $start;
+        my $resource = @prefix ? read_bytes($measure) : '';
+        $resource =~ s/\s+\z//;
+        push @measurements, {workload => $label, sample => $sample,
+            seconds => $elapsed, resource => $resource};
+        diag(sprintf('%s sample=%d elapsed_seconds=%.4f %s',
+            $label, $sample, $elapsed, $resource));
+        check(length($result->{stdout_raw}) > 0, 'Benchmark checkout returned no output');
+    }
+    if ($^O eq 'linux' && -x '/usr/bin/strace') {
+        my $trace = path($s->{base}, 'file-syscalls');
+        cvs($s, $arguments, prefix => ['/usr/bin/strace', '-c',
+            '-e', 'trace=%file', '-o', $trace]);
+        my $counts = read_bytes($trace);
+        push @measurements, {workload => $label, file_syscalls => $counts};
+        diag("$label file syscalls\n" . $counts);
+    }
+}
+
+test_case benchmark => checkout_history_depth => sub {
+    my ($s) = @_;
+    my $work = populated($s);
+    for my $revision (1 .. 64) {
+        changed(path($work, 'sample.txt'), "sample revision $revision\n" x 64);
+        cvs($s, ['commit', '-m', "benchmark $revision", 'sample.txt'], cwd => $work);
+        if ($revision == 16 || $revision == 64) {
+            benchmark_checkout($s, "history_commits=$revision",
+                ['checkout', '-p', '-r', '1.2', 'module/sample.txt']);
+        }
+    }
+};
+
+test_case benchmark => checkout_tree_size => sub {
+    my ($s) = @_;
+    initialize($s);
+    my %files = map { ("group-" . int($_ / 20) . "/file-$_.txt") => "file $_\n" } 1 .. 100;
+    for my $size (100, 400) {
+        for my $index (101 .. $size) {
+            $files{'group-' . int($index / 20) . "/file-$index.txt"} = "file $index\n";
+        }
+        import_tree($s, \%files);
+        # Unique output paths keep each measured run a full checkout.
+        my $sample = 0;
+        for (1 .. 3) {
+            my $start = time();
+            my $work = checkout($s, "tree-$size-" . ++$sample);
+            my $elapsed = time() - $start;
+            push @measurements, {workload => "tree_files=$size", sample => $sample,
+                seconds => $elapsed};
+            diag(sprintf('tree_files=%d sample=%d elapsed_seconds=%.4f', $size, $sample, $elapsed));
+            equal(read_bytes(path($work, 'group-0', 'file-1.txt')), "file 1\n");
+        }
+    }
+};
+
 test_case interop => gnu_repository_read_write_by_opencvs => sub {
     my ($s) = @_;
     initialize($s, $gnu_cvs);
@@ -811,6 +987,7 @@ test_case interop => gnu_client_opencvs_server_wire => sub {
 my $run = 0;
 for my $case (@cases) {
     my ($group, $name, $code) = @$case;
+    next if $group eq 'benchmark' && $suite ne 'benchmark';
     next if $suite ne 'all' && $suite ne $group;
     next if @selected && !grep {index($name, $_) >= 0} @selected;
     $run++;
@@ -847,7 +1024,8 @@ if (defined $report) {
     print {$out} JSON::PP->new->utf8->canonical->pretty->encode({
         executable => $opencvs, gnu_cvs => $gnu_cvs, suite => $suite,
         tests_run => $run, failures => \@failures, errors => [], skipped => \@skips,
-        success => @failures ? JSON::PP::false : JSON::PP::true, commands => \@events});
+        success => @failures ? JSON::PP::false : JSON::PP::true, commands => \@events,
+        ($suite eq 'benchmark' ? (measurements => \@measurements) : ())});
     close $out or die "close report: $!\n";
 }
 exit(@failures ? 1 : 0);

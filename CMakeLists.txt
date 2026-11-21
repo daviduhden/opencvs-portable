@@ -54,6 +54,20 @@ check_symbol_exists(FNM_CASEFOLD "fnmatch.h" PC_HAVE_FNM_CASEFOLD)
 check_symbol_exists(fgetln "stdio.h" PC_HAVE_FGETLN)
 check_symbol_exists(getopt "unistd.h" PC_HAVE_GETOPT)
 check_symbol_exists(optreset "unistd.h" PC_HAVE_OPTRESET)
+if(NOT WIN32)
+  # Linux libc exposes pipe2 under _GNU_SOURCE. Scope it to this probe and
+  # the process backend so the rest of the port keeps its existing namespace.
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
+  endif()
+  check_symbol_exists(pipe2 "unistd.h;fcntl.h" PC_HAVE_PIPE2)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(REMOVE_ITEM CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
+    if(PC_HAVE_PIPE2)
+      set_source_files_properties(compat/linux/process.c PROPERTIES COMPILE_DEFINITIONS _GNU_SOURCE)
+    endif()
+  endif()
+endif()
 if(PC_HAVE_GETOPT AND PC_HAVE_OPTRESET)
   set(PC_HAVE_BSD_GETOPT TRUE)
 endif()
@@ -243,10 +257,27 @@ if(PC_BUILD_TESTS)
     message(FATAL_ERROR "GNU CVS is required for interoperability; install GNU CVS and set PC_GNU_CVS to its executable (OpenBSD base cvs is not GNU CVS).")
   endif()
   if(PC_GNU_CVS_CONFIRMED)
+    string(REGEX MATCH "^[^\r\n]+" PC_GNU_CVS_SUMMARY "${PC_CVS_VERSION}")
+    message(STATUS "GNU CVS interoperability enabled: ${PC_GNU_CVS_SUMMARY}")
     add_test(NAME interoperability COMMAND "${PERL_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration.pl" --opencvs $<TARGET_FILE:opencvs> --gnu-cvs "${PC_GNU_CVS}" --ssh-shim $<TARGET_FILE:test-ssh-shim> --fs-probe $<TARGET_FILE:test-fs-probe> --suite interop)
     set_tests_properties(interoperability PROPERTIES TIMEOUT 240)
+  elseif(WIN32)
+    message(STATUS "GNU CVS interoperability omitted: no native Windows GNU CVS oracle is configured")
+  else()
+    message(STATUS "GNU CVS interoperability omitted: GNU CVS oracle unavailable")
   endif()
 endif()
+set(PC_BUILD_INFO "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt")
+file(WRITE "${PC_BUILD_INFO}"
+  "Source revision: $ENV{PC_SOURCE_REVISION}\n"
+  "Target ABI: $ENV{PC_BUILD_ABI}\n"
+  "System: ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION} ${CMAKE_SYSTEM_PROCESSOR}\n"
+  "Compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}\n"
+  "CMake: ${CMAKE_VERSION}\n"
+  "Configuration: ${CMAKE_BUILD_TYPE}\n"
+  "Sanitizers: ${PC_SANITIZERS}\n"
+  "GNU CVS: ${PC_GNU_CVS_SUMMARY}\n")
+install(FILES "${PC_BUILD_INFO}" DESTINATION ${CMAKE_INSTALL_DOCDIR})
 set(CPACK_PACKAGE_NAME opencvs-portable)
 set(CPACK_PACKAGE_VENDOR "Portable OpenCVS contributors")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Development build of native portable OpenBSD OpenCVS")

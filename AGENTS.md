@@ -124,3 +124,13 @@ test fixture assumptions.
 For wire commits, distinguish working-copy timestamps from protocol file state.
 Verify a new checkout reads the submitted bytes even when the remote commit
 reports success and emits no output.
+
+Build the versioned date parser in native CI. Generate a separate hosted copy
+with the recorded byacc package and compare the bytes before qualifying builds.
+Validate the provenance and build of the extracted source package independently.
+
+Keep repository locks through archive publication or the close that publishes
+an archive. A successful rename may precede a durability or cleanup failure.
+Preserve any remaining archive and report the completed operation accurately.
+When testing the restricted server profile, keep the authorized root under
+operator control and verify the wire result as well as the repository state.

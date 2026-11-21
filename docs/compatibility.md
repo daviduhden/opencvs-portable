@@ -1,28 +1,37 @@
 # Compatibility matrix
 
-The project starts from the actual imported handlers, not a promise of complete
-GNU CVS equivalence. Record successful workflow run URLs and exact SHAs here as
-they become available. A pending row must not be described as supported in release
-notes or binary labels.
+This matrix records evidence for commit
+`8801c7b29a208f45bed53d9d581ae8d99576e57e` from
+[native verification 44928779089](https://github.com/daviduhden/opencvs-portable/actions/runs/44928779089)
+and [experimental OpenBSD verification 44928781955](https://github.com/daviduhden/opencvs-portable/actions/runs/44928781955).
+Comparisons with GNU CVS cover the commands and transport cases exercised on
+that revision. Future revisions and prereleases require their own evidence.
 
-| Target | Required evidence | Current evidence |
+| Target | Toolchain and configuration | Result |
 | --- | --- | --- |
-| Linux x86-64, glibc, GCC | Clean strict build; core/security/interop CTest; package inspection | Pending CI execution |
-| Linux x86-64, glibc, Clang | Same native execution gates | Pending CI execution |
-| Linux x86-64, Clang sanitizers | ASan/UBSan core/security/interop execution | Pending CI execution |
-| Linux x86-64, musl | Native musl build/execution in hosted Alpine container | Pending CI execution |
-| Windows x86-64, MSVC | Native build, core/security tests, PE import inspection | Pending CI execution |
-| Windows x86-64, clang-cl | Same Windows gates with LLVM toolset | Pending CI execution |
-| Windows x86-64, MinGW-w64 | Same Windows gates, no MSYS/Cygwin runtime | Pending CI execution |
-| ARM64 | Native build and runtime evidence | Not yet verified |
+| Ubuntu 24.04 x86-64, glibc | GCC 13.3.0 Release and Debug | Four CTest suites passed per job. Release TGZ produced. |
+| Ubuntu 24.04 x86-64, glibc | Clang 18.1.3 Release | Four suites passed. TGZ produced. |
+| Ubuntu 24.04 x86-64, glibc | Clang 18.1.3 Release with ASan/UBSan | Four suites passed. |
+| Alpine 3.23 x86-64, musl | GCC 15.2.0 Release | Four suites passed. TGZ produced. |
+| Windows Server 2025 x86-64 | MSVC 19.52.37029.0 Release and Debug | Three suites passed per job. PE import check passed. Release ZIP produced. |
+| Windows Server 2025 x86-64 | clang-cl 22.1.3 Release and Debug | Three suites passed per job. PE import check passed. Release ZIP produced. |
+| Windows Server 2025 x86-64 | MinGW-w64 UCRT64 GCC 16.2.0 Release | Three suites and PE import check passed. ZIP produced. |
+| Ubuntu 24.04 ARM64, glibc | GCC 13.3.0 Debug | Four suites passed. ARM64 packaging remains to be verified. |
+| OpenBSD 8.0 x86-64 VM | Clang 22.1.6 Release and Debug | Three suites passed per job. Experimental target. |
+
+All four Linux suites include unit, core, security and GNU CVS interoperability.
+The Windows and OpenBSD runs cover unit, core and security without a GNU CVS
+oracle. The Windows security suite skips the POSIX `RLIMIT_FSIZE`
+failure-injection case. Transport interoperability uses the local test shim on
+this revision. Package extraction checks and real SSH qualification apply to
+subsequent runs after the corresponding tests land.
 
 ## Command evidence
 
-The test suite targets init, import, checkout, add, remove, commit, update, diff,
-log, status, tag, annotate, export, conflict handling, and local/remote repository
-interchange. These remain verification targets until the corresponding cases pass.
-Keep option-level limitations in the run report; one passing invocation does not
-establish every command option.
+Core cases exercise init, import, checkout, add, remove, commit, update, diff,
+log, status, tag, annotate, export and conflict handling. GNU CVS tests exercise
+archive interchange and both client/server directions. The results apply to the
+options and conditions in those cases.
 
 ## Inherited limits
 
@@ -36,7 +45,20 @@ establish every command option.
   error behavior must be tested with the actual peer rather than assumed.
 - Windows cannot represent every POSIX name or permission. See
   [native Windows rules](windows.md) for explicit rejection requirements.
+- Remote `import -d` requires source timestamp transport and is rejected
+  explicitly. Local import can use the source file's modification time.
 
 Local interoperability with GNU-created repositories and both client/server
 transport directions need separate tests. Data integrity means comparing bytes,
 revisions, tags, metadata, and failure recovery, not just accepting an RCS file.
+
+Local `import -d` uses the source modification time for new vendor revisions.
+The remote client reports an error for `import -d` because the port does not
+transport source file timestamps. Remote `import -b` sends the selected vendor
+branch to the server.
+
+Archive publishing and Entries compaction flush file contents before
+replacement. On POSIX, the containing directory is also synchronized and
+a failure after publication is reported as such. Win32 flushes file data,
+and directory crash durability is unverified. See the
+[data integrity inventory](ci/DATA-INTEGRITY.md) for release evidence.

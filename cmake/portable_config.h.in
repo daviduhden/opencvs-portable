@@ -28,6 +28,7 @@
 #cmakedefine PC_HAVE_FNMATCH 1
 #cmakedefine PC_HAVE_FNM_CASEFOLD 1
 #cmakedefine PC_HAVE_FGETLN 1
+#cmakedefine PC_HAVE_PIPE2 1
 #cmakedefine PC_HAVE_BSD_GETOPT 1
 #cmakedefine PC_HAVE_SYS_QUEUE_H 1
 #cmakedefine PC_HAVE_SYS_TREE_H 1

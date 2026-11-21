@@ -70,7 +70,7 @@ fatal(const char *fmt,...)
 	}
 
 	cvs_cleanup_failed = 1;
-	if (current_cvsroot != NULL)
+	if (current_cvsroot != NULL || cvs_server_path != NULL)
 		cvs_cleanup();
 
 	exit(1);

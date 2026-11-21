@@ -132,6 +132,8 @@ char *pc_metadata_fgets(char *, int, FILE *);
 int pc_fclose(FILE *);
 void pc_set_metadata_error_handler(void (*)(const char *));
 DIR *pc_directory_open(int, const char *);
+/* 0 synced, 1 unsupported, -1 failed with errno. */
+int pc_sync_parent_directory(const char *);
 #ifndef PC_HAVE_FGETLN
 #define fgetln pc_fgetln
 #endif

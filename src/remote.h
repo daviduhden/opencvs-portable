@@ -66,7 +66,7 @@ extern int server_response;
 #define CVS_SERVER_QUESTIONABLE		'?'
 
 void	cvs_client_connect_to_server(void);
-void	cvs_client_disconnect(void);
+int	cvs_client_disconnect(void);
 void	cvs_client_send_logmsg(char *);
 void	cvs_client_send_request(char *, ...)
 	__attribute__((format(printf, 1, 2)));

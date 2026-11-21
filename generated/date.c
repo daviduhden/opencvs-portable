@@ -20,6 +20,23 @@
 
 #define YYPURE 0
 
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: date.y,v 1.27 2023/03/08 04:43:10 guenther Exp $	*/
 
 /*
@@ -36,6 +53,8 @@
 /* SUPPRESS 288 on yyerrlab *//* Label unused */
 
 #include <ctype.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <string.h>
 #include <time.h>
 
@@ -91,12 +110,80 @@ static time_t	yyYear;
 static MERIDIAN	yyMeridian;
 static time_t	yyRelMonth;
 static time_t	yyRelSeconds;
+static int yyDateError;
 
 
 static int	yyerror(const char *);
 static int	yylex(void);
 static int	yyparse(void);
 static int	lookup(char *);
+
+/* All supported targets provide a signed integral time_t no wider than intmax_t. */
+typedef char pc_date_signed_time[((time_t)-1 < 0) ? 1 : -1];
+typedef char pc_date_time_width[(sizeof(time_t) <= sizeof(intmax_t)) ? 1 : -1];
+#define DATE_TIME_MAX ((intmax_t)(UINTMAX_MAX >> \
+    ((sizeof(uintmax_t) - sizeof(time_t)) * CHAR_BIT + 1)))
+#define DATE_TIME_MIN (-DATE_TIME_MAX - 1)
+
+static time_t
+date_failure(void)
+{
+	yyDateError = 1;
+	return 0;
+}
+
+static time_t
+date_add(time_t left, time_t right)
+{
+	intmax_t a = (intmax_t)left, b = (intmax_t)right;
+
+	if ((b > 0 && a > DATE_TIME_MAX - b) ||
+	    (b < 0 && a < DATE_TIME_MIN - b))
+		return date_failure();
+	return (time_t)(a + b);
+}
+
+static time_t
+date_subtract(time_t left, time_t right)
+{
+	intmax_t a = (intmax_t)left, b = (intmax_t)right;
+
+	if ((b > 0 && a < DATE_TIME_MIN + b) ||
+	    (b < 0 && a > DATE_TIME_MAX + b))
+		return date_failure();
+	return (time_t)(a - b);
+}
+
+static time_t
+date_multiply(time_t left, time_t right)
+{
+	intmax_t a = (intmax_t)left, b = (intmax_t)right;
+
+	if ((a > 0 && ((b > 0 && a > DATE_TIME_MAX / b) ||
+	    (b < 0 && b < DATE_TIME_MIN / a))) ||
+	    (a < 0 && ((b > 0 && a < DATE_TIME_MIN / b) ||
+	    (b < 0 && a < DATE_TIME_MAX / b))))
+		return date_failure();
+	return (time_t)(a * b);
+}
+
+static time_t
+date_negate(time_t value)
+{
+	return date_subtract(0, value);
+}
+
+/* Signed numeric zones are HHMM; reject invalid minute/hour components. */
+static time_t
+date_zone(time_t value)
+{
+	time_t magnitude = value < 0 ? date_negate(value) : value;
+
+	if (yyDateError || magnitude > 2359 || magnitude % 100 > 59)
+		return date_failure();
+	return date_negate(date_add(value % 100,
+	    date_multiply(value / 100, 60)));
+}
 
 #ifdef YYSTYPE
 #undef  YYSTYPE_IS_DECLARED
@@ -552,7 +639,7 @@ static TABLE const MonthDayTable[] = {
 	{ "thurs",	tDAY,	4 },
 	{ "friday",	tDAY,	5 },
 	{ "saturday",	tDAY,	6 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 /* Time units table. */
@@ -567,7 +654,7 @@ static TABLE const UnitsTable[] = {
 	{ "min",	tMINUTE_UNIT,	1 },
 	{ "second",	tSEC_UNIT,	1 },
 	{ "sec",	tSEC_UNIT,	1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 /* Assorted relative-time words. */
@@ -592,7 +679,7 @@ static TABLE const OtherTable[] = {
 	{ "eleventh",	tUNUMBER,	11 },
 	{ "twelfth",	tUNUMBER,	12 },
 	{ "ago",	tAGO,	1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 /* The timezone table. */
@@ -677,7 +764,7 @@ static TABLE const TimezoneTable[] = {
 	{ "nzst",	tZONE,     -HOUR(12) },	/* New Zealand Standard */
 	{ "nzdt",	tDAYZONE,  -HOUR(12) },	/* New Zealand Daylight */
 	{ "idle",	tZONE,     -HOUR(12) },	/* International Date Line East */
-	{  NULL  }
+	{ NULL, 0, 0 }
 };
 
 /* Military timezone table. */
@@ -707,7 +794,7 @@ static TABLE const MilitaryTable[] = {
 	{ "x",	tZONE,	HOUR(-11) },
 	{ "y",	tZONE,	HOUR(-12) },
 	{ "z",	tZONE,	HOUR(  0) },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 
@@ -770,7 +857,11 @@ Convert(time_t Month, time_t Day, time_t Year, time_t Hours, time_t Minutes,
 	time_t	tod;
 	time_t	julian;
 	int	i;
+	struct tm local = { 0 };
 
+	/* Bound the supported calendar before negation and year iteration. */
+	if (Year < -9999 || Year > 9999)
+		return (-1);
 	if (Year < 0)
 		Year = -Year;
 	if (Year < 69)
@@ -794,17 +885,18 @@ Convert(time_t Month, time_t Day, time_t Year, time_t Hours, time_t Minutes,
 		julian += DaysInMonth[i];
 
 	for (i = YEAR_EPOCH; i < Year; i++)
-		julian += 365 + (i % 4 == 0);
-	julian *= SECSPERDAY;
-	julian += yyTimezone * 60L;
+		julian += 365 + (i % 4 == 0 && (i % 100 != 0 || i % 400 == 0));
+	julian = date_multiply(julian, SECSPERDAY);
+	julian = date_add(julian, date_multiply(yyTimezone, 60));
 
 	if ((tod = ToSeconds(Hours, Minutes, Seconds, Meridian)) < 0)
 		return (-1);
-	julian += tod;
-	if ((DSTmode == DSTon) ||
-	    (DSTmode == DSTmaybe && localtime(&julian)->tm_isdst))
-	julian -= 60 * 60;
-	return (julian);
+	julian = date_add(julian, tod);
+	if (DSTmode == DSTmaybe && localtime_r(&julian, &local) == NULL)
+		return (-1);
+	if (DSTmode == DSTon || (DSTmode == DSTmaybe && local.tm_isdst))
+		julian = date_subtract(julian, 60 * 60);
+	return (yyDateError ? (time_t)-1 : julian);
 }
 
 
@@ -813,23 +905,31 @@ DSTcorrect(time_t Start, time_t Future)
 {
 	time_t	StartDay;
 	time_t	FutureDay;
+	struct tm start_tm, future_tm;
 
-	StartDay = (localtime(&Start)->tm_hour + 1) % 24;
-	FutureDay = (localtime(&Future)->tm_hour + 1) % 24;
-	return (Future - Start) + (StartDay - FutureDay) * 60L * 60L;
+	if (localtime_r(&Start, &start_tm) == NULL ||
+	    localtime_r(&Future, &future_tm) == NULL)
+		return date_failure();
+	StartDay = (start_tm.tm_hour + 1) % 24;
+	FutureDay = (future_tm.tm_hour + 1) % 24;
+	return date_add(date_subtract(Future, Start),
+	    date_multiply(StartDay - FutureDay, 60 * 60));
 }
 
 
 static time_t
 RelativeDate(time_t Start, time_t DayOrdinal, time_t DayNumber)
 {
-	struct tm	*tm;
+	struct tm value, *tm = &value;
 	time_t	now;
 
 	now = Start;
-	tm = localtime(&now);
-	now += SECSPERDAY * ((DayNumber - tm->tm_wday + 7) % 7);
-	now += 7 * SECSPERDAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
+	if (localtime_r(&now, tm) == NULL)
+		return date_failure();
+	now = date_add(now,
+	    date_multiply(SECSPERDAY, (DayNumber - tm->tm_wday + 7) % 7));
+	now = date_add(now, date_multiply(7 * SECSPERDAY,
+	    DayOrdinal <= 0 ? DayOrdinal : date_subtract(DayOrdinal, 1)));
 	return DSTcorrect(Start, now);
 }
 
@@ -837,20 +937,24 @@ RelativeDate(time_t Start, time_t DayOrdinal, time_t DayNumber)
 static time_t
 RelativeMonth(time_t Start, time_t RelMonth)
 {
-	struct tm	*tm;
+	struct tm value, *tm = &value;
 	time_t	Month;
-	time_t	Year;
+	time_t	Year, future;
 
 	if (RelMonth == 0)
 		return (0);
-	tm = localtime(&Start);
-	Month = 12 * (tm->tm_year + 1900) + tm->tm_mon + RelMonth;
+	if (localtime_r(&Start, tm) == NULL)
+		return date_failure();
+	Month = date_add(date_add(date_multiply(12,
+	    date_add((time_t)tm->tm_year, 1900)), (time_t)tm->tm_mon), RelMonth);
 	Year = Month / 12;
 	Month = Month % 12 + 1;
-	return DSTcorrect(Start,
-	    Convert(Month, (time_t)tm->tm_mday, Year,
+	future = Convert(Month, (time_t)tm->tm_mday, Year,
 	    (time_t)tm->tm_hour, (time_t)tm->tm_min, (time_t)tm->tm_sec,
-	    MER24, DSTmaybe));
+	    MER24, DSTmaybe);
+	if (future < 0 || yyDateError)
+		return date_failure();
+	return DSTcorrect(Start, future);
 }
 
 
@@ -864,8 +968,8 @@ lookup(char *buff)
 
 	/* Make it lowercase. */
 	for (p = buff; *p; p++)
-		if (isupper(*p))
-			*p = tolower(*p);
+		if (isupper((unsigned char)*p))
+			*p = (char)tolower((unsigned char)*p);
 
 	if (strcmp(buff, "am") == 0 || strcmp(buff, "a.m.") == 0) {
 		yylval.Meridian = MERam;
@@ -932,7 +1036,7 @@ lookup(char *buff)
 		}
 
 	/* Military timezones. */
-	if (len == 1 && isalpha(*buff)) {
+	if (len == 1 && isalpha((unsigned char)*buff)) {
 		for (tp = MilitaryTable; tp->name; tp++)
 			if (strcmp(buff, tp->name) == 0) {
 				yylval.Number = tp->value;
@@ -965,45 +1069,59 @@ yylex(void)
 	int	count, sign;
 
 	for (;;) {
-		while (isspace(*yyInput))
+		while (isspace((unsigned char)*yyInput))
 			yyInput++;
 
-		if (isdigit(c = *yyInput) || c == '-' || c == '+') {
+		if (isdigit((unsigned char)(c = *yyInput)) || c == '-' || c == '+') {
 			if (c == '-' || c == '+') {
 				sign = c == '-' ? -1 : 1;
-				if (!isdigit(*++yyInput))
+				if (!isdigit((unsigned char)*++yyInput))
 					/* skip the '-' sign */
 					continue;
 			}
 			else
 				sign = 0;
 
-			for (yylval.Number = 0; isdigit(c = *yyInput++); )
-				yylval.Number = 10 * yylval.Number + c - '0';
+			for (yylval.Number = 0; isdigit((unsigned char)(c = *yyInput++)); )
+				yylval.Number = date_add(date_multiply(yylval.Number, 10),
+				    (time_t)(c - '0'));
 			yyInput--;
 			if (sign < 0)
-				yylval.Number = -yylval.Number;
+				yylval.Number = date_negate(yylval.Number);
 			return sign ? tSNUMBER : tUNUMBER;
 		}
 
-		if (isalpha(c)) {
-			for (p = buff; isalpha(c = *yyInput++) || c == '.'; )
+		if (isalpha((unsigned char)c)) {
+			for (p = buff; isalpha((unsigned char)(c = *yyInput++)) || c == '.'; ) {
 				if (p < &buff[sizeof buff - 1])
 					*p++ = c;
+				else
+					yyDateError = 1;
+			}
 			*p = '\0';
 			yyInput--;
 			return lookup(buff);
 		}
+		if (c == '\0')
+			return 0;
 		if (c != '(')
-			return *yyInput++;
+			return (unsigned char)*yyInput++;
 
 		count = 0;
 		do {
 			c = *yyInput++;
-			if (c == '\0')
-				return (c);
-			if (c == '(')
+			if (c == '\0') {
+				yyInput--;
+				yyDateError = 1;
+				return 0;
+			}
+			if (c == '(') {
+				if (count == INT_MAX) {
+					yyDateError = 1;
+					return 0;
+				}
 				count++;
+			}
 			else if (c == ')')
 				count--;
 		} while (count > 0);
@@ -1011,22 +1129,24 @@ yylex(void)
 }
 
 /* Yield A - B, measured in seconds.  */
-static long
+static time_t
 difftm(struct tm *a, struct tm *b)
 {
-	int ay = a->tm_year + (YEAR_TMORIGIN - 1);
-	int by = b->tm_year + (YEAR_TMORIGIN - 1);
-	int days = (
-	    /* difference in day of year */
-	    a->tm_yday - b->tm_yday
-	    /* + intervening leap days */
-	    +  ((ay >> 2) - (by >> 2))
-	    -  (ay/100 - by/100)
-	    +  ((ay/100 >> 2) - (by/100 >> 2))
-	    /* + difference in years * 365 */
-	    +  (long)(ay-by) * 365);
-	return (60 * (60 * (24 * days + (a->tm_hour - b->tm_hour))
-	    + (a->tm_min - b->tm_min)) + (a->tm_sec - b->tm_sec));
+	time_t ay, by, days, seconds;
+
+	ay = date_add((time_t)a->tm_year, YEAR_TMORIGIN - 1);
+	by = date_add((time_t)b->tm_year, YEAR_TMORIGIN - 1);
+	days = date_subtract((time_t)a->tm_yday, (time_t)b->tm_yday);
+	days = date_add(days, date_subtract(ay / 4, by / 4));
+	days = date_subtract(days, date_subtract(ay / 100, by / 100));
+	days = date_add(days, date_subtract(ay / 400, by / 400));
+	days = date_add(days, date_multiply(date_subtract(ay, by), 365));
+	seconds = date_add(date_multiply(days, 24),
+	    (time_t)(a->tm_hour - b->tm_hour));
+	seconds = date_add(date_multiply(seconds, 60),
+	    (time_t)(a->tm_min - b->tm_min));
+	return date_add(date_multiply(seconds, 60),
+	    (time_t)(a->tm_sec - b->tm_sec));
 }
 
 /*
@@ -1040,6 +1160,9 @@ date_parse(const char *p)
 	struct tm	gmt, tm;
 	time_t		Start, tod, nowtime, tz;
 
+	yyDateError = 0;
+	if (p == NULL)
+		return -1;
 	yyInput = p;
 
 	if (time(&nowtime) == -1 || !gmtime_r(&nowtime, &gmt) ||
@@ -1049,9 +1172,9 @@ date_parse(const char *p)
 	tz = difftm(&gmt, &tm) / 60;
 
 	if (tm.tm_isdst)
-		tz += 60;
+		tz = date_add(tz, 60);
 
-	yyYear = tm.tm_year + 1900;
+	yyYear = date_add((time_t)tm.tm_year, 1900);
 	yyMonth = tm.tm_mon + 1;
 	yyDay = tm.tm_mday;
 	yyTimezone = tz;
@@ -1068,7 +1191,7 @@ date_parse(const char *p)
 	yyHaveTime = 0;
 	yyHaveZone = 0;
 
-	if (yyparse() || yyHaveTime > 1 || yyHaveZone > 1 ||
+	if (yyparse() || yyDateError || yyHaveTime > 1 || yyHaveZone > 1 ||
 	    yyHaveDate > 1 || yyHaveDay > 1)
 		return (-1);
 
@@ -1080,19 +1203,19 @@ date_parse(const char *p)
 	} else {
 		Start = nowtime;
 		if (!yyHaveRel)
-			Start -= ((tm.tm_hour * 60L + tm.tm_min) * 60L) +
-			    tm.tm_sec;
+			Start = date_subtract(Start,
+			    ((tm.tm_hour * 60L + tm.tm_min) * 60L) + tm.tm_sec);
 	}
 
-	Start += yyRelSeconds;
-	Start += RelativeMonth(Start, yyRelMonth);
+	Start = date_add(Start, yyRelSeconds);
+	Start = date_add(Start, RelativeMonth(Start, yyRelMonth));
 
 	if (yyHaveDay && !yyHaveDate) {
 		tod = RelativeDate(Start, yyDayOrdinal, yyDayNumber);
-		Start += tod;
+		Start = date_add(Start, tod);
 	}
 
-	return Start;
+	return yyDateError ? (time_t)-1 : Start;
 }
 
 #if defined(TEST)
@@ -1788,27 +1911,27 @@ yyreduce:
     {
 case 3:
 	{
-		yyHaveTime++;
+		yyHaveTime = 1 + (yyHaveTime != 0);
 	}
 break;
 case 4:
 	{
-		yyHaveZone++;
+		yyHaveZone = 1 + (yyHaveZone != 0);
 	}
 break;
 case 5:
 	{
-		yyHaveDate++;
+		yyHaveDate = 1 + (yyHaveDate != 0);
 	}
 break;
 case 6:
 	{
-		yyHaveDay++;
+		yyHaveDay = 1 + (yyHaveDay != 0);
 	}
 break;
 case 7:
 	{
-		yyHaveRel++;
+		yyHaveRel = 1;
 	}
 break;
 case 9:
@@ -1833,7 +1956,7 @@ case 11:
 		yyMinutes = yystack.l_mark[-1].Number;
 		yyMeridian = MER24;
 		yyDSTmode = DSToff;
-		yyTimezone = - (yystack.l_mark[0].Number % 100 + (yystack.l_mark[0].Number / 100) * 60);
+		yyTimezone = date_zone(yystack.l_mark[0].Number);
 	}
 break;
 case 12:
@@ -1851,7 +1974,7 @@ case 13:
 		yySeconds = yystack.l_mark[-1].Number;
 		yyMeridian = MER24;
 		yyDSTmode = DSToff;
-		yyTimezone = - (yystack.l_mark[0].Number % 100 + (yystack.l_mark[0].Number / 100) * 60);
+		yyTimezone = date_zone(yystack.l_mark[0].Number);
 	}
 break;
 case 14:
@@ -1913,8 +2036,8 @@ case 22:
 	{
 		/* ISO 8601 format.  yyyy-mm-dd.  */
 		yyYear = yystack.l_mark[-2].Number;
-		yyMonth = -yystack.l_mark[-1].Number;
-		yyDay = -yystack.l_mark[0].Number;
+		yyMonth = date_negate(yystack.l_mark[-1].Number);
+		yyDay = date_negate(yystack.l_mark[0].Number);
 	}
 break;
 case 23:
@@ -1922,7 +2045,7 @@ case 23:
 		/* e.g. 17-JUN-1992.  */
 		yyDay = yystack.l_mark[-2].Number;
 		yyMonth = yystack.l_mark[-1].Number;
-		yyYear = -yystack.l_mark[0].Number;
+		yyYear = date_negate(yystack.l_mark[0].Number);
 	}
 break;
 case 24:
@@ -1953,53 +2076,55 @@ case 27:
 break;
 case 28:
 	{
-		yyRelSeconds = -yyRelSeconds;
-		yyRelMonth = -yyRelMonth;
+		yyRelSeconds = date_negate(yyRelSeconds);
+		yyRelMonth = date_negate(yyRelMonth);
 	}
 break;
 case 30:
 	{
-		yyRelSeconds += yystack.l_mark[-1].Number * yystack.l_mark[0].Number * 60L;
+		yyRelSeconds = date_add(yyRelSeconds,
+		    date_multiply(date_multiply(yystack.l_mark[-1].Number, yystack.l_mark[0].Number), 60));
 	}
 break;
 case 31:
 	{
-		yyRelSeconds += yystack.l_mark[-1].Number * yystack.l_mark[0].Number * 60L;
+		yyRelSeconds = date_add(yyRelSeconds,
+		    date_multiply(date_multiply(yystack.l_mark[-1].Number, yystack.l_mark[0].Number), 60));
 	}
 break;
 case 32:
 	{
-		yyRelSeconds += yystack.l_mark[0].Number * 60L;
+		yyRelSeconds = date_add(yyRelSeconds, date_multiply(yystack.l_mark[0].Number, 60));
 	}
 break;
 case 33:
 	{
-		yyRelSeconds += yystack.l_mark[-1].Number;
+		yyRelSeconds = date_add(yyRelSeconds, yystack.l_mark[-1].Number);
 	}
 break;
 case 34:
 	{
-		yyRelSeconds += yystack.l_mark[-1].Number;
+		yyRelSeconds = date_add(yyRelSeconds, yystack.l_mark[-1].Number);
 	}
 break;
 case 35:
 	{
-		yyRelSeconds++;
+		yyRelSeconds = date_add(yyRelSeconds, 1);
 	}
 break;
 case 36:
 	{
-		yyRelMonth += yystack.l_mark[-1].Number * yystack.l_mark[0].Number;
+		yyRelMonth = date_add(yyRelMonth, date_multiply(yystack.l_mark[-1].Number, yystack.l_mark[0].Number));
 	}
 break;
 case 37:
 	{
-		yyRelMonth += yystack.l_mark[-1].Number * yystack.l_mark[0].Number;
+		yyRelMonth = date_add(yyRelMonth, date_multiply(yystack.l_mark[-1].Number, yystack.l_mark[0].Number));
 	}
 break;
 case 38:
 	{
-		yyRelMonth += yystack.l_mark[0].Number;
+		yyRelMonth = date_add(yyRelMonth, yystack.l_mark[0].Number);
 	}
 break;
 case 39:
@@ -2008,12 +2133,12 @@ case 39:
 			yyYear = yystack.l_mark[0].Number;
 		else {
 			if (yystack.l_mark[0].Number > 10000) {
-				yyHaveDate++;
+				yyHaveDate = 1 + (yyHaveDate != 0);
 				yyDay= (yystack.l_mark[0].Number)%100;
 				yyMonth= (yystack.l_mark[0].Number/100)%100;
 				yyYear = yystack.l_mark[0].Number/10000;
 			} else {
-				yyHaveTime++;
+				yyHaveTime = 1 + (yyHaveTime != 0);
 				if (yystack.l_mark[0].Number < 100) {
 					yyHour = yystack.l_mark[0].Number;
 					yyMinutes = 0;

@@ -47,6 +47,39 @@
 
 static struct cvs_ent_line *ent_get_line(CVSENTRIES *, const char *);
 
+static void
+ent_forget_lines(CVSENTRIES *ep, const char *name)
+{
+	struct cvs_ent_line *line;
+
+	while ((line = ent_get_line(ep, name)) != NULL) {
+		TAILQ_REMOVE(&ep->cef_ent, line, entries_list);
+		free(line->buf);
+		free(line);
+	}
+}
+
+static void
+ent_append_log(CVSENTRIES *ep, int operation, const char *line)
+{
+	FILE *fp;
+	int saved = 0;
+
+	if ((fp = fopen(ep->cef_lpath, "a")) == NULL)
+		fatal("open %s: %s", ep->cef_lpath, strerror(errno));
+	if (fprintf(fp, "%c %s\n", operation, line) < 0 ||
+	    fflush(fp) == EOF || fsync(fileno(fp)) == -1)
+		saved = errno != 0 ? errno : EIO;
+	if (fclose(fp) == EOF && saved == 0)
+		saved = errno != 0 ? errno : EIO;
+	if (saved != 0)
+		fatal("append %s: %s", ep->cef_lpath, strerror(saved));
+	if (!ep->cef_modified && pc_sync_parent_directory(ep->cef_lpath) == -1)
+		fatal("appended %s but could not sync its directory: %s",
+		    ep->cef_lpath, strerror(errno));
+	ep->cef_modified = 1;
+}
+
 /* Entries and Tag use the same six decimal fields in UTC. */
 static time_t
 entries_date(const char *text)
@@ -149,40 +182,38 @@ cvs_ent_open(const char *dir)
 			TAILQ_INSERT_TAIL(&(ep->cef_ent), line, entries_list);
 		}
 
-		(void)fclose(fp);
-	}
+		if (fclose(fp) == EOF)
+			fatal("close %s: %s", ep->cef_path, strerror(errno));
+	} else if (errno != ENOENT)
+		fatal("open %s: %s", ep->cef_path, strerror(errno));
 
 	if ((fp = fopen(ep->cef_lpath, "r")) != NULL) {
 		ep->cef_modified = 1;
 		while (pc_metadata_fgets(buf, sizeof(buf), fp)) {
 			buf[strcspn(buf, "\n")] = '\0';
 
-			if (strlen(buf) < 2)
+			if ((buf[0] != 'A' && buf[0] != 'R') || buf[1] != ' ')
 				fatal("cvs_ent_open: %s: malformed line %s",
 				    ep->cef_lpath, buf);
 
 			p = &buf[2];
+			if ((ent = cvs_ent_parse(p)) == NULL)
+				fatal("cvs_ent_open: invalid entry in %s", ep->cef_lpath);
+			ent_forget_lines(ep, ent->ce_name);
+			cvs_ent_free(ent);
 
 			if (buf[0] == 'A') {
 				line = xmalloc(sizeof(*line));
 				line->buf = xstrdup(p);
 				TAILQ_INSERT_TAIL(&(ep->cef_ent), line,
 				    entries_list);
-			} else if (buf[0] == 'R') {
-				ent = cvs_ent_parse(p);
-				line = ent_get_line(ep, ent->ce_name);
-				if (line != NULL) {
-					TAILQ_REMOVE(&(ep->cef_ent), line,
-					    entries_list);
-					free(line->buf);
-					free(line);
-				}
-				cvs_ent_free(ent);
 			}
 		}
 
-		(void)fclose(fp);
-	}
+		if (fclose(fp) == EOF)
+			fatal("close %s: %s", ep->cef_lpath, strerror(errno));
+	} else if (errno != ENOENT)
+		fatal("open %s: %s", ep->cef_lpath, strerror(errno));
 
 	current_list = ep;
 	return (ep);
@@ -192,7 +223,7 @@ struct cvs_ent *
 cvs_ent_parse(const char *entry)
 {
 	int i;
-	struct tm t;
+	struct tm t = { 0 };
 	struct cvs_ent *ent;
 	char *fields[CVS_ENTRIES_NFIELDS], *buf, *sp, *dp, *p;
 
@@ -225,6 +256,7 @@ cvs_ent_parse(const char *entry)
 	ent->ce_date = -1;
 	ent->ce_tag = NULL;
 	ent->ce_time = NULL;
+	ent->ce_mtime = CVS_DATE_DMSEC;
 
 	if (ent->ce_type == CVS_ENT_FILE) {
 		if (*fields[2] == '-') {
@@ -376,8 +408,14 @@ cvs_ent_close(CVSENTRIES *ep, int writefile)
 		worklist_remove(temporary, &temp_files);
 		free(temporary);
 
+		if (pc_sync_parent_directory(ep->cef_path) == -1)
+			fatal("published %s but could not sync its directory: %s",
+			    ep->cef_path, strerror(errno));
 		if (unlink(ep->cef_lpath) == -1 && errno != ENOENT)
 			fatal("cvs_ent_close: remove log: %s", strerror(errno));
+		if (pc_sync_parent_directory(ep->cef_path) == -1)
+			fatal("compacted %s but could not sync its directory: %s",
+			    ep->cef_path, strerror(errno));
 	}
 
 	if (current_list == ep)
@@ -391,43 +429,26 @@ cvs_ent_close(CVSENTRIES *ep, int writefile)
 void
 cvs_ent_add(CVSENTRIES *ep, const char *line)
 {
-	FILE *fp;
 	struct cvs_ent_line *l;
 	struct cvs_ent *ent;
 
 	if ((ent = cvs_ent_parse(line)) == NULL)
 		fatal("cvs_ent_add: parsing failed '%s'", line);
 
-	l = ent_get_line(ep, ent->ce_name);
-	if (l != NULL)
-		cvs_ent_remove(ep, ent->ce_name);
-
-	cvs_ent_free(ent);
-
 	if (cvs_server_active == 0)
 		cvs_log(LP_TRACE, "cvs_ent_add(%s, %s)", ep->cef_path, line);
 
-	if ((fp = fopen(ep->cef_lpath, "a")) == NULL)
-		fatal("cvs_ent_add: fopen: `%s': %s",
-		    ep->cef_lpath, strerror(errno));
-
-	fputs("A ", fp);
-	fputs(line, fp);
-	fputc('\n', fp);
-
-	if (fclose(fp) == EOF)
-		fatal("cvs_ent_add: close log: %s", strerror(errno));
-	ep->cef_modified = 1;
-
+	ent_append_log(ep, 'A', line);
 	l = xmalloc(sizeof(*l));
 	l->buf = xstrdup(line);
+	ent_forget_lines(ep, ent->ce_name);
+	cvs_ent_free(ent);
 	TAILQ_INSERT_TAIL(&(ep->cef_ent), l, entries_list);
 }
 
 void
 cvs_ent_remove(CVSENTRIES *ep, const char *name)
 {
-	FILE *fp;
 	struct cvs_ent_line *l;
 
 	if (cvs_server_active == 0)
@@ -437,21 +458,8 @@ cvs_ent_remove(CVSENTRIES *ep, const char *name)
 	if (l == NULL)
 		return;
 
-	if ((fp = fopen(ep->cef_lpath, "a")) == NULL)
-		fatal("cvs_ent_remove: fopen: `%s': %s", ep->cef_lpath,
-		    strerror(errno));
-
-	fputs("R ", fp);
-	fputs(l->buf, fp);
-	fputc('\n', fp);
-
-	if (fclose(fp) == EOF)
-		fatal("cvs_ent_remove: close log: %s", strerror(errno));
-	ep->cef_modified = 1;
-
-	TAILQ_REMOVE(&(ep->cef_ent), l, entries_list);
-	free(l->buf);
-	free(l);
+	ent_append_log(ep, 'R', l->buf);
+	ent_forget_lines(ep, name);
 }
 
 /*

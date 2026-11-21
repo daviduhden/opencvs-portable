@@ -14,6 +14,11 @@ flush, close, rename, and metadata publication across RCS, Entries, checkout,
 and protocol consumers. Use isolated repositories for CI regressions. Track
 remaining races and multi-file consistency limits in `docs/ci/DATA-INTEGRITY.md`.
 
+Check repository authorization before loading repository-controlled configuration.
+The restricted server profile binds the session to an operator-selected exact
+root and disables remote initialization. Verify the account and ancestor trust
+assumptions separately from the syntax of a client-supplied path.
+
 ## Maintenance & Continuous Learning
 
 Update this skill when changes invalidate guidance within its scope.

@@ -389,22 +389,34 @@ client_check_directory(char *data, char *repository)
 
 static pc_process cvs_client_process;
 
-void
+int
 cvs_client_disconnect(void)
 {
-	int status;
+	int status, failed = 0;
 	if (cvs_client_process.handle == 0)
-		return;
+		return (0);
 	if (current_cvsroot->cr_srvin != NULL) {
-		(void)fclose(current_cvsroot->cr_srvin);
+		if (fclose(current_cvsroot->cr_srvin) == EOF) {
+			cvs_log(LP_ERR, "cannot close SSH input: %s", strerror(errno));
+			failed = 1;
+		}
 		current_cvsroot->cr_srvin = NULL;
 	}
 	if (current_cvsroot->cr_srvout != NULL) {
-		(void)fclose(current_cvsroot->cr_srvout);
+		if (fclose(current_cvsroot->cr_srvout) == EOF) {
+			cvs_log(LP_ERR, "cannot close SSH output: %s", strerror(errno));
+			failed = 1;
+		}
 		current_cvsroot->cr_srvout = NULL;
 	}
-	if (pc_wait(&cvs_client_process, &status) == -1)
+	if (pc_wait(&cvs_client_process, &status) == -1) {
 		cvs_log(LP_ERR, "unable to wait for SSH transport: %s", strerror(errno));
+		failed = 1;
+	} else if (status != 0) {
+		cvs_log(LP_ERR, "SSH transport exited with status %d", status);
+		failed = 1;
+	}
+	return (failed);
 }
 
 void
@@ -780,7 +792,8 @@ cvs_client_ok(char *data)
 void
 cvs_client_error(char *data)
 {
-	(void)data;
+	if (data != NULL && *data != '\0')
+		cvs_log(LP_ERR, "server: %s", data);
 	end_of_response = 1;
 	server_response = SERVER_ERROR;
 }

@@ -372,6 +372,7 @@ cvs_file_walklist(struct cvs_flisthead *fl, struct cvs_recursion *cr)
 		cf = cvs_file_get_cf(d, f, l->file_path, fd, type, l->flags);
 		if (cf->file_type == CVS_DIR) {
 			cvs_file_walkdir(cf, cr);
+			cvs_file_free(cf);
 		} else {
 			if (l->flags & FILE_USER_SUPPLIED) {
 				cvs_parse_tagfile(cf->file_wd,
@@ -393,6 +394,7 @@ cvs_file_walklist(struct cvs_flisthead *fl, struct cvs_recursion *cr)
 			if (cr->fileproc != NULL)
 				cr->fileproc(cf);
 
+			cvs_file_free(cf);
 			if (l->flags & FILE_USER_SUPPLIED) {
 				if (cvsroot_is_local() &&
 				    (cmdp->cmd_flags & CVS_LOCK_REPO)) {
@@ -402,8 +404,6 @@ cvs_file_walklist(struct cvs_flisthead *fl, struct cvs_recursion *cr)
 				cvs_directory_tag = NULL;
 			}
 		}
-
-		cvs_file_free(cf);
 
 next:
 		nxt = RB_NEXT(cvs_flisthead, fl, l);
@@ -1090,8 +1090,9 @@ cvs_file_copy(const char *from, const char *to)
 	struct stat st;
 	struct timespec times[2];
 	unsigned char data[65536];
+	char *temporary;
 	ssize_t count;
-	int src, dst, error;
+	int src, dst, saved;
 
 	if (cvs_noexec)
 		return 0;
@@ -1099,28 +1100,39 @@ cvs_file_copy(const char *from, const char *to)
 		fatal("cvs_file_copy: %s: %s", from, strerror(errno));
 	if (fstat(src, &st) == -1 || !S_ISREG(st.st_mode))
 		fatal("cvs_file_copy: source must be a regular file");
-	if ((dst = open(to, O_CREAT | O_TRUNC | O_WRONLY | O_NOFOLLOW,
-	    st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO))) == -1)
-		fatal("cvs_file_copy: %s: %s", to, strerror(errno));
+	xasprintf(&temporary, "%s.XXXXXXXX", to);
+	if ((dst = mkstemp(temporary)) == -1)
+		fatal("cvs_file_copy: %s: %s", temporary, strerror(errno));
+	worklist_add(temporary, &temp_files);
 	for (;;) {
 		do { count = read(src, data, sizeof(data)); }
 		while (count < 0 && errno == EINTR);
 		if (count < 0 || (count > 0 &&
-		    atomicio(vwrite, dst, data, (size_t)count) != (size_t)count)) {
-			error = errno;
-			(void)close(dst);
-			(void)unlink(to);
-			fatal("cvs_file_copy: %s", strerror(error));
-		}
+		    atomicio(vwrite, dst, data, (size_t)count) != (size_t)count))
+			goto failed;
 		if (count == 0)
 			break;
 	}
 	times[0] = st.st_atim;
 	times[1] = st.st_mtim;
-	if (futimens(dst, times) == -1 || close(dst) == -1)
-		fatal("cvs_file_copy: finalize: %s", strerror(errno));
+	if (futimens(dst, times) == -1 ||
+	    fchmod(dst, st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO) &
+	    ~cvs_umask) == -1 || fsync(dst) == -1)
+		goto failed;
+	if (close(dst) == -1)
+		fatal("cvs_file_copy: close %s: %s", temporary, strerror(errno));
 	(void)close(src);
+	if (rename(temporary, to) == -1)
+		fatal("cvs_file_copy: publish %s: %s", to, strerror(errno));
+	worklist_remove(temporary, &temp_files);
+	free(temporary);
 	return 0;
+
+failed:
+	saved = errno != 0 ? errno : EIO;
+	(void)close(dst);
+	(void)close(src);
+	fatal("cvs_file_copy: %s: %s", temporary, strerror(saved));
 }
 
 int

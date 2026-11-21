@@ -294,8 +294,17 @@ rcs_close(RCSFILE *rfp)
 void
 rcs_write(RCSFILE *rfp)
 {
+	rcs_write_to(rfp, NULL);
+}
+
+/* A new archive or an Attic transition must not replace another archive. */
+void
+rcs_write_to(RCSFILE *rfp, const char *destination)
+{
 	FILE *fp;
 	char   numbuf[CVS_REV_BUFSZ], *fn, tmpdir[PATH_MAX];
+	const char *path;
+	struct stat st;
 	struct rcs_access *ap;
 	struct rcs_sym *symp;
 	struct rcs_branch *brp;
@@ -312,11 +321,16 @@ rcs_write(RCSFILE *rfp)
 	if (cvs_noexec == 1)
 		return;
 
+	path = destination != NULL ? destination : rfp->rf_path;
 	/* Write operations need the whole file parsed */
 	if (rcsparse_deltatexts(rfp, NULL))
 		fatal("rcs_write: rcsparse_deltatexts");
+	TAILQ_FOREACH(rdp, &rfp->rf_delta, rd_list) {
+		if (rdp->rd_text == NULL)
+			fatal("rcs_write: missing deltatext in %s", rfp->rf_path);
+	}
 
-	if (strlcpy(tmpdir, rfp->rf_path, sizeof(tmpdir)) >= sizeof(tmpdir))
+	if (strlcpy(tmpdir, path, sizeof(tmpdir)) >= sizeof(tmpdir))
 		fatal("rcs_write: truncation");
 	(void)xasprintf(&fn, "%s/rcs.XXXXXXXXXX", dirname(tmpdir));
 
@@ -450,15 +464,36 @@ rcs_write(RCSFILE *rfp)
 		fatal("close %s: %s", fn, strerror(saved_errno));
 	}
 
-	if (rename(fn, rfp->rf_path) == -1) {
+	if (destination != NULL || (rfp->rf_flags & RCS_CREATE)) {
+		if (lstat(path, &st) == 0)
+			fatal("archive destination already exists: %s", path);
+		if (errno != ENOENT)
+			fatal("inspect archive destination %s: %s", path,
+			    strerror(errno));
+	}
+	if (rename(fn, path) == -1) {
 		saved_errno = errno;
 		(void)unlink(fn);
-		fatal("rename(%s, %s): %s", fn, rfp->rf_path,
+		fatal("rename(%s, %s): %s", fn, path,
 		    strerror(saved_errno));
 	}
 
-	rfp->rf_flags |= RCS_SYNCED;
+	worklist_remove(fn, &temp_files);
 	free(fn);
+	if (pc_sync_parent_directory(path) == -1)
+		fatal("published %s but could not sync its directory: %s",
+		    path, strerror(errno));
+	if (destination != NULL) {
+		if (unlink(rfp->rf_path) == -1)
+			fatal("published %s but could not remove old archive %s: %s",
+			    path, rfp->rf_path, strerror(errno));
+		if (pc_sync_parent_directory(rfp->rf_path) == -1)
+			fatal("removed old archive %s but could not sync its directory: %s",
+			    rfp->rf_path, strerror(errno));
+		free(rfp->rf_path);
+		rfp->rf_path = xstrdup(path);
+	}
+	rfp->rf_flags |= RCS_SYNCED;
 }
 
 /*
@@ -1155,6 +1190,9 @@ rcs_rev_add(RCSFILE *rf, RCSNUM *rev, const char *msg, time_t date,
 	struct rcs_branch *brp, *obrp;
 	struct rcs_delta *ordp, *rdp;
 
+	if (rcsparse_deltatexts(rf, NULL))
+		return (-1);
+
 	if (rev == RCS_HEAD_REV) {
 		if (rf->rf_flags & RCS_CREATE) {
 			if ((rev = rcsnum_parse(RCS_HEAD_INIT)) == NULL)
@@ -1165,6 +1203,8 @@ rcs_rev_add(RCSFILE *rf, RCSNUM *rev, const char *msg, time_t date,
 			return (-1);
 		} else {
 			rev = rcsnum_inc(rf->rf_head);
+			if (rev == NULL)
+				return (-1);
 		}
 	} else {
 		if ((rdp = rcs_findrev(rf, rev)) != NULL)
@@ -1205,7 +1245,8 @@ rcs_rev_add(RCSFILE *rf, RCSNUM *rev, const char *msg, time_t date,
 		TAILQ_INSERT_HEAD(&(rf->rf_delta), rdp, rd_list);
 	rf->rf_ndelta++;
 
-	if (!(rf->rf_flags & RCS_CREATE)) {
+	if (!(rf->rf_flags & RCS_CREATE) ||
+	    (RCSNUM_ISBRANCHREV(rev) && rf->rf_head != NULL)) {
 		if (RCSNUM_ISBRANCHREV(rev)) {
 			if (rev->rn_id[rev->rn_len - 1] == 1) {
 				/* a new branch */
@@ -1562,7 +1603,7 @@ rcs_deltatext_set(RCSFILE *rfp, RCSNUM *rev, BUF *bp)
 		rdp->rd_tlen = len;
 		(void)memcpy(rdp->rd_text, dtext, len);
 	} else {
-		rdp->rd_text = NULL;
+		rdp->rd_text = (u_char *)xstrdup("");
 		rdp->rd_tlen = 0;
 	}
 
@@ -1822,36 +1863,35 @@ rcs_rev_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 	}
 
 	prdp = hrdp;
-	if ((rdp = rcs_findrev(rfp, hrdp->rd_next)) == NULL)
+	if ((rdp = rcs_findrev(rfp, hrdp->rd_next)) == NULL) {
+		rdp = hrdp;
 		goto done;
+	}
 
 again:
 	while (rdp != NULL) {
+		trdp = NULL;
 		if (rdp->rd_next->rn_len != 0) {
 			trdp = rcs_findrev(rfp, rdp->rd_next);
 			if (trdp == NULL)
 				fatal("failed to grab next revision");
 		}
 
-		if (rdp->rd_tlen == 0) {
+		if (rdp->rd_text == NULL) {
 			if (rcsparse_deltatexts(rfp, rdp->rd_num))
 				fatal("rcs_rev_getlines: rcsparse_deltatexts");
-			if (rdp->rd_tlen == 0) {
-				if (!rcsnum_differ(rdp->rd_num, bnum))
-					break;
-				rdp = trdp;
-				continue;
-			}
 		}
 
 		plen = rdp->rd_tlen;
 		patch = rdp->rd_text;
-		plines = cvs_splitlines(patch, plen);
-		if (annotate == ANNOTATE_NOW)
-			rcs_patch_lines(dlines, plines, *alines, prdp);
-		else
-			rcs_patch_lines(dlines, plines, NULL, NULL);
-		cvs_freelines(plines);
+		if (plen != 0) {
+			plines = cvs_splitlines(patch, plen);
+			if (annotate == ANNOTATE_NOW)
+				rcs_patch_lines(dlines, plines, *alines, prdp);
+			else
+				rcs_patch_lines(dlines, plines, NULL, NULL);
+			cvs_freelines(plines);
+		}
 
 		if (!rcsnum_differ(rdp->rd_num, bnum)) {
 			if (annotate != ANNOTATE_LATER)
@@ -1876,6 +1916,8 @@ again:
 				break;
 		}
 
+		if (trdp == NULL)
+			break;
 		prdp = rdp;
 		rdp = trdp;
 	}
@@ -1913,6 +1955,9 @@ next:
 		goto again;
 	}
 done:
+	if (annotate != ANNOTATE_NOW &&
+	    (rdp == NULL || rcsnum_differ(rdp->rd_num, frev)))
+		fatal("revision is missing from RCS history");
 	/* put remaining lines into annotate buffer */
 	if (annotate == ANNOTATE_NOW) {
 		for (line = TAILQ_FIRST(&(dlines->l_lines));
@@ -1999,33 +2044,32 @@ rcs_annotate_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)
 			fatal("failed to get delta for target rev");
 
 		for (;;) {
+			trdp = NULL;
 			if (rdp->rd_next->rn_len != 0) {
 				trdp = rcs_findrev(rfp, rdp->rd_next);
 				if (trdp == NULL)
 					fatal("failed to grab next revision");
 			}
 
-			if (rdp->rd_tlen == 0) {
+			if (rdp->rd_text == NULL) {
 				if (rcsparse_deltatexts(rfp, rdp->rd_num))
 					fatal("rcs_annotate_getlines: "
 					    "rcsparse_deltatexts");
-				if (rdp->rd_tlen == 0) {
-					if (!rcsnum_differ(rdp->rd_num, bnum))
-						break;
-					rdp = trdp;
-					continue;
-				}
 			}
 
 			plen = rdp->rd_tlen;
 			patch = rdp->rd_text;
-			plines = cvs_splitlines(patch, plen);
-			rcs_patch_lines(dlines, plines, NULL, rdp);
-			cvs_freelines(plines);
+			if (plen != 0) {
+				plines = cvs_splitlines(patch, plen);
+				rcs_patch_lines(dlines, plines, NULL, rdp);
+				cvs_freelines(plines);
+			}
 
 			if (!rcsnum_differ(rdp->rd_num, bnum))
 				break;
 
+			if (trdp == NULL)
+				fatal("revision is missing from RCS branch");
 			rdp = trdp;
 		}
 	} while (rcsnum_differ(rdp->rd_num, frev));

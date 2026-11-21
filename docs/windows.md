@@ -34,7 +34,8 @@ native process environments. Standard streams and all file streams are binary,
 so CRLF, NUL bytes and protocol byte counts are preserved.
 
 Filesystem operations use strict UTF-8 conversion, absolute extended-length
-Win32 paths, `CreateFileW`, `FindFirstFileW`, `MoveFileExW`, and related APIs.
+Win32 paths, `CreateFileW`, `FindFirstFileW`, `SetFileInformationByHandle`,
+and related APIs.
 The executable manifest requests `asInvoker`, long-path awareness and UTF-8
 behavior; it does not request elevation. The application's inherited fixed
 buffers impose a maximum of 4095 UTF-8 bytes per path. This supports paths
@@ -56,13 +57,22 @@ opened handles, including the final canonical path, before truncating a file.
 These checks do not constitute a race-free filesystem sandbox against an
 attacker who can concurrently replace ancestor directories. Keep repositories
 and temporary directories owned by trusted accounts; do not expose a Windows
-server with writable untrusted ancestors.
+server with writable untrusted ancestors. Rename holds a handle to the source
+and validates the destination directory by handle. The Win32 rename call still
+resolves the destination by absolute path. Other operations such as named
+deletion and directory creation also resolve a path after validation. A stronger
+boundary would require handle-relative operations and a separate audit across the
+supported filesystem and Windows versions.
 
 Private creation modes 0600 (files) and 0700 (directories) use a protected
 owner/SYSTEM DACL rather than assuming the POSIX mode exists. Other group and
 owner mode bits do not provide POSIX ACL semantics on Windows. Read-only state
-maps to the Windows read-only attribute. Replacement/deletion of read-only
-archives temporarily adjusts that attribute through an opened metadata handle.
+maps to the Windows read-only attribute. Replacement uses `FileRenameInfoEx`
+with the read-only override flag and requires OS and filesystem support.
+If that interface is unavailable, a non-replacing rename is possible when
+the destination was absent. Deletion temporarily adjusts the read-only
+attribute through an opened metadata handle and attempts to restore it after
+failure.
 Requests to set Unix executable bits on regular files return `ENOTSUP`:
 checkout of Unix executable files is currently unsupported, rather than
 silently losing mode information. No portable executable-bit metadata format

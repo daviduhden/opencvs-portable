@@ -27,10 +27,8 @@ persisted. ClangCL reached CTest, MSVC still failed compilation, and the
 native matrix was cancelled overall. Linux sanitizers found diff undefined
 behavior and additional leaks. See the 9d03e23 entries in the CI inventories.
 
-The subsequent read-only GitHub inventory found no run newer than 9d03e23.
-Local follow-up expands regression coverage for separated diff hunks,
-rejected conflict commits, and replacement of read-only Windows files.
-These cases have not executed in CI.
+The audit at 9d03e23 prompted additional regressions for separated diff hunks,
+rejected conflict commits and replacement of read-only Windows files.
 
 At ba0ad43 all Windows configurations reached CTest. Linux without
 sanitizers and OpenBSD passed unit and security suites. Core and GNU CVS
@@ -40,3 +38,21 @@ leaks have actionable follow-up in the CI inventories.
 At 4646494, OpenBSD Debug and Release passed all three suites. Linux core
 progressed, while GNU wire interoperability, Windows replacement, and
 sanitizer leaks still require verification. The native run remains failed.
+
+At `7ed85aa268b3507a19204ddda9b53e58ff91a3c7`, the Linux native jobs
+reached CTest and failed GNU CVS interoperability. In GCC job `136917218913`,
+a fresh GNU CVS checkout returned different bytes after a commit from the
+OpenCVS client reported success. The reverse client/server direction passed.
+[Native verification 44927597681](https://github.com/daviduhden/opencvs-portable/actions/runs/44927597681)
+
+At `8801c7b29a208f45bed53d9d581ae8d99576e57e`, all 13 native jobs passed.
+Four suites passed per Linux target, including GNU CVS interoperability
+and the ASan/UBSan build. Both OpenBSD configurations and all Windows jobs
+passed their three configured suites. The Windows PE import checks passed.
+Agent Knowledge Validation passed 49 Perl contract tests and the range
+checks. The [compatibility matrix](docs/compatibility.md) records configurations
+and coverage limits. Subsequent parser, packaging and product changes require
+new hosted verification.
+[Native verification 44928779089](https://github.com/daviduhden/opencvs-portable/actions/runs/44928779089)
+[OpenBSD verification 44928781955](https://github.com/daviduhden/opencvs-portable/actions/runs/44928781955)
+[Agent Knowledge Validation 44928784505](https://github.com/daviduhden/opencvs-portable/actions/runs/44928784505)

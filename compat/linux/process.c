@@ -32,6 +32,12 @@ pc_pipe(int fds[2])
 		return -1;
 	}
 	fds[0] = fds[1] = -1;
+#ifdef PC_HAVE_PIPE2
+	if (pipe2(fds, O_CLOEXEC) == 0)
+		return 0;
+	if (errno != ENOSYS)
+		return -1;
+#endif
 	if (pipe(fds) == -1)
 		return -1;
 	if (fcntl(fds[0], F_SETFD, FD_CLOEXEC) == -1 ||

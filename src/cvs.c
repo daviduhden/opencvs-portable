@@ -125,7 +125,7 @@ sighandler(int sig)
 void
 cvs_cleanup(void)
 {
-	cvs_client_disconnect();
+	(void)cvs_client_disconnect();
 	cvs_log(LP_TRACE, "cvs_cleanup: removing locks");
 	worklist_run(&repo_locks, worklist_unlink);
 
@@ -335,6 +335,15 @@ main(int argc, char **argv)
 
 	if (cvsroot_is_remote()) {
 		ret = cmdp->cmd(cmd_argc, cmd_argv);
+		if (cvs_client_disconnect() != 0) {
+			if (server_response == SERVER_OK)
+				cvs_log(LP_ERR,
+				    "remote changes may have been applied; verify before retrying");
+			if (ret == 0)
+				ret = 1;
+		}
+		if (server_response != SERVER_OK && ret == 0)
+			ret = 1;
 		cvs_cleanup();
 		return (ret);
 	}

@@ -273,12 +273,7 @@ cvs_add_tobranch(struct cvs_file *cf, char *tag)
 	free(cf->file_rpath);
 	cf->file_rpath = xstrdup(attic);
 
-	cf->repo_fd = open(cf->file_rpath, O_CREAT | O_RDONLY | O_NOFOLLOW, 0444);
-	if (cf->repo_fd == -1)
-		fatal("cvs_add_tobranch: %s: %s", cf->file_rpath,
-		    strerror(errno));
-
-	cf->file_rcs = rcs_open(cf->file_rpath, cf->repo_fd,
+	cf->file_rcs = rcs_open(cf->file_rpath, -1,
 	    RCS_CREATE|RCS_WRITE, 0444);
 	if (cf->file_rcs == NULL)
 		fatal("cvs_add_tobranch: failed to create RCS file for %s",

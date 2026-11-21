@@ -31,27 +31,37 @@ jobs:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     runs-on: ubuntu-24.04
     timeout-minutes: 35
-    outputs:
-      artifact: generated-date-parser
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install the parser generator on the runner
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y byacc
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y byacc=1:2.0.20221106-1
       - name: Generate the public-domain date parser
         run: |
-          mkdir -p generated
-          byacc -l -o generated/date.c src/date.y
-          byacc -V > generated/GENERATOR.txt 2>&1
-          printf '\nCommand: byacc -l -o generated/date.c src/date.y\n' >> generated/GENERATOR.txt
+          mkdir -p "$RUNNER_TEMP/parser-check/src" "$RUNNER_TEMP/parser-check/generated"
+          cp src/date.y "$RUNNER_TEMP/parser-check/src/date.y"
+          (
+            cd "$RUNNER_TEMP/parser-check"
+            byacc -l -o generated/date.c src/date.y
+            {
+              byacc -V 2>&1
+              printf '\nCommand: byacc -l -o generated/date.c src/date.y\n'
+              printf 'Package: byacc=%s\n' "$(dpkg-query -W -f='${Version}' byacc)"
+              printf 'Grammar SHA256: %s\n' "$(sha256sum src/date.y | cut -d' ' -f1)"
+            } > generated/GENERATOR.txt
+          )
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: generated-date-parser
           path: |
-            generated/date.c
-            generated/GENERATOR.txt
+            ${{ runner.temp }}/parser-check/generated/date.c
+            ${{ runner.temp }}/parser-check/generated/GENERATOR.txt
           if-no-files-found: error
+      - name: Verify the distributed parser and generator record
+        run: |
+          cmp generated/date.c "$RUNNER_TEMP/parser-check/generated/date.c"
+          diff -u generated/GENERATOR.txt "$RUNNER_TEMP/parser-check/generated/GENERATOR.txt"
 
   linux:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -89,14 +99,12 @@ jobs:
             sanitizers: 'OFF'
     env:
       CC: ${{ matrix.cc }}
+      PC_SOURCE_REVISION: ${{ github.sha }}
+      PC_BUILD_ABI: glibc
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: generated-date-parser
-          path: generated
       - name: Install native test dependencies
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y gcc clang cmake ninja-build perl cvs
       - name: Configure
@@ -106,7 +114,54 @@ jobs:
           set -o pipefail
           cmake --build build --parallel 2 -- -k 0 2>&1 | tee build/compile.log
       - name: Run unit, integration, security, and GNU CVS interoperability tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --no-tests=error --verbose
+      - name: Verify checkout and commit using local OpenSSH
+        if: matrix.compiler == 'gcc' && matrix.configuration == 'Release'
+        run: |
+          set -euo pipefail
+          sudo apt-get install --no-install-recommends -y openssh-server
+          ssh_dir=$(mktemp -d "$RUNNER_TEMP/opencvs-ssh.XXXXXXXX")
+          port=22224
+          ssh_user=$(id -un)
+          cleanup_ssh() {
+            local result=$?
+            if [[ -f "$ssh_dir/pid" ]]; then
+              sudo kill "$(cat "$ssh_dir/pid")" || true
+            fi
+            if ((result != 0)) && [[ -f "$ssh_dir/server.log" ]]; then
+              sudo cat "$ssh_dir/server.log"
+            fi
+            rm -rf -- "$ssh_dir"
+          }
+          trap cleanup_ssh EXIT
+          mkdir -m 700 "$ssh_dir/temporary"
+          ssh-keygen -q -t ed25519 -N '' -f "$ssh_dir/host"
+          ssh-keygen -q -t ed25519 -N '' -f "$ssh_dir/client"
+          printf '%s %s\n' "[127.0.0.1]:$port" "$(cat "$ssh_dir/host.pub")" > "$ssh_dir/known_hosts"
+          {
+            printf '%s\n' "Port $port" 'ListenAddress 127.0.0.1' 'AddressFamily inet'
+            printf '%s\n' "HostKey $ssh_dir/host" "PidFile $ssh_dir/pid" "AuthorizedKeysFile $ssh_dir/client.pub"
+            printf '%s\n' "AllowUsers $ssh_user" 'UsePAM yes' 'AuthenticationMethods publickey'
+            printf '%s\n' 'PasswordAuthentication no' 'KbdInteractiveAuthentication no' 'PermitRootLogin no' 'DisableForwarding yes' 'PermitTTY no'
+            printf 'ForceCommand "%s/build/opencvs" -f -T "%s/temporary" server\n' "$GITHUB_WORKSPACE" "$ssh_dir"
+          } > "$ssh_dir/sshd_config"
+          sudo install -d -m 0755 /run/sshd
+          sudo /usr/sbin/sshd -f "$ssh_dir/sshd_config" -E "$ssh_dir/server.log"
+          export PC_HOSTED_SSH_RSH="/usr/bin/ssh -F /dev/null -p $port -i $ssh_dir/client -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$ssh_dir/known_hosts"
+          export PC_HOSTED_SSH_HOST="$ssh_user@127.0.0.1"
+          perl tests/integration.pl --opencvs build/opencvs --fs-probe build/test-fs-probe --suite core --case hosted_ssh
+      - name: Install benchmark tools
+        if: matrix.compiler == 'gcc'
+        run: sudo apt-get install --no-install-recommends -y strace time
+      - name: Record hosted performance baseline
+        if: matrix.compiler == 'gcc'
+        run: perl tests/integration.pl --opencvs build/opencvs --fs-probe build/test-fs-probe --suite benchmark --report build/benchmark.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.compiler == 'gcc'
+        with:
+          name: benchmark-linux-gcc
+          path: build/benchmark.json
+          if-no-files-found: error
       - name: Validate agent knowledge
         run: perl scripts/check-project-guidance.pl
       - name: Create the glibc distribution
@@ -116,6 +171,7 @@ jobs:
         run: |
           cpack --config build/CPackConfig.cmake -G TGZ -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
           ldd build/opencvs > "dist/$PACKAGE_NAME-runtime.txt"
+          perl scripts/check-package.pl --archive "dist/$PACKAGE_NAME.tar.gz" --binary build/opencvs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.sanitizers == 'OFF' && matrix.configuration == 'Release'
         with:
@@ -128,7 +184,9 @@ jobs:
         if: matrix.compiler == 'gcc'
         env:
           SOURCE_PACKAGE_NAME: opencvs-portable-${{ github.sha }}-source
-        run: cpack --config build/CPackSourceConfig.cmake -G TGZ -B dist-source -D "CPACK_PACKAGE_FILE_NAME=$SOURCE_PACKAGE_NAME"
+        run: |
+          cpack --config build/CPackSourceConfig.cmake -G TGZ -B dist-source -D "CPACK_PACKAGE_FILE_NAME=$SOURCE_PACKAGE_NAME"
+          perl scripts/check-package.pl --archive "dist-source/$SOURCE_PACKAGE_NAME.tar.gz" --source
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.compiler == 'gcc'
         with:
@@ -152,6 +210,9 @@ jobs:
     needs: parser
     runs-on: windows-2025
     timeout-minutes: 45
+    env:
+      PC_SOURCE_REVISION: ${{ github.sha }}
+      PC_BUILD_ABI: windows-nt
     strategy:
       fail-fast: false
       matrix:
@@ -172,10 +233,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: generated-date-parser
-          path: generated
       - name: Check native Perl
         shell: pwsh
         run: |
@@ -208,7 +265,15 @@ jobs:
           cmake --build build --parallel 2 -- -k 0 2>&1 | Tee-Object -FilePath build/compile.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run native Windows tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --no-tests=error --verbose
+      - name: Measure native Windows checkout
+        if: matrix.compiler == 'msvc'
+        run: C:/Strawberry/perl/bin/perl.exe tests/integration.pl --opencvs build/opencvs.exe --fs-probe build/test-fs-probe.exe --suite benchmark --case checkout_tree_size --report build/benchmark.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() && matrix.compiler == 'msvc' }}
+        with:
+          name: benchmark-windows-msvc
+          path: build/benchmark.json
       - name: Check native executable dependencies
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool "C:/Program Files/LLVM/bin/llvm-readobj.exe" --exe build/opencvs.exe
@@ -216,7 +281,10 @@ jobs:
         if: matrix.configuration == 'Release'
         env:
           PACKAGE_NAME: opencvs-portable-${{ github.sha }}-windows-x86_64-${{ matrix.compiler }}
-        run: cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$env:PACKAGE_NAME"
+        run: |
+          cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$env:PACKAGE_NAME"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$env:PACKAGE_NAME.zip" --binary build/opencvs.exe
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.configuration == 'Release'
         with:
@@ -240,6 +308,9 @@ jobs:
     needs: parser
     runs-on: windows-2025
     timeout-minutes: 45
+    env:
+      PC_SOURCE_REVISION: ${{ github.sha }}
+      PC_BUILD_ABI: windows-ucrt
     defaults:
       run:
         shell: msys2 {0}
@@ -247,10 +318,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: generated-date-parser
-          path: generated
       - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
           msystem: UCRT64
@@ -264,14 +331,16 @@ jobs:
           set -o pipefail
           cmake --build build --parallel 2 -- -k 0 2>&1 | tee build/compile.log
       - name: Run tests using native Windows Perl
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --no-tests=error --verbose
       - name: Reject POSIX and compiler runtime dependencies
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool objdump --exe build/opencvs.exe
       - name: Create the native Windows ZIP
         env:
           PACKAGE_NAME: opencvs-portable-${{ github.sha }}-windows-x86_64-mingw
-        run: cpack --config build/CPackConfig.cmake -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
+        run: |
+          cpack --config build/CPackConfig.cmake -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
+          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$PACKAGE_NAME.zip" --binary build/opencvs.exe
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-windows-mingw
@@ -298,23 +367,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: generated-date-parser
-          path: generated
       - name: Compile and test against musl inside the hosted runner
         env:
+          PC_SOURCE_REVISION: ${{ github.sha }}
+          PC_BUILD_ABI: musl
           PACKAGE_NAME: opencvs-portable-${{ github.sha }}-linux-x86_64-musl
         run: |
-          docker run --rm -e PACKAGE_NAME -v "$PWD:/source" -w /source alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 sh -ec '
+          docker run --rm -e PACKAGE_NAME -e PC_SOURCE_REVISION -e PC_BUILD_ABI -v "$PWD:/source" -w /source alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 sh -ec '
             apk add --no-cache build-base cmake ninja perl cvs
             cmake -S . -B build-musl -G Ninja -DCMAKE_BUILD_TYPE=Release -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON -DPC_REQUIRE_GNU_CVS=ON
             cmake --build build-musl --parallel 2 -- -k 0 > build-musl/compile.log 2>&1 || { status=$?; cat build-musl/compile.log; exit "$status"; }
             cat build-musl/compile.log
             # GNU CVS refuses commits as root. Keep dependency installation separate from test identity.
             chown -R nobody build-musl
-            su -s /bin/sh nobody -c "ctest --test-dir build-musl --output-on-failure"
+            su -s /bin/sh nobody -c "ctest --test-dir build-musl --no-tests=error --verbose"
             cpack --config build-musl/CPackConfig.cmake -G TGZ -B dist-musl -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
+            readelf -l build-musl/opencvs > "dist-musl/$PACKAGE_NAME-runtime.txt"
+            perl scripts/check-package.pl --archive "dist-musl/$PACKAGE_NAME.tar.gz" --binary build-musl/opencvs
           '
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -348,6 +417,7 @@ jobs:
           perl scripts/check-license-notices.pl
           perl -c scripts/upstream-stage.pl
           perl -c scripts/check-windows-imports.pl
+          perl -c scripts/check-package.pl
           perl -c scripts/release-check.pl
           perl -c scripts/publish-prerelease.pl
       - name: Exercise non-destructive upstream staging against the pinned baseline

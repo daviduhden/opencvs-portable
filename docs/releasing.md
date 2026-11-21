@@ -11,9 +11,13 @@ must include `opencvs.exe`, the original notices, documentation and version data
 and must pass native PE import inspection. No Authenticode certificate is created
 or assumed.
 
-The [release workflow](../.github/workflows/release.yml) must run the same complete gated build/test matrix against
-an explicitly selected prerelease tag before publishing. It requires a reviewed
-existing annotated OpenPGP-signed tag; CI does not receive a private signing key.
+The [release workflow](../.github/workflows/release.yml) gates the selected
+prerelease tag on Linux x86-64 Release (glibc GCC, Clang, Clang with
+sanitizers and musl) and Windows x86-64 Release (MSVC, clang-cl and MinGW).
+GNU CVS interoperability is required in each Linux job. Debug, ARM64 and
+experimental OpenBSD evidence comes from the separate manual workflows.
+Release requires a reviewed existing annotated OpenPGP-signed tag.
+CI does not receive a private signing key.
 Only the publication job receives `contents: write`. Dispatch is manual and
 owner-gated; no push, PR or cron event creates a release.
 
@@ -21,8 +25,10 @@ owner-gated; no push, PR or cron event creates a release.
 artifact set and nonempty files, generates SHA-256 checksums and compatibility
 notes, and invokes `gh release create --prerelease --verify-tag`. It must stop
 instead of overwriting an existing release or silently replacing its assets.
-Source archives must include the generated date parser so recipients do not need
-Yacc. Preserve every binary/source license notice.
+The parser job compares the checked-in output with the pinned generator.
+Native package jobs extract the actual archive, compare the contained
+executable with the tested binary and run it. The source package job
+validates notices and builds and runs the extracted source without Yacc.
 
 Before dispatch, inspect the exact revision and its evidence, create/push the
 reviewed signed prerelease tag through normal authorized Git operations, and

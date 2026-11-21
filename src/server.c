@@ -93,6 +93,7 @@ char	*cvs_server_path = NULL;
 static char *server_currentdir = NULL;
 static char **server_argv;
 static int server_argc = 1;
+static const char *server_allowed_root;
 
 extern int disable_fast_checkout;
 
@@ -110,11 +111,17 @@ int
 cvs_server(int argc, char **argv)
 {
 	(void)argv;
-	char *cmd, *data;
+	char *cmd, *data, *temporary;
 	struct cvs_req *req;
+	size_t requests = 0;
 
 	if (argc > 1)
 		fatal("server does not take any extra arguments");
+	server_allowed_root = getenv("OPENCVS_SERVER_ROOT");
+	if (server_allowed_root != NULL &&
+	    (!pc_native_absolute(server_allowed_root) ||
+	    strpbrk(server_allowed_root, "\r\n") != NULL))
+		fatal("OPENCVS_SERVER_ROOT must be an absolute repository path");
 
 	/* Be on server-side very verbose per default. */
 	verbosity = 2;
@@ -128,18 +135,21 @@ cvs_server(int argc, char **argv)
 	server_argv = xcalloc(server_argc + 1, sizeof(*server_argv));
 	server_argv[0] = xstrdup("server");
 
-	(void)xasprintf(&cvs_server_path, "%s/cvs-serv%d", cvs_tmpdir,
+	(void)xasprintf(&temporary, "%s/cvs-serv%d", cvs_tmpdir,
 	    getpid());
 
-	if (mkdir(cvs_server_path, 0700) == -1)
+	if (mkdir(temporary, 0700) == -1)
 		fatal("failed to create temporary server directory: %s, %s",
-		    cvs_server_path, strerror(errno));
+		    temporary, strerror(errno));
+	cvs_server_path = temporary;
 
 	if (chdir(cvs_server_path) == -1)
 		fatal("failed to change directory to '%s'", cvs_server_path);
 
 	for (;;) {
 		cmd = cvs_remote_input();
+		if (++requests > 1000000)
+			fatal("server session request limit exceeded");
 
 		if ((data = strchr(cmd, ' ')) != NULL)
 			(*data++) = '\0';
@@ -188,8 +198,13 @@ cvs_server_root(char *data)
 	if (current_cvsroot != NULL)
 		return;
 
+	if (server_allowed_root != NULL && strcmp(data, server_allowed_root) != 0)
+		fatal("repository root is not authorized for this server");
 	if (!pc_native_absolute(data) || (current_cvsroot = cvsroot_get(data)) == NULL)
 		fatal("Invalid Root specified!");
+	if (!cvsroot_is_local() || (server_allowed_root != NULL &&
+	    strcmp(current_cvsroot->cr_dir, server_allowed_root) != 0))
+		fatal("repository root is not authorized for this server");
 
 	cvs_parse_configfile();
 	cvs_parse_modules();
@@ -457,7 +472,8 @@ cvs_server_modified(char *data)
 	if (fchmod(fd, fmode & (S_IRWXU | S_IRWXG | S_IRWXO)) == -1)
 		fatal("cvs_server_modified: failed to set file mode");
 
-	(void)close(fd);
+	if (close(fd) == -1)
+		fatal("cannot close uploaded file: %s", strerror(errno));
 }
 
 void
@@ -592,8 +608,10 @@ cvs_server_import(char *data)
 
 	cvs_cmdop = CVS_OP_IMPORT;
 	cmdp->cmd_flags = cvs_cmd_import.cmd_flags;
-	cvs_import(server_argc, server_argv);
-	cvs_server_send_response("ok");
+	if (cvs_import(server_argc, server_argv) != 0)
+		cvs_server_send_response("error  import failed");
+	else
+		cvs_server_send_response("ok");
 }
 
 void
@@ -644,8 +662,10 @@ cvs_server_commit(char *data)
 
 	cvs_cmdop = CVS_OP_COMMIT;
 	cmdp->cmd_flags = cvs_cmd_commit.cmd_flags;
-	cvs_commit(server_argc, server_argv);
-	cvs_server_send_response("ok");
+	if (cvs_commit(server_argc, server_argv) != 0)
+		cvs_server_send_response("error  commit failed");
+	else
+		cvs_server_send_response("ok");
 }
 
 void
@@ -703,6 +723,8 @@ cvs_server_export(char *data)
 void
 cvs_server_init(char *data)
 {
+	if (server_allowed_root != NULL)
+		fatal("remote initialization is disabled for this server");
 	if (data == NULL)
 		fatal("Missing argument for init");
 

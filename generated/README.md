@@ -1,13 +1,17 @@
 # Distributed date parser
 
-`date.c` is the unmodified Berkeley byacc output generated from `src/date.y`
-on the GitHub-hosted Ubuntu 24.04 runner in job `136345280531` of
-[verification run 44752958590](https://github.com/daviduhden/opencvs-portable/actions/runs/44752958590).
-The source revision was `aca3007c760ff359b922144486f7eed3d2de06c3`.
-`GENERATOR.txt` records the generator version and exact command.
+`date.c` is the Berkeley byacc output from `src/date.y`, retrieved from
+job `136920607513` of [verification run 44928779089](https://github.com/daviduhden/opencvs-portable/actions/runs/44928779089)
+on Ubuntu 24.04 at source revision `8801c7b29a208f45bed53d9d581ae8d99576e57e`.
+`GENERATOR.txt` records the generator version, package, command and grammar
+SHA-256. The portability inventory records the generated file's SHA-256.
 
-The grammar retains its OpenBSD marker and public-domain notice. Berkeley
-yacc's parser skeleton is public domain. This generated file is deliberately
-not attributed to the portability author or relicensed as new project code.
-End users need no parser generator. Regeneration happens only in the manual
-CI parser job; review its resulting artifact before replacing this file.
+The generated file retains the notices copied from the grammar, including
+the ISC notice for portability changes. Berkeley yacc's parser skeleton
+is public domain. Users build the checked-in parser without a generator.
+
+The manual CI parser job regenerates in a temporary directory, uploads
+`generated-date-parser` and compares it with the checked-in files. After
+a grammar change, retrieve the artifact even if the comparison fails.
+Review and incorporate both files together with the provenance hash before
+requesting verification of the new revision.
