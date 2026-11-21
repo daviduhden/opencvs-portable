@@ -322,6 +322,9 @@ test_case core => full_lifecycle => sub {
     check(@revisions >= 2, 'Historical revisions were lost');
     check(cvs($s, ['annotate', 'sample.txt'], cwd => $work)->{text} =~ /changed by commit/, 'Annotate content missing');
     cvs($s, ['tag', 'TEST_SNAPSHOT'], cwd => $work);
+    cvs($s, ['checkout', '-r', 'TEST_SNAPSHOT', '-d', 'snapshot-control', 'module']);
+    equal(read_bytes(path($s->{base}, 'snapshot-control', 'sample.txt')), $updated,
+        'Export tag resolves to the expected committed content');
     cvs($s, ['export', '-r', 'TEST_SNAPSHOT', '-d', 'exported', 'module']);
     my $export = path($s->{base}, 'exported');
     equal(read_bytes(path($export, 'sample.txt')), $updated);
@@ -338,6 +341,16 @@ test_case core => full_lifecycle => sub {
     my $fresh = checkout($s, 'after-remove');
     check(!-e path($fresh, 'added.txt'), 'Removed file reappeared');
     equal(read_bytes(path($fresh, 'sample.txt')), $updated);
+};
+test_case core => export_nested_module_to_new_name => sub {
+    my ($s) = @_;
+    initialize($s);
+    import_tree($s, {'sub/leaf.txt' => "nested export\n"});
+    cvs($s, ['export', '-r', 'TEST_START', '-d', 'renamed-export', 'module']);
+    my $export = path($s->{base}, 'renamed-export');
+    equal(read_bytes(path($export, 'sub', 'leaf.txt')), "nested export\n");
+    check(!-e path($export, 'CVS') && !-e path($export, 'sub', 'CVS'),
+        'Export created working-copy metadata');
 };
 test_case core => diff_preserves_separated_hunks => sub {
     my ($s) = @_;

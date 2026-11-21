@@ -67,6 +67,79 @@ static int nflag = 0;
 
 char *checkout_target_dir = NULL;
 
+/* Active only while traversing one export module; no CVS metadata is created. */
+static char export_repository[PATH_MAX];
+static char export_directory[PATH_MAX];
+
+static void
+export_set_base(const char *repository, const char *directory, int single_file)
+{
+	char *slash;
+
+	if (cvs_cmdop != CVS_OP_EXPORT)
+		return;
+	if (strlcpy(export_repository, repository, sizeof(export_repository)) >=
+	    sizeof(export_repository) ||
+	    strlcpy(export_directory, directory, sizeof(export_directory)) >=
+	    sizeof(export_directory))
+		fatal("export: module mapping is too long");
+	pc_strip_slash(export_repository);
+	pc_strip_slash(export_directory);
+	if (single_file) {
+		slash = strrchr(export_repository, '/');
+		if (slash == NULL)
+			fatal("export: invalid source file mapping");
+		if (slash == export_repository ||
+		    (slash == export_repository + 2 && export_repository[1] == ':'))
+			slash[1] = '\0';
+		else
+			*slash = '\0';
+	}
+}
+
+int
+cvs_export_repository_name(const char *directory, char *dst, size_t size)
+{
+	char path[PATH_MAX], root[PATH_MAX];
+	const char *suffix, *relative, *base;
+	size_t length;
+
+	if (export_repository[0] == '\0')
+		return 0;
+	if (strlcpy(path, directory, sizeof(path)) >= sizeof(path) ||
+	    strlcpy(root, current_cvsroot->cr_dir, sizeof(root)) >= sizeof(root))
+		fatal("export: directory mapping is too long");
+	pc_strip_slash(path);
+	pc_strip_slash(root);
+	base = export_directory;
+	while (path[0] == '.' && path[1] == '/')
+		memmove(path, path + 2, strlen(path + 2) + 1);
+	while (base[0] == '.' && base[1] == '/')
+		base += 2;
+	length = strlen(base);
+	if (!strcmp(path, base))
+		suffix = "";
+	else if (!strcmp(base, "."))
+		suffix = path;
+	else if (!strncmp(path, base, length) && path[length] == '/')
+		suffix = path + length + 1;
+	else
+		fatal("export: working directory is outside the selected module");
+	length = strlen(root);
+	if (length == 0)
+		fatal("export: empty repository root");
+	if (strncmp(export_repository, root, length) != 0 ||
+	    (root[length - 1] != '/' && export_repository[length] != '/' &&
+	    export_repository[length] != '\0'))
+		fatal("export: source directory is outside the selected repository");
+	relative = export_repository + length;
+	if (*relative == '/')
+		relative++;
+	xsnprintf(dst, size, "%s%s%s", relative,
+	    *relative && *suffix ? "/" : "", suffix);
+	return 1;
+}
+
 time_t cvs_specified_date = -1;
 time_t cvs_directory_date = -1;
 int disable_fast_checkout = 0;
@@ -345,7 +418,8 @@ checkout_check_repository(int argc, char **argv)
 				cr.fileproc = cvs_update_local;
 				cr.flags = flags;
 
-				if (!(mc->mc_flags & MODULE_ALIAS)) {
+				if (!(mc->mc_flags & MODULE_ALIAS) ||
+				    (cvs_cmdop == CVS_OP_EXPORT && dflag != NULL)) {
 					if (strlcpy(path, fl->file_path,
 					    sizeof(path)) >= sizeof(path))
 						fatal("%s: truncation",
@@ -372,8 +446,10 @@ checkout_check_repository(int argc, char **argv)
 				if (build_dirs == 1)
 					cvs_mkpath(d, cvs_specified_tag);
 
+				export_set_base(repo, d, 1);
 				f[0] = fpath;
 				cvs_file_run(1, f, &cr);
+				export_repository[0] = '\0';
 				break;
 			case CVS_DIR:
 				if (build_dirs == 1)
@@ -460,6 +536,8 @@ checkout_repository(const char *repobase, const char *wdbase)
 	struct cvs_flisthead fl, dl;
 	struct cvs_recursion cr;
 
+	export_set_base(repobase, wdbase, 0);
+
 	RB_INIT(&fl);
 	RB_INIT(&dl);
 
@@ -494,6 +572,7 @@ checkout_repository(const char *repobase, const char *wdbase)
 
 	cvs_file_walklist(&dl, &cr);
 	cvs_file_freelist(&dl);
+	export_repository[0] = '\0';
 }
 
 void

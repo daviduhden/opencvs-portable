@@ -283,6 +283,7 @@ typedef struct cvs_entries {
 } CVSENTRIES;
 
 extern char *checkout_target_dir;
+int cvs_export_repository_name(const char *, char *, size_t);
 extern char *cvs_join_rev1;
 extern char *cvs_join_rev2;
 extern int   backup_local_changes;

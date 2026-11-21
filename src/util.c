@@ -474,6 +474,8 @@ cvs_get_repository_name(const char *dir, char *dst, size_t len)
 
 	switch (cvs_cmdop) {
 	case CVS_OP_EXPORT:
+		if (cvs_export_repository_name(dir, dst, len))
+			break;
 		if (strcmp(dir, "."))
 			if (strlcpy(dst, dir, len) >= len)
 				fatal("cvs_get_repository_name: truncation");
