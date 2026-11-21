@@ -448,7 +448,8 @@ readonly_permissions(void)
 	    (attributes & (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN)) ==
 	    FILE_ATTRIBUTE_HIDDEN, "writable file remains hidden");
 	expect(fchmod(fd, 0444) == 0, "set read-only before attempted deletion");
-	deny_delete = CreateFileW(wide, FILE_READ_ATTRIBUTES,
+	/* Use a data handle so Windows enforces its delete-sharing mode. */
+	deny_delete = CreateFileW(wide, GENERIC_READ,
 	    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 	if (deny_delete == INVALID_HANDLE_VALUE) {
 		expect(0, "open fixture without sharing delete");

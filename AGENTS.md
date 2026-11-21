@@ -134,3 +134,8 @@ an archive. A successful rename may precede a durability or cleanup failure.
 Preserve any remaining archive and report the completed operation accurately.
 When testing the restricted server profile, keep the authorized root under
 operator control and verify the wire result as well as the repository state.
+
+For native Windows deletion-sharing tests, use a data handle to deny delete
+sharing. Attribute-only handles do not model the same sharing contract.
+Allow a contender at least one full lock retry interval before the regression
+driver times it out. Keep the timeout override specific to the concurrency case.

@@ -166,7 +166,8 @@ my $expected = {baseline_revision => $baseline, modified_imports => \@modified,
     policy => 'Original notices retained; David Uhden Collado copyright covers only new portability changes.'};
 if ($update) {
     open my $out, '>:raw', "$root/$inventory_path" or die "cannot update inventory: $!\n";
-    print {$out} JSON::PP->new->canonical->pretty->encode($expected);
+    print {$out} JSON::PP->new->canonical->indent->indent_length(2)
+        ->space_after->encode($expected);
     close $out or die "cannot finish inventory: $!\n";
 } else {
     for my $key (qw(modified_imports new_code_files)) {

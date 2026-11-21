@@ -33,6 +33,10 @@ Record whether failures vary with destination existence, open handles, or
 cleanup order. Compare the smallest existing regression variants before
 making another platform-specific change.
 
+Set a concurrency case's subprocess deadline beyond the lock retry interval
+when a contender can legitimately sleep before succeeding. Keep the override
+local to that case and report how long the contender waited.
+
 ## Maintenance & Continuous Learning
 
 Run Agent Knowledge Validation against the full change range. When code and

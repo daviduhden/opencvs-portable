@@ -160,7 +160,7 @@ sub invoke {
         chdir $previous or die "restore working directory: $!\n";
     }
     die "Cannot start @command: $spawn_error\n" if defined $spawn_error;
-    my $deadline = time() + $timeout;
+    my $deadline = time() + ($options{timeout} // $timeout);
     my ($status, $native_status, $timed_out);
     while (1) {
         my $waited = waitpid($pid, WNOHANG);
@@ -775,14 +775,14 @@ test_case core => concurrent_tags_preserve_both_updates => sub {
         my $token;
         POSIX::_exit(1) unless sysread($start, $token, 1) == 1;
         close $start;
-        my $ok = eval { cvs($s, ['tag', 'CONCURRENT_A', 'sample.txt'], cwd => $left); 1 };
+        my $ok = eval { cvs($s, ['tag', 'CONCURRENT_A', 'sample.txt'], cwd => $left, timeout => 65); 1 };
         print STDERR $@ unless $ok;
         POSIX::_exit($ok ? 0 : 1);
     }
     close $start;
     my $sent = syswrite($ready, '1');
     close $ready;
-    my $ok = eval { cvs($s, ['tag', 'CONCURRENT_B', 'sample.txt'], cwd => $right); 1 };
+    my $ok = eval { cvs($s, ['tag', 'CONCURRENT_B', 'sample.txt'], cwd => $right, timeout => 65); 1 };
     my $failure = $@;
     my $waited = waitpid($child, 0);
     check(defined($sent) && $sent == 1 && $waited == $child && $? == 0,

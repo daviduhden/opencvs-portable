@@ -11,4 +11,9 @@ Review reserved names, ADS, drive/UNC roots, long paths, trailing aliases, case 
 
 ## Maintenance & Continuous Learning
 
+To verify deletion is denied by an existing handle, open that handle for data
+I/O without `FILE_SHARE_DELETE`. An attribute-only handle does not exercise
+the same sharing rules. Check restoration of attributes before closing the
+blocking handle.
+
 Update this skill when changes invalidate guidance within its scope.

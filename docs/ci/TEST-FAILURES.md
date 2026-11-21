@@ -59,3 +59,19 @@ Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 449204999
 TEST-701. OpenBSD passed all three suites in Debug and Release. Ordinary Linux core and security passed. Windows replacement blocks import and downstream cases. The sanitizer matrix and GNU interoperability still fail. Existing regressions cover these cases and remain enabled.
 
 Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 44923879403](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879403) and [OpenBSD 44923879331](https://github.com/daviduhden/opencvs-portable/actions/runs/44923879331). Local changes await validation.
+## Follow-up on 3e66692
+
+[Native run 44950770518](https://github.com/daviduhden/opencvs-portable/actions/runs/44950770518)
+compiled on Ubuntu 24.04, Alpine/musl and Windows Server 2025. Windows MSVC,
+clang-cl and MinGW reached CTest. Their unit fixture used an attribute-only
+handle to deny deletion and failed the deletion, restoration and cleanup
+assertions. Core/security results are separate from this fixture failure.
+The replacement fixture opens the file for data reads without delete sharing,
+matching the [Win32 sharing contract](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew).
+
+Ubuntu x86-64 GCC Release and Clang ASan/UBSan reached CTest. The concurrent
+tag case hit the harness deadline of 30 seconds, equal to one repository-lock
+retry delay. GCC Debug completed both tags on that SHA. The case-specific
+deadline now exceeds the lock's retry delay while the regular cases retain
+their existing deadline. The OpenBSD 8.0 Debug and Release jobs passed in
+[run 44950770201](https://github.com/daviduhden/opencvs-portable/actions/runs/44950770201).
