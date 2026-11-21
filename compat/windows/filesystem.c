@@ -526,14 +526,21 @@ pc_windows_rename_error_stage(void)
 	return rename_error_stage;
 }
 
+/* Some MinGW SDKs expose FileRenameInfoEx but omit this documented flag. */
+#ifndef FILE_RENAME_FLAG_IGNORE_READONLY_ATTRIBUTE
+#define FILE_RENAME_FLAG_IGNORE_READONLY_ATTRIBUTE 0x00000040
+#endif
+
 int
 pc_rename(const char *from, const char *to)
 {
-	wchar_t *a = NULL, *b = NULL;
-	FILE_BASIC_INFO original, source_original;
-	HANDLE h = INVALID_HANDLE_VALUE, source_handle = INVALID_HANDLE_VALUE;
-	DWORD attrs, native_error = ERROR_SUCCESS;
-	int result = -1, changed = 0, source_changed = 0, saved = 0, moved = 0;
+	wchar_t *a = NULL, *b = NULL, *parent = NULL, *split;
+	FILE_RENAME_INFO *information = NULL;
+	BY_HANDLE_FILE_INFORMATION source_info;
+	HANDLE source = INVALID_HANDLE_VALUE, directory = INVALID_HANDLE_VALUE;
+	DWORD attrs, native_error = ERROR_SUCCESS, access;
+	size_t name_bytes, information_bytes;
+	int result = -1, saved = 0, destination_absent = 0;
 	const char *stage = "source path";
 
 	SetLastError(ERROR_SUCCESS);
@@ -546,49 +553,85 @@ pc_rename(const char *from, const char *to)
 	if (check_components(a) == -1) goto failed;
 	stage = "destination ancestor validation";
 	if (check_components(b) == -1) goto failed;
-	stage = "source reparse validation";
-	attrs = GetFileAttributesW(a);
-	if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) {
-		errno = ELOOP; SetLastError(ERROR_SUCCESS); goto failed;
-	}
-	stage = "destination reparse validation";
-	attrs = GetFileAttributesW(b);
-	if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) {
-		errno = ELOOP; SetLastError(ERROR_SUCCESS); goto failed;
-	}
+	stage = "source rename handle";
+	source = CreateFileW(a, DELETE | FILE_READ_ATTRIBUTES,
+	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
+	    FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if (source == INVALID_HANDLE_VALUE) goto native_failure;
 	stage = "source identity validation";
-	if (check_named(a) == -1) goto failed;
+	if (check_handle(source, a) == -1) goto failed;
+	if (!GetFileInformationByHandle(source, &source_info)) goto native_failure;
 	stage = "destination identity validation";
-	if (GetFileAttributesW(b) != INVALID_FILE_ATTRIBUTES && check_named(b) == -1) goto failed;
-	/* POSIX rename does not require write permission on the source file.
-	 * Windows also treats its readonly attribute as a deletion constraint. */
-	stage = "clear source readonly";
-	source_handle = clear_readonly(a, &source_original, &source_changed);
-	if (source_handle == NULL) goto failed;
-	stage = "clear destination readonly";
-	h = clear_readonly(b, &original, &changed);
-	if (h == NULL) goto failed;
-	stage = "MoveFileExW";
-	moved = MoveFileExW(a, b, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
-	if (!moved) {
+	attrs = GetFileAttributesW(b);
+	if (attrs != INVALID_FILE_ATTRIBUTES) {
+		if (check_named(b) == -1) goto failed;
+	} else {
 		native_error = GetLastError();
-		(void)pc_windows_errno(native_error);
-		saved = errno;
-	} else result = 0;
-	goto cleanup;
+		if (native_error != ERROR_FILE_NOT_FOUND && native_error != ERROR_PATH_NOT_FOUND)
+			goto native_failure_saved;
+		destination_absent = 1;
+	}
+	stage = "destination parent path";
+	parent = _wcsdup(b);
+	if (parent == NULL) { errno = ENOMEM; SetLastError(ERROR_SUCCESS); goto failed; }
+	split = wcsrchr(parent, L'\\');
+	if (split == NULL || split[1] == L'\0') {
+		errno = EINVAL; SetLastError(ERROR_SUCCESS); goto failed;
+	}
+	name_bytes = wcslen(split + 1) * sizeof(wchar_t);
+	information_bytes = offsetof(FILE_RENAME_INFO, FileName) + name_bytes + sizeof(wchar_t);
+	if (information_bytes > UINT32_MAX) {
+		errno = EOVERFLOW; SetLastError(ERROR_SUCCESS); goto failed;
+	}
+	information = calloc(1, information_bytes);
+	if (information == NULL) { errno = ENOMEM; SetLastError(ERROR_SUCCESS); goto failed; }
+	memcpy(information->FileName, split + 1, name_bytes);
+	information->FileNameLength = (DWORD)name_bytes;
+	/* Keep the slash of a native drive root, but strip other trailing slashes. */
+	if (split == parent + 6 && parent[5] == L':') split[1] = L'\0';
+	else *split = L'\0';
+	access = FILE_READ_ATTRIBUTES | ((source_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ?
+	    FILE_ADD_SUBDIRECTORY : FILE_ADD_FILE);
+	stage = "destination parent handle";
+	directory = CreateFileW(parent, access,
+	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
+	    FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if (directory == INVALID_HANDLE_VALUE) goto native_failure;
+	stage = "destination parent identity validation";
+	if (check_handle(directory, parent) == -1) goto failed;
+	information->RootDirectory = directory;
+	information->Flags = FILE_RENAME_FLAG_REPLACE_IF_EXISTS |
+	    FILE_RENAME_FLAG_POSIX_SEMANTICS | FILE_RENAME_FLAG_IGNORE_READONLY_ATTRIBUTE;
+	stage = "SetFileInformationByHandle(FileRenameInfoEx)";
+	if (SetFileInformationByHandle(source, FileRenameInfoEx, information, (DWORD)information_bytes)) {
+		result = 0; goto cleanup;
+	}
+	native_error = GetLastError();
+	if (native_error == ERROR_INVALID_PARAMETER || native_error == ERROR_NOT_SUPPORTED ||
+	    native_error == ERROR_INVALID_FUNCTION) {
+		/* A non-replacing fallback is safe even if another process creates
+		 * the destination after our check: it must fail rather than overwrite. */
+		if (destination_absent) {
+			information->Flags = 0;
+			stage = "SetFileInformationByHandle(FileRenameInfo, no replacement)";
+			if (SetFileInformationByHandle(source, FileRenameInfo, information, (DWORD)information_bytes)) {
+				result = 0; goto cleanup;
+			}
+			goto native_failure;
+		}
+		errno = ENOTSUP; saved = errno; goto cleanup;
+	}
+	goto native_failure_saved;
+native_failure:
+	native_error = GetLastError();
+native_failure_saved:
+	(void)pc_windows_errno(native_error); saved = errno; goto cleanup;
 failed:
 	native_error = GetLastError(); saved = errno;
 cleanup:
-	/* Handles continue to identify their objects even after a name changes. */
-	if (restore_readonly(source_handle, &source_original, source_changed) == -1) {
-		result = -1; saved = errno; native_error = GetLastError();
-		stage = moved ? "restore moved source attributes" : "rollback source attributes";
-	}
-	if (restore_readonly(h, &original, changed) == -1 && !moved) {
-		result = -1; saved = errno; native_error = GetLastError();
-		stage = "rollback destination attributes";
-	}
-	free(a); free(b);
+	if (directory != INVALID_HANDLE_VALUE) CloseHandle(directory);
+	if (source != INVALID_HANDLE_VALUE) CloseHandle(source);
+	free(information); free(parent); free(a); free(b);
 	rename_error_stage = result == 0 ? "success" : stage;
 	if (result != 0) { errno = saved; SetLastError(native_error); }
 	return result;

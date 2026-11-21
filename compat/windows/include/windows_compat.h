@@ -25,7 +25,10 @@
 #define NOMINMAX
 #endif
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0602
+#define _WIN32_WINNT 0x0A00
+#endif
+#ifndef NTDDI_VERSION
+#define NTDDI_VERSION 0x0A000004 /* Windows 10, version 1709. */
 #endif
 #include <windows.h>
 #include <sys/types.h>
