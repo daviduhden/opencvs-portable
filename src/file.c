@@ -570,6 +570,9 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 		free(ip);
 	}
 
+	/* Raw import/export trees have no working-copy Entries to consult. */
+	if (cvs_cmdop == CVS_OP_IMPORT || cvs_cmdop == CVS_OP_EXPORT)
+		goto walkrepo;
 	entlist = cvs_ent_open(cf->file_path);
 	TAILQ_FOREACH(line, &(entlist->cef_ent), entries_list) {
 		ent = cvs_ent_parse(line->buf);
@@ -578,8 +581,10 @@ cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 		    ent->ce_name);
 
 		if (!(cr->flags & CR_RECURSE_DIRS) &&
-		    ent->ce_type == CVS_ENT_DIR)
+		    ent->ce_type == CVS_ENT_DIR) {
+			cvs_ent_free(ent);
 			continue;
+		}
 		if (ent->ce_type == CVS_ENT_DIR)
 			cvs_file_get(fpath, 0, &dl, CVS_DIR);
 		else if (ent->ce_type == CVS_ENT_FILE)

@@ -277,6 +277,7 @@ typedef struct cvs_entries {
 	char	*cef_path;
 	char	*cef_bpath;
 	char	*cef_lpath;
+	int	 cef_modified; /* In-memory changes or Entries.Log replay need sync. */
 
 	TAILQ_HEAD(, cvs_ent_line)	 cef_ent;
 } CVSENTRIES;

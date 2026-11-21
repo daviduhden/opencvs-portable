@@ -146,6 +146,7 @@ cvs_ent_open(const char *dir)
 	}
 
 	if ((fp = fopen(ep->cef_lpath, "r")) != NULL) {
+		ep->cef_modified = 1;
 		while (pc_metadata_fgets(buf, sizeof(buf), fp)) {
 			buf[strcspn(buf, "\n")] = '\0';
 
@@ -317,7 +318,8 @@ cvs_ent_close(CVSENTRIES *ep, int writefile)
 	dflag = 1;
 	cvs_log(LP_TRACE, "cvs_ent_close(%s, %d)", ep->cef_bpath, writefile);
 
-	if (cvs_cmdop == CVS_OP_EXPORT)
+	if (cvs_cmdop == CVS_OP_EXPORT || cvs_cmdop == CVS_OP_IMPORT ||
+	    !ep->cef_modified)
 		writefile = 0;
 
 	fp = NULL;
@@ -406,7 +408,9 @@ cvs_ent_add(CVSENTRIES *ep, const char *line)
 	fputs(line, fp);
 	fputc('\n', fp);
 
-	(void)fclose(fp);
+	if (fclose(fp) == EOF)
+		fatal("cvs_ent_add: close log: %s", strerror(errno));
+	ep->cef_modified = 1;
 
 	l = xmalloc(sizeof(*l));
 	l->buf = xstrdup(line);
@@ -434,7 +438,9 @@ cvs_ent_remove(CVSENTRIES *ep, const char *name)
 	fputs(l->buf, fp);
 	fputc('\n', fp);
 
-	(void)fclose(fp);
+	if (fclose(fp) == EOF)
+		fatal("cvs_ent_remove: close log: %s", strerror(errno));
+	ep->cef_modified = 1;
 
 	TAILQ_REMOVE(&(ep->cef_ent), l, entries_list);
 	free(l->buf);
