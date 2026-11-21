@@ -22,11 +22,14 @@
  * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
  * SPDX-License-Identifier: ISC
  */
-#include "portable.h"
 #include <sys/stat.h>
+
 #include <dirent.h>
+
+#include "portable.h"
 #ifndef _WIN32
 #include <sys/resource.h>
+
 #include <signal.h>
 #endif
 
@@ -44,7 +47,7 @@ static int
 parents(char *path)
 {
 	size_t i;
-	char saved;
+	char   saved;
 
 	for (i = 1; path[i] != '\0'; i++) {
 		if (!separator(path[i]))
@@ -69,8 +72,8 @@ parents(char *path)
 static char *
 control_path(const char *filename)
 {
-	FILE *file;
-	char *line, *result;
+	FILE  *file;
+	char  *line, *result;
 	size_t len;
 
 	file = fopen(filename, "rb");
@@ -107,11 +110,11 @@ control_path(const char *filename)
 static int
 remove_private_tree(const char *path)
 {
-	DIR *directory;
+	DIR	      *directory;
 	struct dirent *entry;
-	struct stat st;
-	char *child;
-	int saved;
+	struct stat    st;
+	char	      *child;
+	int	       saved;
 
 	if (chmod(path, 0700) != 0)
 		return -1;
@@ -141,8 +144,9 @@ remove_private_tree(const char *path)
 				goto fail;
 			}
 		} else {
-			/* Never chmod through a link. Native Windows lstat rejects
-			 * reparse points; POSIX links are unlinked as links. */
+			/* Never chmod through a link. Native Windows lstat
+			 * rejects reparse points; POSIX links are unlinked as
+			 * links. */
 			if ((S_ISREG(st.st_mode) && chmod(child, 0600) != 0) ||
 			    unlink(child) != 0) {
 				free(child);
@@ -172,7 +176,8 @@ cleanup_sandbox(const char *path)
 			name = scan + 1;
 	/* This operation is exclusively for File::Temp-created test roots.
 	 * Refuse drive roots, arbitrary paths, and a reparse/link root. */
-	if (strncmp(name, "portable-opencvs-", sizeof("portable-opencvs-") - 1) != 0 ||
+	if (strncmp(name, "portable-opencvs-",
+		sizeof("portable-opencvs-") - 1) != 0 ||
 	    strlen(name) <= sizeof("portable-opencvs-") - 1 ||
 	    lstat(path, &st) != 0 || !S_ISDIR(st.st_mode)) {
 		errno = EINVAL;
@@ -185,42 +190,67 @@ cleanup_sandbox(const char *path)
 static int
 fixture_server(const char *response)
 {
-	static const char capabilities[] = "Valid-requests Root Valid-responses valid-requests "
-	    "Directory Static-directory Sticky Entry Modified UseUnchanged Unchanged "
+	static const char capabilities[] =
+	    "Valid-requests Root Valid-responses valid-requests "
+	    "Directory Static-directory Sticky Entry Modified UseUnchanged "
+	    "Unchanged "
 	    "Questionable Argument Argumentx Global_option Set update\nok\n";
-	char *line, *length_line;
+	char	     *line, *length_line;
 	unsigned char block[4096];
-	size_t length, count, remaining;
-	FILE *fixture;
-	const char *error;
-	int negotiated = 0;
+	size_t	      length, count, remaining;
+	FILE	     *fixture;
+	const char   *error;
+	int	      negotiated = 0;
 
 	while ((line = fgetln(stdin, &length)) != NULL) {
 		if (length == 15 && memcmp(line, "valid-requests\n", 15) == 0) {
-			if (fputs(capabilities, stdout) == EOF || fflush(stdout) != 0) return 74;
+			if (fputs(capabilities, stdout) == EOF ||
+			    fflush(stdout) != 0)
+				return 74;
 			negotiated = 1;
 		} else if (length >= 9 && memcmp(line, "Modified ", 9) == 0) {
-			if (fgetln(stdin, &length) == NULL) return 74; /* mode */
+			if (fgetln(stdin, &length) == NULL)
+				return 74; /* mode */
 			length_line = fgetln(stdin, &length);
-			if (length_line == NULL || length == 0 || length_line[length - 1] != '\n') return 74;
+			if (length_line == NULL || length == 0 ||
+			    length_line[length - 1] != '\n')
+				return 74;
 			length_line[length - 1] = '\0';
-			remaining = (size_t)strtonum(length_line, 0, INT_MAX, &error);
-			if (error != NULL) return 74;
+			remaining =
+			    (size_t)strtonum(length_line, 0, INT_MAX, &error);
+			if (error != NULL)
+				return 74;
 			while (remaining != 0) {
-				count = remaining < sizeof(block) ? remaining : sizeof(block);
+				count = remaining < sizeof(block) ?
+				    remaining :
+				    sizeof(block);
 				count = fread(block, 1, count, stdin);
-				if (count == 0) return 74;
+				if (count == 0)
+					return 74;
 				remaining -= count;
 			}
 		} else if (length == 7 && memcmp(line, "update\n", 7) == 0) {
-			if (!negotiated) return 74;
+			if (!negotiated)
+				return 74;
 			fixture = fopen(response, "rb");
-			if (fixture == NULL) return 74;
-			while ((count = fread(block, 1, sizeof(block), fixture)) != 0)
-				if (fwrite(block, 1, count, stdout) != count) { fclose(fixture); return 74; }
-			if (ferror(fixture)) { fclose(fixture); return 74; }
-			if (fclose(fixture) != 0 || fflush(stdout) != 0) return 74;
-			return getenv("PC_TEST_SERVER_FAIL_AFTER_RESPONSE") != NULL ? 23 : 0;
+			if (fixture == NULL)
+				return 74;
+			while ((count = fread(
+				    block, 1, sizeof(block), fixture)) != 0)
+				if (fwrite(block, 1, count, stdout) != count) {
+					fclose(fixture);
+					return 74;
+				}
+			if (ferror(fixture)) {
+				fclose(fixture);
+				return 74;
+			}
+			if (fclose(fixture) != 0 || fflush(stdout) != 0)
+				return 74;
+			return getenv("PC_TEST_SERVER_FAIL_AFTER_RESPONSE") !=
+				NULL ?
+			    23 :
+			    0;
 		}
 	}
 	return 74;
@@ -229,12 +259,12 @@ fixture_server(const char *response)
 int
 main(int argc, char **argv)
 {
-	char *target;
-	const char *source_name, *destination_name;
-	FILE *source = NULL, *destination = NULL;
+	char	     *target;
+	const char   *source_name, *destination_name;
+	FILE	     *source = NULL, *destination = NULL;
 	unsigned char buffer[8192];
-	size_t n;
-	int result = 1;
+	size_t	      n;
+	int	      result = 1;
 
 	pc_platform_startup(&argc, &argv);
 	if (argc == 2 && strcmp(argv[1], "server") == 0 &&
@@ -242,7 +272,7 @@ main(int argc, char **argv)
 		return fixture_server(getenv("PC_TEST_SERVER_RESPONSE"));
 	if (argc == 5 && strcmp(argv[1], "verify-message") == 0) {
 		FILE *message = fopen(argv[4], "rb"), *record;
-		int failed;
+		int   failed;
 		if (message == NULL)
 			return 24;
 		n = fread(buffer, 1, sizeof(buffer), message);
@@ -255,33 +285,48 @@ main(int argc, char **argv)
 		failed = fwrite(buffer, 1, n, record) != n;
 		if (fclose(record) != 0 || failed)
 			return 24;
-		return n == strlen(argv[3]) && memcmp(buffer, argv[3], n) == 0 ? 0 : 23;
+		return n == strlen(argv[3]) && memcmp(buffer, argv[3], n) == 0 ?
+		    0 :
+		    23;
 	}
 	if (argc == 4 && strcmp(argv[1], "editor-check-template") == 0) {
-		static const char expected[] = "Portable OpenCVS template sentinel";
-		FILE *message = fopen(argv[3], "rb"), *marker;
+		static const char expected[] =
+		    "Portable OpenCVS template sentinel";
+		FILE  *message = fopen(argv[3], "rb"), *marker;
 		size_t length, i;
-		int found = 0;
-		if (message == NULL) return 24;
+		int    found = 0;
+		if (message == NULL)
+			return 24;
 		length = fread(buffer, 1, sizeof(buffer), message);
-		if (ferror(message) || fclose(message) != 0) return 24;
+		if (ferror(message) || fclose(message) != 0)
+			return 24;
 		for (i = 0; i + sizeof(expected) - 1 <= length; i++)
-			if (memcmp(buffer + i, expected, sizeof(expected) - 1) == 0) found = 1;
-		if (!found) return 24;
+			if (memcmp(buffer + i, expected,
+				sizeof(expected) - 1) == 0)
+				found = 1;
+		if (!found)
+			return 24;
 		marker = fopen(argv[2], "wb");
-		if (marker == NULL) return 24;
-		if (fputs("template verified\n", marker) == EOF || fclose(marker) != 0) return 24;
-		return 23; /* Deliberate editor failure after checking actual template data. */
+		if (marker == NULL)
+			return 24;
+		if (fputs("template verified\n", marker) == EOF ||
+		    fclose(marker) != 0)
+			return 24;
+		return 23; /* Deliberate editor failure after checking actual
+			      template data. */
 	}
 #ifndef _WIN32
-	/* Resource limits apply only inside the spawned private regression child. */
+	/* Resource limits apply only inside the spawned private regression
+	 * child. */
 	if (argc >= 4 && strcmp(argv[1], "limit-exec") == 0) {
-		const char *error;
+		const char   *error;
 		struct rlimit limit;
-		long long bytes = strtonum(argv[2], 1, INT_MAX, &error);
-		if (error != NULL) return 64;
+		long long     bytes = strtonum(argv[2], 1, INT_MAX, &error);
+		if (error != NULL)
+			return 64;
 		limit.rlim_cur = limit.rlim_max = (rlim_t)bytes;
-		if (signal(SIGXFSZ, SIG_IGN) == SIG_ERR || setrlimit(RLIMIT_FSIZE, &limit) != 0) {
+		if (signal(SIGXFSZ, SIG_IGN) == SIG_ERR ||
+		    setrlimit(RLIMIT_FSIZE, &limit) != 0) {
 			perror("install private file-size fault injection");
 			return 71;
 		}
@@ -290,10 +335,13 @@ main(int argc, char **argv)
 		return 71;
 	}
 #endif
-	if (!((argc == 4 && (strcmp(argv[1], "read") == 0 ||
-	    strcmp(argv[1], "write") == 0)) ||
-	    (argc == 3 && strcmp(argv[1], "cleanup") == 0))) {
-		fprintf(stderr, "usage: test-fs-probe read|write UTF8-control-file data-file\n"
+	if (!((argc == 4 &&
+		  (strcmp(argv[1], "read") == 0 ||
+		      strcmp(argv[1], "write") == 0)) ||
+		(argc == 3 && strcmp(argv[1], "cleanup") == 0))) {
+		fprintf(stderr,
+		    "usage: test-fs-probe read|write UTF8-control-file "
+		    "data-file\n"
 		    "       test-fs-probe cleanup UTF8-control-file\n");
 		return 64;
 	}
@@ -341,7 +389,7 @@ main(int argc, char **argv)
 		goto done;
 	}
 	result = 0;
- done:
+done:
 	if (destination != NULL && fclose(destination) != 0)
 		result = 1;
 	if (source != NULL && fclose(source) != 0)

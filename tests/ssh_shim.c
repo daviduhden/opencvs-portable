@@ -14,20 +14,20 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include "portable.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "pc_process.h"
+#include "portable.h"
 
 int
 main(int argc, char **argv)
 {
-	pc_process child;
-	int argument = 1, status;
-	char **parsed = NULL;
-	const char *configured;
+	pc_process	   child;
+	int		   argument = 1, status;
+	char		 **parsed = NULL;
+	const char	  *configured;
 	const char *const *command;
 
 	pc_platform_startup(&argc, &argv);
@@ -43,7 +43,8 @@ main(int argc, char **argv)
 		return 64;
 	}
 	argument++;
-	/* GNU CVS supplies one remote-command argument; OpenCVS supplies argv. */
+	/* GNU CVS supplies one remote-command argument; OpenCVS supplies argv.
+	 */
 	if (argc - argument == 1) {
 		parsed = pc_command_argv(argv[argument], NULL);
 		command = (const char *const *)parsed;
@@ -55,8 +56,10 @@ main(int argc, char **argv)
 	configured = getenv("CVS_SERVER");
 	if (command == NULL || command[0] == NULL || command[1] == NULL ||
 	    command[2] != NULL || configured == NULL ||
-	    strcmp(command[0], configured) != 0 || strcmp(command[1], "server") != 0) {
-		fprintf(stderr, "test transport requires an executable and server\n");
+	    strcmp(command[0], configured) != 0 ||
+	    strcmp(command[1], "server") != 0) {
+		fprintf(stderr,
+		    "test transport requires an executable and server\n");
 		pc_free_argv(parsed);
 		return 64;
 	}
