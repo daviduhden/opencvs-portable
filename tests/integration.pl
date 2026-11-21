@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+#
 # Portable OpenCVS.
 #
 # Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
@@ -14,12 +15,11 @@
 # WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-# Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
-# SPDX-License-Identifier: ISC
+#
 # Black-box tests use private temporary repositories only. Perl is test
 # infrastructure, not an opencvs runtime dependency. The local transport shim
 # exercises CVS framing, not SSH encryption or authentication.
+#
 use strict;
 use warnings;
 use utf8;
@@ -74,6 +74,16 @@ sub write_bytes {
     open my $fh, '>:raw', bytes_path($filename) or die "open $filename: $!\n";
     print {$fh} $data or die "write $filename: $!\n";
     close $fh or die "close $filename: $!\n";
+}
+# These paths belong to the case sandbox. The product creates archives and
+# administrative files read-only, so fixture setup must opt in to rewriting.
+sub replace_fixture {
+    my ($filename, $data) = @_;
+    my $native = bytes_path($filename);
+    if (-e $native) {
+        chmod(0600, $native) == 1 or die "chmod $filename: $!\n";
+    }
+    write_bytes($filename, $data);
 }
 sub read_bytes {
     my ($filename) = @_;
@@ -520,7 +530,7 @@ test_case security => invalid_lengths_and_truncated_body => sub {
 test_case security => malformed_rcs_rejected_without_crash => sub {
     my ($s) = @_;
     populated($s);
-    write_bytes(path($s->{repo}, 'module', 'sample.txt,v'), "head not-a-revision;\naccess;\nsymbols;\nlocks; strict;\n");
+    replace_fixture(path($s->{repo}, 'module', 'sample.txt,v'), "head not-a-revision;\naccess;\nsymbols;\nlocks; strict;\n");
     check(cvs($s, ['checkout', '-d', 'malformed', 'module'], allowed => undef)->{code} != 0, 'Malformed RCS archive succeeded');
 };
 test_case security => invalid_sticky_date_preserves_working_copy => sub {
@@ -543,7 +553,7 @@ test_case security => invalid_tag_does_not_change_repository => sub {
     my $work = populated($s);
     my $archive = path($s->{repo}, 'module', 'sample.txt,v');
     my $before = sha256_hex(read_bytes($archive));
-    check(cvs($s, ['tag', 'invalid/tag'], cwd => $work, allowed => undef)->{code} != 0, 'Invalid tag succeeded');
+    check(cvs($s, ['tag', 'invalid.tag'], cwd => $work, allowed => undef)->{code} != 0, 'Invalid tag succeeded');
     equal(sha256_hex(read_bytes($archive)), $before, 'Invalid tag changed archive');
 };
 test_case security => malformed_rcs_delta_commands_are_rejected => sub {
@@ -581,8 +591,11 @@ log
 text
 @
 RCS
+    # The opening quote is on its own source line, but the first delta
+    # command must start immediately after it in the archive.
+    chomp $prefix;
     # Establish that the fixture is valid before testing malformed commands.
-    write_bytes($archive, $prefix . "d1 1\na1 1\nold\n\@\n");
+    replace_fixture($archive, $prefix . "d1 1\na1 1\nold\n\@\n");
     cvs($s, ['checkout', '-r', '1.1', '-d', 'delta-valid', 'module']);
     equal(read_bytes(path($s->{base}, 'delta-valid', 'sample.txt')), "old\n");
     my $index = 0;
@@ -590,7 +603,7 @@ RCS
         "d0 1\n", "d1 0\n", "d1 1junk\n", "d1 2\n", "x1 1\n",
         "a0 1\n", "a0 2\none\n", "a0 1\0\nbody\n", "d1\0 1\n",
         "d1 1", "a0 -1\n", "a0 999999999999999999999999999999\n") {
-        write_bytes($archive, $prefix . $delta . "\@\n");
+        replace_fixture($archive, $prefix . $delta . "\@\n");
         my $before = sha256_hex(read_bytes($archive));
         my $result = cvs($s, ['checkout', '-r', '1.1', '-d', 'delta-bad-' . ++$index,
             'module'], allowed => undef);
@@ -621,7 +634,7 @@ test_case security => invalid_rcs_numbers_and_dates_are_rejected => sub {
     }
     my $index = 0;
     for my $bad (@headers) {
-        write_bytes($archive, $bad);
+        replace_fixture($archive, $bad);
         my $before = sha256_hex(read_bytes($archive));
         my $result = cvs($s, ['checkout', '-d', 'bad-header-' . ++$index, 'module'],
             allowed => undef);
@@ -640,7 +653,7 @@ test_case security => template_editor_failure_preserves_archive => sub {
     my $template = path($s->{base}, 'commit-template.txt');
     my $marker = path($s->{base}, 'editor-template-verified.txt');
     write_bytes($template, "Portable OpenCVS template sentinel\n");
-    write_bytes(path($s->{repo}, 'CVSROOT', 'rcsinfo'), "ALL " . slash_path($template) . "\n");
+    replace_fixture(path($s->{repo}, 'CVSROOT', 'rcsinfo'), "ALL " . slash_path($template) . "\n");
     changed(path($work, 'sample.txt'), "alpha\nfailed editor update\nomega\n");
     my $editor = '"' . slash_path($fs_probe) . '" editor-check-template "'
         . slash_path($marker) . '"';
