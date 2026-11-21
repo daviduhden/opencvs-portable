@@ -60,10 +60,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "utils.h"
+#include "regex2.h"
+
 #include "cclass.h"
 #include "cname.h"
-#include "regex2.h"
-#include "utils.h"
 
 /*
  * parse structure, passed up and down to avoid global variables and

@@ -142,3 +142,7 @@ driver times it out. Keep the timeout override specific to the concurrency case.
 
 When `validate-perl` applies formatting, rerun it to verify a clean pass. Keep
 the integration runner's direct file redirection when changing handle syntax.
+
+Preserve dependency-sensitive include order during C formatting. Load the
+feature configuration before any compatibility shim and the BSD regex utility
+types before the internal regex structures.

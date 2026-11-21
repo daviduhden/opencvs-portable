@@ -18,6 +18,9 @@
 /* Portable OpenCVS compatibility declarations. SPDX-License-Identifier: ISC */
 #ifndef PC_PORTABLE_H
 #define PC_PORTABLE_H
+/* The Windows dirent shim consumes the feature configuration. */
+#include "portable_config.h"
+
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
@@ -30,7 +33,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "portable_config.h"
 #ifdef _WIN32
 #include "windows_compat.h"
 #else

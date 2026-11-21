@@ -117,3 +117,13 @@ Evidence at `4646494cf36970b37689580587497610321318db`: [native matrix 449238794
 Both workflows used Ninja and strict warnings. OpenBSD used native yacc
 and the native matrix used byacc. Retrieved logs and available artifacts
 are in `/tmp/opencvs-ci/`.
+## Include ordering after formatting
+
+Native CI run [44952455306](https://github.com/daviduhden/opencvs-portable/actions/runs/44952455306)
+at `650742ed9edea4f7678bb8c45745af2d49768c4e` configured Windows with MSVC
+and clang-cl, then failed compilation in both Debug and Release. Sorting
+placed the generated feature configuration after `<dirent.h>`, which loads
+the Windows shim and caused a duplicate `timespec`. It also placed `regex2.h`
+before `utils.h` in the fallback, so the structure definitions could not see
+`uch`. The affected Windows jobs did not reach CTest on that SHA. Linux jobs
+use the native regex feature where available and do not establish fallback coverage.

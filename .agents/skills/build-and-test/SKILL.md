@@ -43,6 +43,10 @@ After `validate-perl` rewrites files, rerun it for the final static result.
 Use lexical Perl handles and bind them to localized names for `open3` direct
 file redirection. Preserve binary mode and separate stdout and stderr capture.
 
+Run the native Windows jobs after include sorting. Linux may select libc regex
+and never compile the fallback, and the Windows dirent shim can read feature
+flags before the rest of the forced compatibility header is processed.
+
 Run Agent Knowledge Validation against the full change range. When code and
 guidance land in separate commits, select the commit before both so the
 validator can see the implementation and its corresponding instruction updates.

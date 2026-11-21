@@ -67,8 +67,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "regex2.h"
 #include "utils.h"
+#include "regex2.h"
 
 /* macros for manipulating states, small version */
 #define states long
