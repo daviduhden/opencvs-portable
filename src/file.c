@@ -816,7 +816,8 @@ cvs_file_classify(struct cvs_file *cf, const char *tag)
 		if (fstat(cf->fd, &st) == -1)
 			fatal("cvs_file_classify: %s", strerror(errno));
 
-		if (st.st_mtime != cf->file_ent->ce_mtime)
+		if (st.st_mtime != cf->file_ent->ce_mtime ||
+		    cf->file_ent->ce_conflict != NULL)
 			ismodified = 1;
 	}
 

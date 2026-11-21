@@ -340,6 +340,15 @@ cvs_commit_check_files(struct cvs_file *cf)
 		return;
 	}
 
+	/* A conflict can retain the same one-second mtime as its Entries record. */
+	if (cf->file_ent != NULL && cf->file_ent->ce_conflict != NULL &&
+	    update_has_conflict_markers(cf)) {
+		cvs_log(LP_ERR, "conflict: unresolved conflict indicators in %s",
+		    cf->file_path);
+		conflicts_found++;
+		return;
+	}
+
 	if (cf->file_status == FILE_UPTODATE)
 		return;
 
