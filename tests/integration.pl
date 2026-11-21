@@ -779,11 +779,18 @@ test_case interop => opencvs_client_gnu_server_wire => sub {
         }
         die $error;
     }
-    equal(read_bytes(path($work, 'sample.txt')), $TEXT);
+    my $initial = read_bytes(path($work, 'sample.txt'));
+    equal($initial, $TEXT, 'GNU wire checkout content differs (actual SHA-256 '
+        . sha256_hex($initial) . ', expected ' . sha256_hex($TEXT) . ')');
     my $updated = "alpha\nOpenCVS client wire commit\nomega\n";
     changed(path($work, 'sample.txt'), $updated);
-    cvs($s, ['commit', '-m', 'wire commit', 'sample.txt'], cwd => $work, root => $root, env => $env);
-    equal(read_bytes(path(checkout($s, 'wire-gnu-reader', executable => $gnu_cvs), 'sample.txt')), $updated);
+    my $commit = cvs($s, ['commit', '-m', 'wire commit', 'sample.txt'],
+        cwd => $work, root => $root, env => $env);
+    my $readback = read_bytes(path(
+        checkout($s, 'wire-gnu-reader', executable => $gnu_cvs), 'sample.txt'));
+    equal($readback, $updated, 'GNU checkout after the wire commit differs (actual SHA-256 '
+        . sha256_hex($readback) . ', expected ' . sha256_hex($updated)
+        . ")\nWire commit output:\n" . substr($commit->{text}, 0, 1024));
 };
 test_case interop => gnu_client_opencvs_server_wire => sub {
     my ($s) = @_;
