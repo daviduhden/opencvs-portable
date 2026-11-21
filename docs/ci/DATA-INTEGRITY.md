@@ -36,3 +36,9 @@ historical failed-run logs to current working-tree code.
 **DATA-301.** Sticky dates in Entries and Tag previously used independent numeric scans. A value that parses but normalizes to a different calendar date can select the wrong revision. Both readers now validate field bounds and verify the UTC round trip. The prepared regression checks that an invalid calendar date leaves Tag, Entries, and working bytes intact. CI verification is pending.
 
 Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
+
+## Follow-up on b79f865
+
+DATA-401. Repeated init hits EEXIST opening checkoutlist. Preserve existing repository files instead of truncating or regenerating them. DATA-402. An import source is not a working copy and must not gain Entries during cleanup. Review other read-only archive and directory walks for the same ownership issue.
+
+Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.

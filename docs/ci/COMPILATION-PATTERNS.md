@@ -37,3 +37,9 @@ remain pending a new authorized GitHub run.
 The new merge path showed that transitive system headers vary by platform. Include the declaring header at each consumer. For generated warnings, search all grammar tables and correct the grammar before regenerating. SDK macro collisions and format attributes apply to imported helpers as well as project code.
 
 Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
+
+## Follow-up on b79f865
+
+Review both custom resources and generator-created resources when changing Windows linker flags. Check all regex operand packing and byte-class operations together when addressing narrowing diagnostics. Fix generated lexer warnings at the grammar source.
+
+Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.

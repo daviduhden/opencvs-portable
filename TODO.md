@@ -9,3 +9,8 @@
 - Recheck the fd0ed04 blockers in the next published run, including OpenBSD
   headers, date generator sentinels, Windows regex and UCRT warnings, and
   the sticky-date preservation regression.
+
+- Recheck repeated init, import cleanup, RCS commit-ID ownership, and the
+  Windows drive-path and linker fixes on an authorized published revision.
+- Investigate GNU server response path semantics while preserving containment.
+- Reassess remaining individual cases after shared setup succeeds.

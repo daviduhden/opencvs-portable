@@ -8,3 +8,6 @@
 OpenBSD Debug and Release have completed configuration and built the
 compatibility archive in CI. Executable compilation and functional
 verification remain open on both configurations.
+
+The b79f865 runs reached CTest on Linux, OpenBSD, and MinGW. Prioritize
+repository setup and cleanup before interpreting downstream CVS results.

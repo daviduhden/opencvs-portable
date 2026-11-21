@@ -36,3 +36,9 @@ can be inferred from parser generation or matching file extensions.
 The GNU CVS suites remain blocked by compilation. These runs provide no evidence on archive interchange or either wire direction. Keep the existing interoperability cases enabled for the next manual run.
 
 Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
+
+## Follow-up on b79f865
+
+INTEROP-401. OpenCVS client against GNU server rejects a repository path outside the selected root. Preserve the containment check until the expected response shape is established from the protocol. The opposite direction also failed, including setup failures. GNU archive interchange reached the RCS commit-ID ownership leak under LeakSanitizer.
+
+Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.

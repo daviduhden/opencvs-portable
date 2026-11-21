@@ -58,3 +58,22 @@ The native workflow used Ninja, strict warnings, and byacc output from its
 successful parser job (136370730771). OpenBSD used Ninja and the VM's native
 yacc. The aggregate logs and available diagnostic artifacts are under
 `/tmp/opencvs-ci/`.
+
+## Follow-up on b79f865
+
+BUILD-401. MSVC still rejects narrowing in the fallback regex and date lexer, a potentially uninitialized log delimiter, and an unreachable server return. ClangCL reaches the linker, where lld-link reports duplicate MANIFEST resource ID 1. The local build change disables the linker-generated manifest while retaining the explicit resource.
+
+Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.
+
+| Job group | Job IDs | Progress |
+| --- | --- | --- |
+| Parser and audit | 136888155660, 136888155930 | Passed |
+| glibc GCC Release/Debug, ARM64 Debug, Clang, Clang sanitizers | 136888309088, 136888309148, 136888309103, 136888309096, 136888309117 | Linked and reached CTest |
+| Alpine musl and MinGW | 136888309013, 136888309038 | Linked and reached CTest |
+| MSVC Release and Debug | 136888309051, 136888309072 | Blocked during compilation |
+| ClangCL Release and Debug | 136888309081, 136888309094 | Blocked at link |
+| OpenBSD Release and Debug | 136888166914, 136888167179 | Linked and reached CTest |
+
+The workflows used Ninja and strict warnings. The native matrix used byacc
+and OpenBSD used the VM's yacc. Full logs and downloaded artifacts are in
+`/tmp/opencvs-ci/`, including CTest and compiler diagnostics.

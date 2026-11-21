@@ -38,3 +38,9 @@ reference tools as passing interoperability.
 Check both readers when they share a metadata format, and review all callers when a format argument or process exit convention changes. The Windows child output check initializes its read result so short-circuit and loop-exit paths remain defined.
 
 Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
+
+## Follow-up on b79f865
+
+Before classifying each failing integration case, identify common setup and teardown failures. A successful import message followed by an abort is still a failure. Test the observable process failure contract across native spawn implementations, and inspect successful unit jobs for diagnostic output.
+
+Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.

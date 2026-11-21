@@ -35,3 +35,9 @@ result.
 The parser and audit jobs completed. Product tests, regression tests, and sanitizer runs remained blocked. The local sticky-date regression checks rejection and byte preservation in a temporary working copy.
 
 Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
+
+## Follow-up on b79f865
+
+TEST-401. Unit tests passed on non-sanitized glibc and MinGW. Unit tests failed on musl, the sanitizer job, and both OpenBSD configurations. Core and security suites failed across configurations that reached CTest. Existing repeated-init and import cases cover the common setup failures. Keep independent failures visible after fixing setup.
+
+Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.

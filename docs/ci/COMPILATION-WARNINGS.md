@@ -38,3 +38,9 @@ of warning-free compilation is supported by these runs.
 - The date generators reported the existing ten shift/reduce conflicts. This remains a generator diagnostic. The local source changes do not alter grammar productions.
 
 Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
+
+## Follow-up on b79f865
+
+WARN-401. MSVC C4244 and C4267 identify mismatched representation widths in regex and date parsing. C4701 and C4702 identify the log delimiter and server control-flow diagnostics. Preserve strict flags. The yacc conflict diagnostic remains separate from compiler warnings.
+
+Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.

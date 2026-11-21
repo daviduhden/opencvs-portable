@@ -34,3 +34,9 @@ historical runs. New manual matrix entries create future coverage, not evidence.
 - **PORT-303.** The Windows account backend lacked `endpwent`, and an RCS consumer relied on `bzero`. The local changes release the backend's cache and use standard C memory initialization.
 
 Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
+
+## Follow-up on b79f865
+
+PORT-401. MinGW import constructs /D: before its first mkdir. Directory creation now walks native path prefixes and retains drive and UNC roots. PORT-402. OpenBSD may return a child from posix_spawn and report exec failure through its exit status. The test now requires ENOENT from spawn or failure status 127 from the child. Native fgetln EOF is checked with feof rather than using its length output after NULL.
+
+Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.

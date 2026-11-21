@@ -16,3 +16,8 @@ and built the compatibility archive. The native matrix completed the parser
 and audit jobs. No product job reached tests. The follow-up entries in
 [the CI inventories](docs/ci/COMPILATION-ERRORS.md) record the additional
 diagnostics and distinguish them from the local fixes.
+
+At b79f865, Linux, MinGW, and OpenBSD linked and reached CTest. Core and
+security tests failed, as did GNU interoperability where enabled. MSVC had
+compile failures and ClangCL hit a duplicate manifest at link. See the
+b79f865 follow-up in [CI diagnostics](docs/ci/COMPILATION-ERRORS.md).

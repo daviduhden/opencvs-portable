@@ -31,3 +31,9 @@ Linux compilation or a PE import listing cannot establish them.
 Both workflows stopped during compilation. No product crash, sanitizer finding, timeout, or intermittent runtime failure can be determined from these runs.
 
 Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
+
+## Follow-up on b79f865
+
+RUN-401. LeakSanitizer reports 40 bytes across two allocations from rcsparse_token through rcsparse_commitid during GNU archive interchange. RUN-402. ASan aborts the deliberate reallocarray-overflow unit case at the allocator. The unit test environment requests NULL on allocator failure and retains sanitizer instrumentation. RUN-403. Import exits after reporting success because Entries cleanup attempts to create a temporary file outside an administrative directory.
+
+Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 44918160599](https://github.com/daviduhden/opencvs-portable/actions/runs/44918160599), [OpenBSD 44918164184](https://github.com/daviduhden/opencvs-portable/actions/runs/44918164184). Local fixes await CI.
