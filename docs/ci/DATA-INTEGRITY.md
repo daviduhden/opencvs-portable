@@ -60,3 +60,13 @@ attributes remain. Rename reports restoration failures. If the move succeeds
 and source metadata restoration fails, the new name already exists and its
 attributes require review. This sequence is not a transactional metadata
 replacement. CI verification remains pending.
+
+## Follow-up on ba0ad43
+
+DATA-601. The unresolved conflict rejection still fails in CI. Review classification paths that mark a file up to date before conflict state is considered. DATA-602. Failure to replace a Windows RCS archive is still visible. Verify final archive bytes and keep the old file intact on failed replacement.
+
+Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 44920499963](https://github.com/daviduhden/opencvs-portable/actions/runs/44920499963) and [OpenBSD 44920500268](https://github.com/daviduhden/opencvs-portable/actions/runs/44920500268). The local changes await CI.
+
+Local export now keeps a translation from the selected repository module to
+its output directory, including renamed output. A nested export regression
+checks file bytes and the absence of CVS administrative directories.

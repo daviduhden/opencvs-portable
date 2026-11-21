@@ -49,3 +49,19 @@ tokens, relative unit products, and timestamp calculations. Local changes
 check arithmetic against the supported signed time_t range before evaluating
 it. Both yacc-generated variants still require verification. The normal
 relative-day checkout was added to the sticky-date regression.
+
+## Follow-up on ba0ad43
+
+RUN-601. LeakSanitizer still reports 188 or 191 bytes in four allocations in individual cases, with Entries allocated in file classification and then consumed during update or commit. Earlier diff UBSan diagnostics were absent from the retrieved run. Local sanitizer configuration now makes UBSan abort on diagnostics.
+
+Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 44920499963](https://github.com/daviduhden/opencvs-portable/actions/runs/44920499963) and [OpenBSD 44920500268](https://github.com/daviduhden/opencvs-portable/actions/runs/44920500268). The local changes await CI.
+
+RUN-602. Both Windows Debug jobs reported per-command timeouts in server
+cases, while Release completed the corresponding suite much sooner. This
+is a reproducible configuration difference in this run, with the root
+cause still open. The timeouts were left unchanged.
+
+The Windows replacement diagnostics now report the failing native stage,
+errno, and Win32 error. Tests vary whether the source and destination
+handles remain open and whether the destination exists. This is diagnostic
+coverage. The underlying permission error has yet to be resolved.

@@ -49,3 +49,9 @@ Evidence at `b79f865ec6563a6f7943fda4fc607beed16cee76`: [native matrix 449181605
 Review declaration initialization together with control-flow exits across compilers. Inspect successful linker jobs separately from CTest outcomes and record cancelled jobs as incomplete.
 
 Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 44918836788](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836788) (cancelled overall), [OpenBSD 44918836951](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836951) (failed, jobs 136890189891 and 136890190132). Local changes await CI.
+
+## Follow-up on ba0ad43
+
+Run dependency auditing after a successful binary build even when the test stage reports errors. Keep strict warnings enabled and record failures by compilation, link, native dependency audit, and runtime stage.
+
+Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 44920499963](https://github.com/daviduhden/opencvs-portable/actions/runs/44920499963) and [OpenBSD 44920500268](https://github.com/daviduhden/opencvs-portable/actions/runs/44920500268). The local changes await CI.

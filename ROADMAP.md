@@ -14,3 +14,6 @@ repository setup and cleanup before interpreting downstream CVS results.
 
 Both OpenBSD unit configurations passed at 9d03e23. The next gate is a clean
 functional run with conflict handling, diff status, and archive interchange.
+
+The ba0ad43 matrix compiled through CTest on all current targets. Complete
+functional and interoperability verification before expanding support claims.

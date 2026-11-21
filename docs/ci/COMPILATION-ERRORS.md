@@ -83,3 +83,20 @@ and OpenBSD used the VM's yacc. Full logs and downloaded artifacts are in
 BUILD-501. MSVC Release and Debug failed with C4701 for regex alternation offsets and the generated date parser local pointer. ClangCL linked and reached CTest, confirming progress on the duplicate manifest. The ClangCL Debug test job was cancelled. Job IDs: MSVC 136890316295/136890316465, ClangCL 136890316308/136890316341.
 
 Evidence at `9d03e23347299f4b652d26dbb828b7cced1ebea1`: [native matrix 44918836788](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836788) (cancelled overall), [OpenBSD 44918836951](https://github.com/daviduhden/opencvs-portable/actions/runs/44918836951) (failed, jobs 136890189891 and 136890190132). Local changes await CI.
+
+## Follow-up on ba0ad43
+
+BUILD-601. All Windows configurations now compiled and linked far enough to run CTest. Earlier MSVC C4701 blockers are absent in this revision. Parser and audit jobs passed (136895269459 and 136895269600).
+
+Evidence at `ba0ad436b3c0cc0ec04e72f9c98982765cb7c486`: [native matrix 44920499963](https://github.com/daviduhden/opencvs-portable/actions/runs/44920499963) and [OpenBSD 44920500268](https://github.com/daviduhden/opencvs-portable/actions/runs/44920500268). The local changes await CI.
+
+| Run | Configuration | Job IDs | Result |
+| --- | --- | --- | --- |
+| 44920499963 | Ubuntu glibc GCC Release, GCC Debug, GCC ARM64 Debug, Clang Release, Clang ASan/UBSan | 136895419716, 136895419730, 136895419688, 136895419744, 136895419709 | Linked and entered CTest |
+| 44920499963 | Alpine musl and Windows MinGW | 136895419641, 136895419737 | Linked and entered CTest |
+| 44920499963 | Windows MSVC and ClangCL Release and Debug | 136895419769, 136895419715, 136895419733, 136895419710 | Linked and entered CTest |
+| 44920500268 | OpenBSD Clang Release and Debug | 136895269557, 136895269855 | Unit and security passed. Core failed |
+
+The workflows use Ninja with strict warnings. Native builds consume byacc
+output and OpenBSD regenerates with its native yacc. Full logs and available
+diagnostic artifacts are under `/tmp/opencvs-ci/`.

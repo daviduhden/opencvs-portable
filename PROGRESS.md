@@ -31,3 +31,8 @@ The subsequent read-only GitHub inventory found no run newer than 9d03e23.
 Local follow-up expands regression coverage for separated diff hunks,
 rejected conflict commits, and replacement of read-only Windows files.
 These cases have not executed in CI.
+
+At ba0ad43 all Windows configurations reached CTest. Linux without
+sanitizers and OpenBSD passed unit and security suites. Core and GNU CVS
+interoperability remain open. Windows replacement and residual Entries
+leaks have actionable follow-up in the CI inventories.
