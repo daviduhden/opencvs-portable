@@ -110,48 +110,26 @@ static const char *cvs_modestr[8] = {
 void
 cvs_strtomode(const char *str, mode_t *mode)
 {
-	char type;
-	size_t l;
-	mode_t m;
-	char buf[32], ms[4], *sp, *ep;
+	const char *part = str;
+	int type;
+	mode_t bit, m = 0;
 
-	m = 0;
-	l = strlcpy(buf, str, sizeof(buf));
-	if (l >= sizeof(buf))
-		fatal("cvs_strtomode: string truncation");
+	for (;;) {
+		if (*part < 'a' || *part > 'z' ||
+		    (type = cvs_modetypes[*part - 'a']) < 0 || part[1] != '=')
+			fatal("invalid CVS mode class");
+		part += 2;
 
-	sp = buf;
-	ep = sp;
-
-	for (sp = buf; ep != NULL; sp = ep + 1) {
-		ep = strchr(sp, ',');
-		if (ep != NULL)
-			*ep = '\0';
-
-		memset(ms, 0, sizeof ms);
-		if (sscanf(sp, "%c=%3s", &type, ms) != 2 &&
-			sscanf(sp, "%c=", &type) != 1) {
-			fatal("failed to scan mode string `%s'", sp);
+		while (*part != '\0' && *part != ',') {
+			if (*part < 'a' || *part > 'z' ||
+			    (bit = cvs_modes[type][*part - 'a']) == 0)
+				fatal("invalid permission bit");
+			m |= bit;
+			part++;
 		}
-
-		if (type <= 'a' || type >= 'z' ||
-		    cvs_modetypes[type - 'a'] == -1) {
-			cvs_log(LP_ERR,
-			    "invalid mode type `%c'"
-			    " (`u', `g' or `o' expected), ignoring", type);
-			continue;
-		}
-
-		/* make type contain the actual mode index */
-		type = cvs_modetypes[type - 'a'];
-
-		for (sp = ms; *sp != '\0'; sp++) {
-			if (*sp <= 'a' || *sp >= 'z' ||
-			    cvs_modes[(int)type][*sp - 'a'] == 0) {
-				fatal("invalid permission bit `%c'", *sp);
-			} else
-				m |= cvs_modes[(int)type][*sp - 'a'];
-		}
+		if (*part == '\0')
+			break;
+		part++;
 	}
 
 	*mode = m;
@@ -514,7 +492,7 @@ cvs_get_repository_name(const char *dir, char *dst, size_t len)
 		(void)xsnprintf(fpath, sizeof(fpath), "%s/%s",
 		    dir, CVS_PATH_REPOSITORY);
 		if ((fp = fopen(fpath, "r")) != NULL) {
-			if ((pc_metadata_fgets(dst, len, fp)) == NULL)
+			if (len > INT_MAX || pc_metadata_fgets(dst, (int)len, fp) == NULL)
 				fatal("%s: bad repository file", fpath);
 			dst[strcspn(dst, "\n")] = '\0';
 			(void)fclose(fp);
