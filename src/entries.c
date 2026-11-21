@@ -47,6 +47,52 @@
 
 static struct cvs_ent_line *ent_get_line(CVSENTRIES *, const char *);
 
+/* Entries and Tag use the same six decimal fields in UTC. */
+static time_t
+entries_date(const char *text)
+{
+	static const int min[] = { 1, 1, 1, 0, 0, 0 };
+	static const int max[] = { 9999, 12, 31, 23, 59, 59 };
+	struct tm date = { 0 }, roundtrip;
+	int fields[6], i, value, digit;
+	time_t stamp;
+
+	for (i = 0; i < 6; i++) {
+		value = 0;
+		if (*text < '0' || *text > '9')
+			fatal("wrong date specification");
+		while (*text >= '0' && *text <= '9') {
+			digit = *text++ - '0';
+			if (value > max[i] / 10 ||
+			    (value == max[i] / 10 && digit > max[i] % 10))
+				fatal("date field out of range");
+			value = value * 10 + digit;
+		}
+		if (value < min[i] || *text != (i == 5 ? '\0' : '.'))
+			fatal("wrong date specification");
+		fields[i] = value;
+		if (i != 5)
+			text++;
+	}
+
+	date.tm_year = fields[0] - 1900;
+	date.tm_mon = fields[1] - 1;
+	date.tm_mday = fields[2];
+	date.tm_hour = fields[3];
+	date.tm_min = fields[4];
+	date.tm_sec = fields[5];
+	stamp = timegm(&date);
+	if (gmtime_r(&stamp, &roundtrip) == NULL ||
+	    roundtrip.tm_year != fields[0] - 1900 ||
+	    roundtrip.tm_mon != fields[1] - 1 ||
+	    roundtrip.tm_mday != fields[2] ||
+	    roundtrip.tm_hour != fields[3] ||
+	    roundtrip.tm_min != fields[4] ||
+	    roundtrip.tm_sec != fields[5])
+		fatal("invalid or unrepresentable date");
+	return stamp;
+}
+
 CVSENTRIES *current_list = NULL;
 
 CVSENTRIES *
@@ -138,7 +184,7 @@ struct cvs_ent *
 cvs_ent_parse(const char *entry)
 {
 	int i;
-	struct tm t, dt;
+	struct tm t;
 	struct cvs_ent *ent;
 	char *fields[CVS_ENTRIES_NFIELDS], *buf, *sp, *dp, *p;
 
@@ -232,13 +278,7 @@ cvs_ent_parse(const char *entry)
 	if (strcmp(fields[5], "")) {
 		switch (*fields[5]) {
 		case 'D':
-			if (sscanf(fields[5] + 1, "%d.%d.%d.%d.%d.%d",
-			    &dt.tm_year, &dt.tm_mon, &dt.tm_mday,
-			    &dt.tm_hour, &dt.tm_min, &dt.tm_sec) != 6)
-				fatal("wrong date specification");
-			dt.tm_year -= 1900;
-			dt.tm_mon -= 1;
-			ent->ce_date = timegm(&dt);
+			ent->ce_date = entries_date(fields[5] + 1);
 			ent->ce_tag = NULL;
 			break;
 		case 'T':
@@ -463,7 +503,6 @@ cvs_parse_tagfile(char *dir, char **tagp, char **datep, int *nbp)
 	FILE *fp;
 	int i, linenum;
 	size_t len;
-	struct tm datetm;
 	char linebuf[128], tagpath[PATH_MAX];
 
 	cvs_directory_date = -1;
@@ -507,15 +546,7 @@ cvs_parse_tagfile(char *dir, char **tagp, char **datep, int *nbp)
 				*tagp = xstrdup(linebuf + 1);
 			break;
 		case 'D':
-			if (sscanf(linebuf + 1, "%d.%d.%d.%d.%d.%d",
-			    &datetm.tm_year, &datetm.tm_mon, &datetm.tm_mday,
-			    &datetm.tm_hour, &datetm.tm_min, &datetm.tm_sec) !=
-			    6)
-				fatal("wrong date specification");
-			datetm.tm_year -= 1900;
-			datetm.tm_mon -= 1;
-
-			cvs_directory_date = timegm(&datetm);
+			cvs_directory_date = entries_date(linebuf + 1);
 
 			if (datep != NULL)
 				*datep = xstrdup(linebuf + 1);

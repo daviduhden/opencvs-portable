@@ -494,6 +494,21 @@ test_case security => malformed_rcs_rejected_without_crash => sub {
     write_bytes(path($s->{repo}, 'module', 'sample.txt,v'), "head not-a-revision;\naccess;\nsymbols;\nlocks; strict;\n");
     check(cvs($s, ['checkout', '-d', 'malformed', 'module'], allowed => undef)->{code} != 0, 'Malformed RCS archive succeeded');
 };
+test_case security => invalid_sticky_date_preserves_working_copy => sub {
+    my ($s) = @_;
+    my $work = populated($s);
+    my $tag = path($work, 'CVS', 'Tag');
+    my $entries = path($work, 'CVS', 'Entries');
+    my $file = path($work, 'sample.txt');
+    my $before_entries = read_bytes($entries);
+    my $invalid_date = "D2026.02.30.00.00.00\n";
+    write_bytes($tag, $invalid_date);
+    my $result = cvs($s, ['update'], cwd => $work, allowed => undef);
+    check($result->{code} != 0, 'Invalid calendar date accepted');
+    equal(read_bytes($entries), $before_entries, 'Rejected date changed Entries');
+    equal(read_bytes($file), $TEXT, 'Rejected date changed working file');
+    equal(read_bytes($tag), $invalid_date, 'Rejected date changed Tag');
+};
 test_case security => invalid_tag_does_not_change_repository => sub {
     my ($s) = @_;
     my $work = populated($s);
