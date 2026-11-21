@@ -450,6 +450,7 @@ date_select(RCSFILE *file, char *date)
 
 	for (i = 0; args->argv[i] != NULL; i++) {
 		flags = 0;
+		delim = '\0';
 		firstdate = lastdate = -1;
 
 		first = args->argv[i];

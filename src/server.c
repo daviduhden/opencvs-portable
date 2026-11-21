@@ -158,8 +158,6 @@ cvs_server(int argc, char **argv)
 		(*req->hdlr)(data);
 		free(cmd);
 	}
-
-	return (0);
 }
 
 void

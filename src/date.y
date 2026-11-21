@@ -662,8 +662,8 @@ lookup(char *buff)
 
 	/* Make it lowercase. */
 	for (p = buff; *p; p++)
-		if (isupper(*p))
-			*p = tolower(*p);
+		if (isupper((unsigned char)*p))
+			*p = (char)tolower((unsigned char)*p);
 
 	if (strcmp(buff, "am") == 0 || strcmp(buff, "a.m.") == 0) {
 		yylval.Meridian = MERam;
@@ -730,7 +730,7 @@ lookup(char *buff)
 		}
 
 	/* Military timezones. */
-	if (len == 1 && isalpha(*buff)) {
+	if (len == 1 && isalpha((unsigned char)*buff)) {
 		for (tp = MilitaryTable; tp->name; tp++)
 			if (strcmp(buff, tp->name) == 0) {
 				yylval.Number = tp->value;
@@ -763,20 +763,20 @@ yylex(void)
 	int	count, sign;
 
 	for (;;) {
-		while (isspace(*yyInput))
+		while (isspace((unsigned char)*yyInput))
 			yyInput++;
 
-		if (isdigit(c = *yyInput) || c == '-' || c == '+') {
+		if (isdigit((unsigned char)(c = *yyInput)) || c == '-' || c == '+') {
 			if (c == '-' || c == '+') {
 				sign = c == '-' ? -1 : 1;
-				if (!isdigit(*++yyInput))
+				if (!isdigit((unsigned char)*++yyInput))
 					/* skip the '-' sign */
 					continue;
 			}
 			else
 				sign = 0;
 
-			for (yylval.Number = 0; isdigit(c = *yyInput++); )
+			for (yylval.Number = 0; isdigit((unsigned char)(c = *yyInput++)); )
 				yylval.Number = 10 * yylval.Number + c - '0';
 			yyInput--;
 			if (sign < 0)
@@ -784,8 +784,8 @@ yylex(void)
 			return sign ? tSNUMBER : tUNUMBER;
 		}
 
-		if (isalpha(c)) {
-			for (p = buff; isalpha(c = *yyInput++) || c == '.'; )
+		if (isalpha((unsigned char)c)) {
+			for (p = buff; isalpha((unsigned char)(c = *yyInput++)) || c == '.'; )
 				if (p < &buff[sizeof buff - 1])
 					*p++ = c;
 			*p = '\0';
