@@ -1,3 +1,20 @@
+/*
+ * Portable OpenCVS changes only; original notices below remain in force.
+ *
+ * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 /*	$OpenBSD: diff.c,v 1.164 2021/10/24 21:24:16 deraadt Exp $	*/
 /*
  * Copyright (c) 2008 Tobias Stoeckmann <tobias@openbsd.org>
@@ -69,6 +86,7 @@ int
 cvs_diff(int argc, char **argv)
 {
 	int ch, flags;
+	long long context;
 	char *arg = ".";
 	const char *errstr;
 	struct cvs_recursion cr;
@@ -93,9 +111,11 @@ cvs_diff(int argc, char **argv)
 			diff_format = D_CONTEXT;
 			break;
 		case 'C':
-			diff_context = strtonum(optarg, 0, INT_MAX, &errstr);
+			context = strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr != NULL)
 				fatal("context lines %s: %s", errstr, optarg);
+			/* A successful parse is representable by the int context field. */
+			diff_context = (int)context;
 			strlcat(diffargs, " -C ", sizeof(diffargs));
 			strlcat(diffargs, optarg, sizeof(diffargs));
 			diff_format = D_CONTEXT;
@@ -173,9 +193,11 @@ cvs_diff(int argc, char **argv)
 			diff_format = D_UNIFIED;
 			break;
 		case 'U':
-			diff_context = strtonum(optarg, 0, INT_MAX, &errstr);
+			context = strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr != NULL)
 				fatal("context lines %s: %s", errstr, optarg);
+			/* A successful parse is representable by the int context field. */
+			diff_context = (int)context;
 			strlcat(diffargs, " -U ", sizeof(diffargs));
 			strlcat(diffargs, optarg, sizeof(diffargs));
 			diff_format = D_UNIFIED;

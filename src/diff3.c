@@ -81,6 +81,8 @@
  *	@(#)diff3.c	8.1 (Berkeley) 6/6/93
  */
 
+#include <sys/stat.h>
+
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -873,8 +875,10 @@ edscript(int n)
 					break;
 				return (-1);
 			}
-			if (r != (size_t)j)
-				j = r;
+			if (r != (size_t)j) {
+				/* fread returned at most j <= BUFSIZ, which is representable. */
+				j = (int)r;
+			}
 			block[j] = '\0';
 			diff_output("%s", block);
 		}

@@ -228,7 +228,8 @@ RCSNUM *diff_rev1 = NULL;
 RCSNUM *diff_rev2 = NULL;
 char diffargs[512];
 static struct stat stb1, stb2;
-static char *ifdefname, *ignore_pats;
+const char *diff_ifdefname;
+static char *ignore_pats;
 regex_t ignore_re;
 
 static int  *J;			/* will be overlaid on class */
@@ -323,6 +324,9 @@ diffreg(const char *file1, const char *file2, int _fd1, int _fd2,
 	FILE *f1, *f2;
 	int i, rval, fd1, fd2;
 
+	if (diff_format == D_IFDEF &&
+	    (diff_ifdefname == NULL || diff_ifdefname[0] == '\0'))
+		fatal("diff: merged-ifdef output requires a macro name");
 	diff_file1 = file1;
 	diff_file2 = file2;
 	f1 = f2 = NULL;
@@ -1082,7 +1086,7 @@ proceed:
 	}
 	fetch(ixnew, c, d, f2, diff_format == D_NORMAL ? '>' : '\0', 0, flags);
 	if (inifdef) {
-		diff_output("#endif /* %s */\n", ifdefname);
+		diff_output("#endif /* %s */\n", diff_ifdefname);
 		inifdef = 0;
 	}
 }
@@ -1109,12 +1113,12 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 	if (diff_format == D_IFDEF) {
 		if (inifdef) {
 			diff_output("#else /* %s%s */\n",
-			    oldfile == 1 ? "!" : "", ifdefname);
+			    oldfile == 1 ? "!" : "", diff_ifdefname);
 		} else {
 			if (oldfile)
-				diff_output("#ifndef %s\n", ifdefname);
+				diff_output("#ifndef %s\n", diff_ifdefname);
 			else
-				diff_output("#ifdef %s\n", ifdefname);
+				diff_output("#ifdef %s\n", diff_ifdefname);
 		}
 		inifdef = 1 + oldfile;
 	}

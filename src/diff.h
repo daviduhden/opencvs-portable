@@ -124,6 +124,8 @@ void		diff_output(const char *, ...) PC_PRINTF(1, 2);
 int		diffreg(const char *, const char *, int, int, BUF *, int);
 int		ed_patch_lines(struct rcs_lines *, struct rcs_lines *);
 
+/* Required by internal D_IFDEF callers; the CVS CLI does not expose this mode. */
+extern const char *diff_ifdefname;
 extern int       diff_format;
 extern int	 diff_context;
 extern int	 diff3_conflicts;
