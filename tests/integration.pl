@@ -285,8 +285,12 @@ test_case core => init_absent_root_and_repeat => sub {
     my $config = path($s->{repo}, 'CVSROOT', 'config,v');
     check(-f $config, 'init did not create versioned config');
     my $before = read_bytes($config);
+    my $checkoutlist = path($s->{repo}, 'CVSROOT', 'checkoutlist');
+    my $existing = read_bytes($checkoutlist);
     cvs($s, ['init']);
     equal(read_bytes($config), $before, 'Repeated init changed existing metadata');
+    equal(read_bytes($checkoutlist), $existing,
+        'Repeated init changed the existing administrative file');
 };
 test_case core => full_lifecycle => sub {
     my ($s) = @_;

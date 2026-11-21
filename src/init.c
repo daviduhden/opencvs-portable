@@ -147,12 +147,9 @@ init_mkdir(const char *path, mode_t mode)
 	struct stat st;
 
 	if (mkdir(path, mode) == -1) {
-		if (!(errno == EEXIST ||
-		    (errno == EACCES && (stat(path, &st) == 0) &&
-		    S_ISDIR(st.st_mode)))) {
-			fatal("init_mkdir: mkdir: `%s': %s",
-			    path, strerror(errno));
-		}
+		if ((errno != EEXIST && errno != EACCES) ||
+		    lstat(path, &st) == -1 || !S_ISDIR(st.st_mode))
+			fatal("init_mkdir: `%s' is not an accessible directory", path);
 	}
 }
 
@@ -165,10 +162,24 @@ init_mkfile(char *path, char **content)
 	char rpath[PATH_MAX];
 	char **p;
 	RCSFILE *file;
+	struct stat existing;
 
 	rcsflags = RCS_WRITE | RCS_CREATE;
+	/* Repeated init preserves every existing administrator file and archive. */
+	if (lstat(path, &existing) == 0) {
+		if (!S_ISREG(existing.st_mode))
+			fatal("init_mkfile: existing path is not a regular file: %s", path);
+		return;
+	}
+	if (errno != ENOENT)
+		fatal("init_mkfile: inspect %s: %s", path, strerror(errno));
+	(void)xsnprintf(rpath, PATH_MAX, "%s%s", path, RCS_FILE_EXT);
+	if (lstat(rpath, &existing) == 0)
+		fatal("init_mkfile: archive exists without administrator file: %s", rpath);
+	if (errno != ENOENT)
+		fatal("init_mkfile: inspect %s: %s", rpath, strerror(errno));
 
-	if ((fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0444)) == -1)
+	if ((fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0444)) == -1)
 		fatal("init_mkfile: open: `%s': %s", path, strerror(errno));
 
 	if (content != NULL) {
@@ -185,8 +196,8 @@ init_mkfile(char *path, char **content)
 	 */
 	if (strcmp(strrchr(CVS_PATH_HISTORY, '/'), strrchr(path, '/')) == 0 ||
 	    strcmp(strrchr(CVS_PATH_VALTAGS, '/'), strrchr(path, '/')) == 0) {
-		(void)fchmod(fd, 0666);
-		(void)close(fd);
+		if (fchmod(fd, 0666) == -1 || fsync(fd) == -1 || close(fd) == -1)
+			fatal("init_mkfile: finish %s: %s", path, strerror(errno));
 		return;
 	}
 
@@ -206,5 +217,6 @@ init_mkfile(char *path, char **content)
 
 	file->rf_flags &= ~RCS_SYNCED;
 	rcs_close(file);
-	(void)close(fd);
+	if (fsync(fd) == -1 || close(fd) == -1)
+		fatal("init_mkfile: finish %s: %s", path, strerror(errno));
 }
