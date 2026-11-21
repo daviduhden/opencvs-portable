@@ -401,6 +401,54 @@ positional_reads(void)
 	free(path);
 }
 
+#ifdef _WIN32
+static void
+readonly_replacement(void)
+{
+	char *from = NULL, *to = NULL;
+	char byte = '\0';
+	struct stat st;
+	int source = -1, destination = -1, destination_created = 0;
+
+	if (asprintf(&from, "%s/pc-rename-from-XXXXXXXXXX", pc_default_tmpdir()) < 0 ||
+	    asprintf(&to, "%s/pc-rename-to-XXXXXXXXXX", pc_default_tmpdir()) < 0) {
+		expect(0, "allocate rename fixture names");
+		goto done;
+	}
+	source = mkstemp(from);
+	destination = mkstemp(to);
+	destination_created = destination != -1;
+	if (source == -1 || destination == -1) {
+		expect(0, "create rename fixtures");
+		goto done;
+	}
+	if (write(source, "s", 1) != 1 || write(destination, "d", 1) != 1 ||
+	    fchmod(source, 0444) == -1 || fchmod(destination, 0444) == -1) {
+		expect(0, "prepare read-only rename fixtures");
+		goto done;
+	}
+	expect(rename(from, to) == 0, "replace a read-only file from a read-only source");
+	expect(stat(to, &st) == 0 && (st.st_mode & S_IWUSR) == 0,
+	    "replacement retains its read-only bit");
+	(void)close(destination);
+	destination = open(to, O_RDONLY);
+	expect(destination != -1 && read(destination, &byte, 1) == 1 && byte == 's',
+	    "replacement retains source bytes");
+
+done:
+	if (source != -1) {
+		(void)close(source);
+		(void)unlink(from);
+	}
+	if (destination != -1)
+		(void)close(destination);
+	if (destination_created)
+		(void)unlink(to);
+	free(from);
+	free(to);
+}
+#endif
+
 static void
 directory_descriptors(void)
 {
@@ -484,6 +532,9 @@ main(int argc, char **argv)
 	regex_contracts();
 	stream_lines();
 	directory_descriptors();
+#ifdef _WIN32
+	readonly_replacement();
+#endif
 	positional_reads();
 	command_arguments();
 	processes(argv[0]);

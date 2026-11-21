@@ -464,21 +464,26 @@ clear_readonly(const wchar_t *path, FILE_BASIC_INFO *original, int *changed)
 		pc_windows_errno(GetLastError()); CloseHandle(h); return NULL;
 	}
 	writable = *original; writable.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
+	if (writable.FileAttributes == 0)
+		writable.FileAttributes = FILE_ATTRIBUTE_NORMAL;
 	if (!SetFileInformationByHandle(h, FileBasicInfo, &writable, (DWORD)sizeof(writable))) {
 		pc_windows_errno(GetLastError()); CloseHandle(h); return NULL;
 	}
 	*changed = 1; return h;
 }
 
-static void
+static int
 restore_readonly(HANDLE h, const FILE_BASIC_INFO *original, int changed)
 {
-	int saved = errno;
+	int saved = errno, result = 0;
 	if (h != INVALID_HANDLE_VALUE && h != NULL) {
-		if (changed) (void)SetFileInformationByHandle(h, FileBasicInfo, (void *)original, (DWORD)sizeof(*original));
+		if (changed && !SetFileInformationByHandle(h, FileBasicInfo,
+		    (void *)original, (DWORD)sizeof(*original)))
+			result = pc_windows_errno(GetLastError());
 		CloseHandle(h);
 	}
-	errno = saved;
+	if (result == 0) errno = saved;
+	return result;
 }
 
 int
@@ -502,10 +507,10 @@ int
 pc_rename(const char *from, const char *to)
 {
 	wchar_t *a = pc_windows_path(from), *b;
-	FILE_BASIC_INFO original;
-	HANDLE h;
+	FILE_BASIC_INFO original, source_original;
+	HANDLE h, source_handle;
 	DWORD attrs;
-	int result, changed;
+	int result, changed, source_changed, saved, moved;
 	if (a == NULL) return -1;
 	b = pc_windows_path(to);
 	if (b == NULL) { free(a); return -1; }
@@ -516,10 +521,29 @@ pc_rename(const char *from, const char *to)
 	if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) { free(a); free(b); errno = ELOOP; return -1; }
 	if (check_named(a) == -1) { free(a); free(b); return -1; }
 	if (GetFileAttributesW(b) != INVALID_FILE_ATTRIBUTES && check_named(b) == -1) { free(a); free(b); return -1; }
+	/* POSIX rename does not require write permission on the source file.
+	 * Windows also treats its readonly attribute as a deletion constraint. */
+	source_handle = clear_readonly(a, &source_original, &source_changed);
+	if (source_handle == NULL) { free(a); free(b); return -1; }
 	h = clear_readonly(b, &original, &changed);
-	if (h == NULL) { free(a); free(b); return -1; }
-	result = MoveFileExW(a, b, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 0 : pc_windows_errno(GetLastError());
-	restore_readonly(h, &original, changed);
+	if (h == NULL) {
+		saved = errno;
+		if (restore_readonly(source_handle, &source_original, source_changed) == -1)
+			saved = errno;
+		free(a); free(b); errno = saved; return -1;
+	}
+	moved = MoveFileExW(a, b, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+	result = moved ? 0 : pc_windows_errno(GetLastError());
+	saved = errno;
+	/* A handle continues to identify the source object after the rename. */
+	if (restore_readonly(source_handle, &source_original, source_changed) == -1) {
+		result = -1; saved = errno;
+	}
+	/* On a successful replacement the old destination can be deleted.
+	 * Only a failed move requires the old name's metadata to be restored. */
+	if (restore_readonly(h, &original, changed) == -1 && !moved)
+		saved = errno;
+	errno = saved;
 	free(a); free(b); return result;
 }
 
