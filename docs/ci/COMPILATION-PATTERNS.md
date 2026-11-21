@@ -31,3 +31,9 @@ this audit. Source changes after those SHAs remain unverified until a new hosted
 
 These build-system repairs are prepared source changes; their actual results
 remain pending a new authorized GitHub run.
+
+## Follow-up on fd0ed04
+
+The new merge path showed that transitive system headers vary by platform. Include the declaring header at each consumer. For generated warnings, search all grammar tables and correct the grammar before regenerating. SDK macro collisions and format attributes apply to imported helpers as well as project code.
+
+Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.

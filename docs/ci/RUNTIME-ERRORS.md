@@ -25,3 +25,9 @@ private disposable CVS repositories. Treat hangs, crashes, unexpected success,
 and incorrect output as separate failure classes. Native Windows child-process,
 Unicode, locking and rename behavior require native Windows runtime tests;
 Linux compilation or a PE import listing cannot establish them.
+
+## Follow-up on fd0ed04
+
+Both workflows stopped during compilation. No product crash, sanitizer finding, timeout, or intermittent runtime failure can be determined from these runs.
+
+Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.

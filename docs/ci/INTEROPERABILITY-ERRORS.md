@@ -30,3 +30,9 @@ Record both directions separately: GNU client to OpenCVS server, and OpenCVS
 client to GNU server, plus local RCS archive exchange, binary preservation,
 keywords, tags/branches, conflicts and deletion. No interoperability guarantee
 can be inferred from parser generation or matching file extensions.
+
+## Follow-up on fd0ed04
+
+The GNU CVS suites remain blocked by compilation. These runs provide no evidence on archive interchange or either wire direction. Keep the existing interoperability cases enabled for the next manual run.
+
+Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.

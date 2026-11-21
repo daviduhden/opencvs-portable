@@ -30,3 +30,9 @@ unpublished audit work until the owner authorizes publication. No product build,
 configuration, test, repository mutation or live CVS data experiment was run
 locally. Future results must identify the tested SHA instead of attributing
 historical failed-run logs to current working-tree code.
+
+## Follow-up on fd0ed04
+
+**DATA-301.** Sticky dates in Entries and Tag previously used independent numeric scans. A value that parses but normalizes to a different calendar date can select the wrong revision. Both readers now validate field bounds and verify the UTC round trip. The prepared regression checks that an invalid calendar date leaves Tag, Entries, and working bytes intact. CI verification is pending.
+
+Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.

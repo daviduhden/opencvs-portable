@@ -38,3 +38,23 @@ These are categories, not a claimed count of independent defects: the shared
 header failures recur in many translation units. Fix shared declarations and
 feature selection first, then inspect remaining diagnostics. Retain `-Werror`;
 blanket warning suppression would conceal independent defects.
+
+## Follow-up on fd0ed04
+
+- **BUILD-301.** `diff3.c` reported an incomplete `struct stat` or undeclared `fstat` on Linux and OpenBSD. The merge path introduced descriptor metadata inspection without its defining header. The local fix includes the defining header directly.
+- **BUILD-302.** Clang reported a missing `type` initializer in regenerated `date.c`. The last partial table sentinel remained in `src/date.y`. Fix the grammar and verify regeneration on both hosted generators.
+- **BUILD-303.** Windows compilation exposed fallback regex diagnostics and missing POSIX declarations. See the portability and warning inventories for the related causes.
+
+Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
+
+| Run | Compilation jobs | Job IDs | Result |
+| --- | --- | --- | --- |
+| 44760299305 | Ubuntu GCC x86-64 Release and Debug, GCC ARM64 Debug, Clang Release and Clang with sanitizers | 136371177055, 136371177117, 136371177047, 136371176901, 136371177292 | Blocked before executable tests |
+| 44760299305 | Alpine musl and Windows MinGW | 136371176648, 136371176615 | Blocked before executable tests |
+| 44760299305 | Windows MSVC and ClangCL, Debug and Release | 136371176866, 136371176872, 136371176941, 136371176832 | Blocked before executable tests |
+| 44760299315 | OpenBSD Clang 22.1.6 Debug and Release | 136370732615, 136370733289 | Compatibility archive built. Full build blocked |
+
+The native workflow used Ninja, strict warnings, and byacc output from its
+successful parser job (136370730771). OpenBSD used Ninja and the VM's native
+yacc. The aggregate logs and available diagnostic artifacts are under
+`/tmp/opencvs-ci/`.

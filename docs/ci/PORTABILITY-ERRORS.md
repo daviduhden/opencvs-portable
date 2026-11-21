@@ -26,3 +26,11 @@ this audit. Source changes after those SHAs remain unverified until a new hosted
 
 No Windows runtime, OpenBSD VM, ARM64, or Debug success is established by the
 historical runs. New manual matrix entries create future coverage, not evidence.
+
+## Follow-up on fd0ed04
+
+- **PORT-301.** OpenBSD Clang 22.1.6 configured Debug and Release and built the compatibility archive with native BSD containers and interfaces. The executable failed at BUILD-301 and BUILD-302.
+- **PORT-302.** Windows fallback regex hit the SDK `INFINITY` macro, signedness and possible uninitialized-state diagnostics. The local fixes namespace the sentinel and use bounded, appropriate index types.
+- **PORT-303.** The Windows account backend lacked `endpwent`, and an RCS consumer relied on `bzero`. The local changes release the backend's cache and use standard C memory initialization.
+
+Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.

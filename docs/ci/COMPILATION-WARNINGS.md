@@ -29,3 +29,12 @@ The latest aggregate log contains no ordinary C `warning:` lines because strict
 builds promote them. MSYS2's package-manager warning to terminate other MSYS2
 programs is infrastructure output and is not a source-code diagnostic. No claim
 of warning-free compilation is supported by these runs.
+
+## Follow-up on fd0ed04
+
+- **WARN-301.** GCC on glibc and musl rejected nullable `%s` arguments in the conditional diff format. The local change makes the conditional symbol explicit and validates it before use.
+- **WARN-302.** MSVC reported narrowing, signed/unsigned mismatch, and potentially uninitialized test I/O state. Review each conversion's input bounds, error sentinel, and destination type.
+- **WARN-303.** UCRT deprecated `sscanf` in both sticky-date readers and the wire mode parser. Both date readers now share a bounded decimal parser. The mode parser checks syntax and consumes the complete field.
+- The date generators reported the existing ten shift/reduce conflicts. This remains a generator diagnostic. The local source changes do not alter grammar productions.
+
+Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.

@@ -32,3 +32,9 @@ such and must not imply Linux/Windows support.
 Each repaired family should gain a focused behavioral test owned by the test
 agent. Do not replace strict warnings with global suppressions or accept missing
 reference tools as passing interoperability.
+
+## Follow-up on fd0ed04
+
+Check both readers when they share a metadata format, and review all callers when a format argument or process exit convention changes. The Windows child output check initializes its read result so short-circuit and loop-exit paths remain defined.
+
+Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.

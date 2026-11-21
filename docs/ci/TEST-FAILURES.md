@@ -29,3 +29,9 @@ Failure artifacts preserve compiler output, CMake feature-probe diagnostics, and
 CTest temporary logs when present. Missing CTest logs after compilation failure
 are expected; preserve the compiler failure rather than manufacturing a test
 result.
+
+## Follow-up on fd0ed04
+
+The parser and audit jobs completed. Product tests, regression tests, and sanitizer runs remained blocked. The local sticky-date regression checks rejection and byte preservation in a temporary working copy.
+
+Evidence: [native matrix 44760299305](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299305) and [OpenBSD 44760299315](https://github.com/daviduhden/opencvs-portable/actions/runs/44760299315), both at `fd0ed043ee5521637c2c9c738f583b8b4a17f2da`. Local changes require a new published revision for validation.
