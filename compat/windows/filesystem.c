@@ -781,20 +781,46 @@ pc_mkstemp(char *template)
 int
 pc_futimens(int fd, const struct timespec times[2])
 {
-	HANDLE h = (HANDLE)_get_osfhandle(fd);
+	HANDLE original = (HANDLE)_get_osfhandle(fd), metadata;
+	BY_HANDLE_FILE_INFORMATION info;
 	FILETIME values[2];
 	ULARGE_INTEGER ticks;
-	if (h == INVALID_HANDLE_VALUE) { errno = EBADF; return -1; }
+	DWORD error;
+	int result;
+
+	if (original == INVALID_HANDLE_VALUE) { errno = EBADF; return -1; }
 	if (times == NULL) {
 		GetSystemTimeAsFileTime(&values[0]);
-		return SetFileTime(h, NULL, &values[0], &values[0]) ? 0 : pc_windows_errno(GetLastError());
-	}
-	for (int i = 0; i < 2; i++) {
-		if (times[i].tv_nsec < 0 || times[i].tv_nsec >= 1000000000L || times[i].tv_sec < (time_t)-11644473600LL || times[i].tv_sec > (time_t)INT64_C(910692730085)) { errno = EINVAL; return -1; }
-		ticks.QuadPart = (uint64_t)(times[i].tv_sec + INT64_C(11644473600)) * UINT64_C(10000000) + (uint64_t)times[i].tv_nsec / 100;
+		values[1] = values[0];
+	} else for (int i = 0; i < 2; i++) {
+		if (times[i].tv_nsec < 0 || times[i].tv_nsec >= 1000000000L ||
+		    times[i].tv_sec < (time_t)-11644473600LL ||
+		    times[i].tv_sec > (time_t)INT64_C(910692730085)) {
+			errno = EINVAL; return -1;
+		}
+		ticks.QuadPart = (uint64_t)(times[i].tv_sec + INT64_C(11644473600)) *
+		    UINT64_C(10000000) + (uint64_t)times[i].tv_nsec / 100;
 		values[i].dwLowDateTime = ticks.LowPart; values[i].dwHighDateTime = ticks.HighPart;
 	}
-	return SetFileTime(h, NULL, &values[0], &values[1]) ? 0 : pc_windows_errno(GetLastError());
+	/* POSIX permits futimes on a read-only descriptor owned by the caller.
+	 * SetFileTime instead requires FILE_WRITE_ATTRIBUTES. Reopen the same
+	 * object for metadata access without changing the original fd or offset. */
+	metadata = ReOpenFile(original, FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
+	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+	    FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS);
+	if (metadata == INVALID_HANDLE_VALUE) return pc_windows_errno(GetLastError());
+	if (!GetFileInformationByHandle(metadata, &info)) {
+		error = GetLastError(); CloseHandle(metadata); SetLastError(error);
+		return pc_windows_errno(error);
+	}
+	if (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+		CloseHandle(metadata); errno = ELOOP; return -1;
+	}
+	result = SetFileTime(metadata, NULL, &values[0], &values[1]);
+	error = result ? ERROR_SUCCESS : GetLastError();
+	CloseHandle(metadata);
+	if (!result) { SetLastError(error); return pc_windows_errno(error); }
+	return 0;
 }
 
 int
