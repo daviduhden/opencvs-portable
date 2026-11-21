@@ -386,7 +386,13 @@ test_case core => conflict_and_recovery => sub {
     cvs($s, ['update', 'sample.txt'], cwd => $second, allowed => [0, 1]);
     my $conflict = read_bytes(path($second, 'sample.txt'));
     for my $marker ('<<<<<<<', '=======', '>>>>>>>', 'left change', 'right change') { check(index($conflict, $marker) >= 0, "Missing conflict marker/content $marker"); }
+    my $archive = path($s->{repo}, 'module', 'sample.txt,v');
+    my $archive_before = sha256_hex(read_bytes($archive));
     check(cvs($s, ['commit', '-m', 'unresolved conflict', 'sample.txt'], cwd => $second, allowed => undef)->{code} != 0, 'Unresolved conflict was committed');
+    equal(sha256_hex(read_bytes($archive)), $archive_before,
+        'Rejected conflict changed the archive');
+    equal(read_bytes(path($second, 'sample.txt')), $conflict,
+        'Rejected conflict changed the working file');
     my $resolved = "alpha\nresolved change\nomega\n";
     changed(path($second, 'sample.txt'), $resolved);
     cvs($s, ['commit', '-m', 'resolved conflict', 'sample.txt'], cwd => $second);

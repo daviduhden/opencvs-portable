@@ -360,8 +360,10 @@ cvs_commit_check_files(struct cvs_file *cf)
 	if (cf->file_status == FILE_MODIFIED &&
 	    cf->file_ent->ce_conflict != NULL &&
 	    update_has_conflict_markers(cf)) {
-		cvs_log(LP_ERR, "warning: file %s seems to still contain "
+		cvs_log(LP_ERR, "conflict: file %s still contains unresolved "
 		    "conflict indicators", cf->file_path);
+		conflicts_found++;
+		return;
 	}
 
 	if (cf->file_ent != NULL && cf->file_ent->ce_date != -1) {
