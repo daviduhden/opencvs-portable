@@ -190,7 +190,7 @@ sub invoke {
     my $stderr = decode('UTF-8', $stderr_raw, FB_DEFAULT | LEAVE_SRC);
     # Perl's POSIX-shaped status can lose Windows exception bits. Preserve
     # the native status immediately after waitpid, before any other child.
-    my $exit = $^O eq 'MSWin32' ? ($native_status & 0xffffffff) : ($status >> 8);
+    my $exit = $status >> 8;
     push @events, {test => $current_test, argv => \@command, cwd => $working,
         returncode => $exit, raw_status => $status, native_status => $native_status,
         stdout => $stdout, stderr => $stderr,
@@ -198,7 +198,7 @@ sub invoke {
     die "Command timed out: @command\n$stdout\n$stderr\n" if $timed_out;
     # NTSTATUS exceptions use severity 0xC. A normal C return(-1) is
     # 0xffffffff on Windows and must remain an ordinary nonzero error.
-    check(($^O eq 'MSWin32' ? ($exit & 0xf0000000) != 0xc0000000 : ($status & 127) == 0),
+    check(($^O eq 'MSWin32' ? ($native_status & 0xf0000000) != 0xc0000000 : ($status & 127) == 0),
         "Process crashed: @command\n$stdout\n$stderr");
     check(($stdout . $stderr) !~ /(?:assertion[^\r\n]*failed|debug assertion failed)/i,
         "Process assertion failure: @command\n$stdout\n$stderr");
