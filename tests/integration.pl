@@ -329,6 +329,22 @@ test_case core => full_lifecycle => sub {
     check(!-e path($fresh, 'added.txt'), 'Removed file reappeared');
     equal(read_bytes(path($fresh, 'sample.txt')), $updated);
 };
+test_case core => diff_preserves_separated_hunks => sub {
+    my ($s) = @_;
+    my @lines = map { "line $_\n" } 1 .. 30;
+    my $work = populated($s, {'sample.txt' => join('', @lines)});
+    my $file = path($work, 'sample.txt');
+    cvs($s, ['diff', '-u', 'sample.txt'], cwd => $work, allowed => [0]);
+    $lines[3] = "first change\n";
+    $lines[25] = "last change\n";
+    changed($file, join('', @lines));
+    my $diff = cvs($s, ['diff', '-u', 'sample.txt'], cwd => $work,
+        allowed => [1])->{text};
+    my @hunks = $diff =~ /^@@ /mg;
+    check(@hunks == 2, 'Separated changes did not produce two hunks');
+    check($diff =~ /^\+first change$/m && $diff =~ /^\+last change$/m,
+        'Unified diff omitted one of the changes');
+};
 test_case core => binary_roundtrip_and_modification => sub {
     my ($s) = @_;
     my $work = populated($s, {'binary.dat' => $BINARY}, binary => 1);

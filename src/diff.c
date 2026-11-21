@@ -50,6 +50,7 @@
 void	cvs_diff_local(struct cvs_file *);
 
 static int	 dflags = 0;
+static int diff_exit_status;
 static int	 Nflag = 0;
 static int	 force_head = 0;
 static char	*koptstr;
@@ -91,6 +92,7 @@ cvs_diff(int argc, char **argv)
 	const char *errstr;
 	struct cvs_recursion cr;
 
+	diff_exit_status = 0;
 	flags = CR_RECURSE_DIRS;
 	strlcpy(diffargs, cvs_cmdop == CVS_OP_DIFF ? "diff" : "rdiff",
 	    sizeof(diffargs));
@@ -316,14 +318,14 @@ cvs_diff(int argc, char **argv)
 		cvs_client_get_responses();
 	}
 
-	return (0);
+	return (diff_exit_status);
 }
 
 void
 cvs_diff_local(struct cvs_file *cf)
 {
 	BUF *b1;
-	int fd1, fd2;
+	int fd1, fd2, result;
 	struct stat st;
 	struct timeval tv[2], tv2[2];
 	struct tm datetm;
@@ -412,6 +414,7 @@ cvs_diff_local(struct cvs_file *cf)
 			if (rev1 != NULL) {
 				cvs_log(LP_ERR, "tag %s not in file %s", rev1,
 				    cf->file_path);
+				diff_exit_status = 2;
 				goto cleanup;
 			} else if (Nflag) {
 				diff_rev1 = NULL;
@@ -421,6 +424,7 @@ cvs_diff_local(struct cvs_file *cf)
 				    "%Y.%m.%d.%H.%M.%S", &datetm);
 				cvs_log(LP_ERR, "no revision for date %s in "
 				    "file %s", tbuf, cf->file_path);
+				diff_exit_status = 2;
 				goto cleanup;
 			}
 		} else if (diff_rev1 == NULL && cvs_cmdop == CVS_OP_RDIFF &&
@@ -449,6 +453,7 @@ cvs_diff_local(struct cvs_file *cf)
 			if (rev2 != NULL) {
 				cvs_log(LP_ERR, "tag %s not in file %s", rev2,
 				    cf->file_path);
+				diff_exit_status = 2;
 				goto cleanup;
 			} else if (Nflag) {
 				diff_rev2 = NULL;
@@ -458,6 +463,7 @@ cvs_diff_local(struct cvs_file *cf)
 				    "%Y.%m.%d.%H.%M.%S", &datetm);
 				cvs_log(LP_ERR, "no revision for date %s in "
 				    "file %s", tbuf, cf->file_path);
+				diff_exit_status = 2;
 				goto cleanup;
 			}
 		} else if (diff_rev2 == NULL && cvs_cmdop == CVS_OP_RDIFF &&
@@ -616,10 +622,12 @@ cvs_diff_local(struct cvs_file *cf)
 			fatal("cannot open %s", CVS_PATH_DEVNULL);
 	}
 
-	if (diffreg(p1 != NULL ? cf->file_path : CVS_PATH_DEVNULL,
-	    p2 != NULL ? cf->file_path : CVS_PATH_DEVNULL, fd1, fd2, NULL,
-	    dflags) == D_ERROR)
+	result = diffreg(p1 != NULL ? cf->file_path : CVS_PATH_DEVNULL,
+	    p2 != NULL ? cf->file_path : CVS_PATH_DEVNULL, fd1, fd2, NULL, dflags);
+	if (result == D_ERROR)
 		fatal("cvs_diff_local: failed to get RCS patch");
+	if (result != D_SAME && diff_exit_status == 0)
+		diff_exit_status = 1;
 
 	close(fd1);
 	close(fd2);

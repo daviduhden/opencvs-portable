@@ -248,6 +248,9 @@ static struct cand *clist;	/* merely a free storage pot for candidates */
 static int   clistlen;		/* the length of clist */
 static struct line *sfile[2];	/* shortened by pruning common prefix/suffix */
 static u_char *chrtran;		/* translation table for case-folding */
+/* An allocated leading sentinel makes the historical empty pointer valid. */
+static struct context_vec *context_vec_storage;
+static size_t context_vec_capacity = 64;
 static struct context_vec *context_vec_start;
 static struct context_vec *context_vec_end;
 static struct context_vec *context_vec_ptr;
@@ -334,6 +337,12 @@ diffreg(const char *file1, const char *file2, int _fd1, int _fd2,
 	anychange = 0;
 	lastline = 0;
 	lastmatchline = 0;
+	if (context_vec_storage == NULL) {
+		context_vec_storage = xcalloc(context_vec_capacity + 1,
+		    sizeof(*context_vec_storage));
+		context_vec_start = context_vec_storage + 1;
+		context_vec_end = context_vec_start + context_vec_capacity;
+	}
 	context_vec_ptr = context_vec_start - 1;
 	if (flags & D_IGNORECASE)
 		chrtran = cup2low;
@@ -985,7 +994,6 @@ rdiff_head(void)
 static void
 change(FILE *f1, FILE *f2, int a, int b, int c, int d, int flags)
 {
-	static size_t max_context = 64;
 	int i;
 
 	if (diff_format != D_IFDEF && a > b && c > d)
@@ -1022,10 +1030,13 @@ proceed:
 		 */
 		if (context_vec_ptr == context_vec_end - 1) {
 			ptrdiff_t offset = context_vec_ptr - context_vec_start;
-			max_context <<= 1;
-			context_vec_start = xreallocarray(context_vec_start,
-			    max_context, sizeof(*context_vec_start));
-			context_vec_end = context_vec_start + max_context;
+			if (context_vec_capacity > (SIZE_MAX - 1) / 2)
+				fatal("diff: too many context records");
+			context_vec_capacity *= 2;
+			context_vec_storage = xreallocarray(context_vec_storage,
+			    context_vec_capacity + 1, sizeof(*context_vec_storage));
+			context_vec_start = context_vec_storage + 1;
+			context_vec_end = context_vec_start + context_vec_capacity;
 			context_vec_ptr = context_vec_start + offset;
 		}
 		if (anychange == 0) {
@@ -1038,8 +1049,8 @@ proceed:
 				diff_head();
 
 			anychange = 1;
-		} else if (a > context_vec_ptr->b + (2 * diff_context) + 1 &&
-		    c > context_vec_ptr->d + (2 * diff_context) + 1) {
+		} else if (a > (int64_t)context_vec_ptr->b + 2 * (int64_t)diff_context + 1 &&
+		    c > (int64_t)context_vec_ptr->d + 2 * (int64_t)diff_context + 1) {
 			/*
 			 * If this change is more than 'context' lines from the
 			 * previous change, dump the record and reset it.
@@ -1163,50 +1174,48 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 static int
 readhash(FILE *f, int flags)
 {
-	int i, t, space;
-	int sum;
+	int seen, t, space;
+	unsigned int sum;
 
 	sum = 1;
 	space = 0;
 	if ((flags & (D_FOLDBLANKS|D_IGNOREBLANKS)) == 0) {
 		if (flags & D_IGNORECASE)
-			for (i = 0; (t = getc(f)) != '\n'; i++) {
+			for (seen = 0; (t = getc(f)) != '\n'; seen = 1) {
 				if (t == EOF) {
-					if (i == 0)
+					if (!seen)
 						return (0);
 					break;
 				}
-				sum = sum * 127 + chrtran[t];
+				sum = sum * 127U + chrtran[t];
 			}
 		else
-			for (i = 0; (t = getc(f)) != '\n'; i++) {
+			for (seen = 0; (t = getc(f)) != '\n'; seen = 1) {
 				if (t == EOF) {
-					if (i == 0)
+					if (!seen)
 						return (0);
 					break;
 				}
-				sum = sum * 127 + t;
+				sum = sum * 127U + (unsigned int)t;
 			}
 	} else {
-		for (i = 0;;) {
+		for (seen = 0;;) {
 			switch (t = getc(f)) {
 			case '\t':
 			case '\r':
 			case '\v':
 			case '\f':
 			case ' ':
-				space++;
+				space = 1;
 				continue;
 			default:
-				if (space && (flags & D_IGNOREBLANKS) == 0) {
-					i++;
+				if (space && (flags & D_IGNOREBLANKS) == 0)
 					space = 0;
-				}
-				sum = sum * 127 + chrtran[t];
-				i++;
+				sum = sum * 127U + chrtran[t];
+				seen = 1;
 				continue;
 			case EOF:
-				if (i == 0)
+				if (!seen)
 					return (0);
 				/* FALLTHROUGH */
 			case '\n':
@@ -1219,7 +1228,9 @@ readhash(FILE *f, int flags)
 	 * There is a remote possibility that we end up with a zero sum.
 	 * Zero is used as an EOF marker, so return 1 instead.
 	 */
-	return (sum == 0 ? 1 : sum);
+	/* Hash wrap is intentional unsigned arithmetic; zero marks EOF. */
+	sum &= INT_MAX;
+	return (sum == 0 ? 1 : (int)sum);
 }
 
 static int
@@ -1298,9 +1309,9 @@ dump_context_vec(FILE *f1, FILE *f2, int flags)
 
 	b = d = 0;		/* gcc */
 	lowa = MAXIMUM(1, cvp->a - diff_context);
-	upb = MINIMUM(len[0], context_vec_ptr->b + diff_context);
+	upb = (int)MINIMUM(len[0], (int64_t)context_vec_ptr->b + diff_context);
 	lowc = MAXIMUM(1, cvp->c - diff_context);
-	upd = MINIMUM(len[1], context_vec_ptr->d + diff_context);
+	upd = (int)MINIMUM(len[1], (int64_t)context_vec_ptr->d + diff_context);
 
 	diff_output("***************");
 	if ((flags & D_PROTOTYPE)) {
@@ -1401,9 +1412,9 @@ dump_unified_vec(FILE *f1, FILE *f2, int flags)
 
 	b = d = 0;		/* gcc */
 	lowa = MAXIMUM(1, cvp->a - diff_context);
-	upb = MINIMUM(len[0], context_vec_ptr->b + diff_context);
+	upb = (int)MINIMUM(len[0], (int64_t)context_vec_ptr->b + diff_context);
 	lowc = MAXIMUM(1, cvp->c - diff_context);
-	upd = MINIMUM(len[1], context_vec_ptr->d + diff_context);
+	upd = (int)MINIMUM(len[1], (int64_t)context_vec_ptr->d + diff_context);
 
 	diff_output("@@ -");
 	uni_range(lowa, upb);
