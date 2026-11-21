@@ -647,13 +647,15 @@ cvs_commit_local(struct cvs_file *cf)
 	if (verbosity > 1)
 		cvs_printf("new revision: %s\n", nbuf);
 
-	(void)unlink(cf->file_path);
-	(void)close(cf->fd);
-	cf->fd = -1;
-
 	if (cf->file_status != FILE_REMOVED) {
+		/* Checkout stages the new bytes before replacing this working file. */
 		cvs_checkout_file(cf, nrev, NULL, CO_COMMIT);
 	} else {
+		if (unlink(cf->file_path) == -1 && errno != ENOENT)
+			fatal("commit: remove %s: %s", cf->file_path, strerror(errno));
+		if (cf->fd >= 0 && close(cf->fd) == -1)
+			fatal("commit: close removed file: %s", strerror(errno));
+		cf->fd = -1;
 		entlist = cvs_ent_open(cf->file_wd);
 		cvs_ent_remove(entlist, cf->file_name);
 
