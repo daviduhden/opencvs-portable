@@ -41,10 +41,10 @@ void	*xcalloc(size_t, size_t);
 void	*xreallocarray(void *, size_t, size_t);
 char	*xstrdup(const char *);
 int	 xasprintf(char **, const char *, ...)
-                __attribute__((__format__ (printf, 2, 3)))
+                PC_PRINTF(2, 3)
                 __attribute__((__nonnull__ (2)));
 int	 xsnprintf(char *, size_t, const char *, ...)
-		__attribute__((__format__ (printf, 3, 4)))
+		PC_PRINTF(3, 4)
 		__attribute__((__nonnull__ (3)))
 		PC_BOUNDED_STRING(1, 2);
 
