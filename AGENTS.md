@@ -89,3 +89,8 @@ changing a subsystem. Add a focused regression for important fixes and keep
 upstream notices and provenance intact. A historical run provides evidence
 only for its own SHA. Use manual CI for behavioral validation. Publication
 requires permission when the task prohibits commits or push.
+
+For a follow-up audit, compare the new SHA with the prior failing revision.
+Record successful intermediate targets and regressions separately. Trace
+warnings in generated parser sources back to the grammar or generator before
+changing build flags.

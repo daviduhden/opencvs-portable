@@ -13,3 +13,7 @@ For a CI audit, retrieve paginated runs, job logs, and artifacts with `gh`.
 Record compiler, target, configuration, and exact SHA in `docs/ci/`. Group
 diagnostic cascades by root cause, then review equivalent call sites on every
 target. Record jobs blocked before tests separately from executed failures.
+
+When configuration succeeds but an executable fails to build, record the
+last completed target. A compatibility archive or a generated parser artifact
+does not establish that the full executable linked or that CTest started.
