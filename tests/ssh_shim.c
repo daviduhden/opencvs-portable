@@ -16,6 +16,7 @@
  */
 #include "portable.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "pc_process.h"
@@ -25,6 +26,9 @@ main(int argc, char **argv)
 {
 	pc_process child;
 	int argument = 1, status;
+	char **parsed = NULL;
+	const char *configured;
+	const char *const *command;
 
 	pc_platform_startup(&argc, &argv);
 	if (argument < argc && strcmp(argv[argument], "-l") == 0) {
@@ -39,14 +43,29 @@ main(int argc, char **argv)
 		return 64;
 	}
 	argument++;
-	if (argc - argument != 2 || strcmp(argv[argument + 1], "server") != 0) {
+	/* GNU CVS supplies one remote-command argument; OpenCVS supplies argv. */
+	if (argc - argument == 1) {
+		parsed = pc_command_argv(argv[argument], NULL);
+		command = (const char *const *)parsed;
+	} else if (argc - argument == 2) {
+		command = (const char *const *)&argv[argument];
+	} else {
+		command = NULL;
+	}
+	configured = getenv("CVS_SERVER");
+	if (command == NULL || command[0] == NULL || command[1] == NULL ||
+	    command[2] != NULL || configured == NULL ||
+	    strcmp(command[0], configured) != 0 || strcmp(command[1], "server") != 0) {
 		fprintf(stderr, "test transport requires an executable and server\n");
+		pc_free_argv(parsed);
 		return 64;
 	}
-	if (pc_spawn(&child, (const char *const *)&argv[argument], -1, -1, -1) != 0) {
+	if (pc_spawn(&child, command, -1, -1, -1) != 0) {
 		perror("test transport spawn");
+		pc_free_argv(parsed);
 		return 71;
 	}
+	pc_free_argv(parsed);
 	if (pc_wait(&child, &status) != 0) {
 		perror("test transport wait");
 		return 71;

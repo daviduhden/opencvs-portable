@@ -189,6 +189,13 @@ command_arguments(void)
 	char **args;
 	const char *filename = "file ; $(literal) ' with spaces";
 
+	args = pc_command_argv("'/fixture directory/opencvs' server", NULL);
+	expect(args != NULL && args[0] != NULL && args[1] != NULL &&
+	    args[2] == NULL && strcmp(args[0], "/fixture directory/opencvs") == 0 &&
+	    strcmp(args[1], "server") == 0,
+	    "parse GNU CVS single remote command with a quoted executable");
+	pc_free_argv(args);
+
 	args = pc_command_argv("\"tool with spaces\" --flag 'two words' C:\\work\\name",
 	    filename);
 	expect(args != NULL, "parse quoted command arguments");
