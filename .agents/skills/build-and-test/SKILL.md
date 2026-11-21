@@ -17,3 +17,7 @@ target. Record jobs blocked before tests separately from executed failures.
 When configuration succeeds but an executable fails to build, record the
 last completed target. A compatibility archive or a generated parser artifact
 does not establish that the full executable linked or that CTest started.
+
+When many cases share a setup or cleanup failure, record the first failing
+operation and separate it from independent assertions. Preserve the original
+cases so the next run exposes downstream failures once setup works.

@@ -94,3 +94,7 @@ For a follow-up audit, compare the new SHA with the prior failing revision.
 Record successful intermediate targets and regressions separately. Trace
 warnings in generated parser sources back to the grammar or generator before
 changing build flags.
+
+When suites first reach execution, trace shared setup and cleanup failures
+before attributing each failed assertion to a separate product defect. Record
+sanitizer findings independently, including findings from successful paths.
