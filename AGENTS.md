@@ -101,3 +101,6 @@ sanitizer findings independently, including findings from successful paths.
 
 Treat cancelled runs as incomplete. Record the last completed stage per job
 and retain diagnostics already emitted before cancellation.
+
+Record successful stages before failures. Keep dependency inspection separate
+from test outcomes when a native executable was successfully built.

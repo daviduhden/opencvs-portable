@@ -24,3 +24,7 @@ cases so the next run exposes downstream failures once setup works.
 
 Record the effective test identity when checking GNU CVS interoperability.
 Validate a known-good archive fixture before interpreting its negative cases.
+
+Check real output files after commands that report success. For wire
+interoperability, verify the test transport's argument contract separately
+from protocol and repository failures.
