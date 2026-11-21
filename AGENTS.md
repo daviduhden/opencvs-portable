@@ -120,3 +120,7 @@ For resource lifetime failures, audit ownership across cwd changes and
 cleanup. Keep temporary server state distinct from persistent working-copy
 metadata. Use native failure stages to distinguish platform semantics from
 test fixture assumptions.
+
+For wire commits, distinguish working-copy timestamps from protocol file state.
+Verify a new checkout reads the submitted bytes even when the remote commit
+reports success and emits no output.

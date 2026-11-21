@@ -12,3 +12,8 @@ Exercise `tests/integration.pl` through hosted CTest using `--suite core`, `secu
 ## Maintenance & Continuous Learning
 
 Update this skill when changes invalidate guidance within its scope.
+
+For an ordinary modified file upload, the Entry timestamp field is empty.
+The following Modified request carries the state and bytes. A checkout
+timestamp on the wire can match the peer's temporary file timestamp and hide
+a real modification. Preserve conflict markers independently.

@@ -689,7 +689,12 @@ cvs_client_sendfile(struct cvs_file *cf)
 				fatal("cvs_client_sendfile: truncation");
 		} else {
 			rcsnum_tostr(cf->file_ent->ce_rev, rev, sizeof(rev));
-			ctime_r(&cf->file_ent->ce_mtime, timebuf);
+			/* Modified supplies file state separately. A real checkout
+			 * timestamp can match when the server writes the upload. */
+			if (cf->file_status == FILE_MODIFIED && !backup_local_changes)
+				timebuf[0] = '\0';
+			else
+				ctime_r(&cf->file_ent->ce_mtime, timebuf);
 		}
 
 		if (cf->file_ent->ce_conflict == NULL) {
