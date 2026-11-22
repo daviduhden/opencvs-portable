@@ -33,12 +33,6 @@ Ninja is recommended. Perl is test/maintenance infrastructure, not an executable
 runtime dependency. External OpenSSH is needed only for SSH remote access. This
 upstream revision does not require an OpenSSL/LibreSSL or zlib library.
 
-The project currently permits product compilation and runtime testing **only in
-GitHub Actions**. Do not configure/build locally, generate the date parser
-locally, or run local product tests during this task. The commands below describe
-the hosted-runner workflow and the reproducible developer interface, not
-permission to execute them on the local workstation.
-
 ## Build, test, install, and package
 
 The manual [native portability workflow](.github/workflows/ci.yml) regenerates
