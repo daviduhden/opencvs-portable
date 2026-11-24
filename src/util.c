@@ -669,7 +669,9 @@ cvs_mkpath(const char *path, char *tag)
 		if (len >= (int)sizeof(rpath))
 			fatal("cvs_mkpath: overflow");
 
-		if (mkdir(rpath, 0755) == -1 && errno != EEXIST)
+		/* The current directory already exists. */
+		if (strcmp(rpath, ".") != 0 &&
+		    mkdir(rpath, 0755) == -1 && errno != EEXIST)
 			fatal("cvs_mkpath: %s: %s", rpath, strerror(errno));
 
 		if (cvs_cmdop == CVS_OP_EXPORT && !cvs_server_active)

@@ -133,6 +133,8 @@ client requests a dry run. Keep repository lock tracking through confirmed
 withdrawal and distinguish a cleanup error from a publication failure.
 Validate package digests at the handoff between producer and release jobs,
 and keep read-only release preparation available through manual dispatch.
+When using native BSD-style queue headers, verify each required macro or
+restrict traversal to the basic operations available across the matrix.
 
 For wire commits, distinguish working-copy timestamps from protocol file state.
 Verify a new checkout reads the submitted bytes even when the remote commit

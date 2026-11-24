@@ -1,5 +1,14 @@
 # Portability errors
 
+Native run [45475336912](https://github.com/daviduhden/opencvs-portable/actions/runs/45475336912)
+at `2dc64e8302e17eebbd2738debce85e65148cf9ba` exposed two regressions.
+Ubuntu glibc GCC and Clang failed to compile `src/repository.c` because the
+native queue header lacks `SLIST_FOREACH_SAFE`. MSVC on Windows Server 2025
+reached CTest, where remote checkout and server workspace cases failed on
+`cvs_mkpath: .: Input/output error`. The path builder now uses the existing
+current directory while still creating its CVS metadata. The lock traversal
+saves the next pointer explicitly.
+
 Evidence cutoff: November 20, 2026. This inventory covers the two accessible
 [GitHub Actions runs](https://github.com/daviduhden/opencvs-portable/actions):
 [44752958590](https://github.com/daviduhden/opencvs-portable/actions/runs/44752958590)

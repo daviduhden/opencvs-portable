@@ -95,7 +95,8 @@ cvs_repository_unlock_all(void)
 {
 	struct repository_lock *lock, *next;
 
-	SLIST_FOREACH_SAFE(lock, &repo_locks, link, next) {
+	for (lock = SLIST_FIRST(&repo_locks); lock != NULL; lock = next) {
+		next = SLIST_NEXT(lock, link);
 		if (repository_release_lock(lock) == 0) {
 			SLIST_REMOVE(&repo_locks, lock, repository_lock, link);
 			free(lock);
