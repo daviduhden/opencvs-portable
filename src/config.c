@@ -38,6 +38,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -81,14 +82,26 @@ config_parse_line(char *line, int lineno)
 			    val);
 		cvs_umask = (int)mask;
 	} else if (!strcmp(opt, "dlimit")) {
-		if (getrlimit(RLIMIT_DATA, &rl) != -1) {
-			rl.rlim_cur = (int)strtonum(val, 0, INT_MAX, &errstr);
-			if (errstr != NULL)
-				fatal("cvs_parse_configfile: %s: %s", val,
-				    errstr);
-			rl.rlim_cur = rl.rlim_cur * 1024;
-			(void)setrlimit(RLIMIT_DATA, &rl);
-		}
+		uintmax_t kib, bytes;
+		rlim_t limit;
+
+		kib = (uintmax_t)strtonum(val, 0, INT_MAX, &errstr);
+		if (errstr != NULL)
+			fatal("cvs_parse_configfile: dlimit %s is %s", val,
+			    errstr);
+		if (kib > UINTMAX_MAX / 1024)
+			fatal("cvs_parse_configfile: dlimit exceeds range");
+		bytes = kib * 1024;
+		limit = (rlim_t)bytes;
+		if ((uintmax_t)limit != bytes || limit == RLIM_INFINITY)
+			fatal("cvs_parse_configfile: dlimit exceeds range");
+		if (getrlimit(RLIMIT_DATA, &rl) == -1)
+			fatal("cannot read data limit: %s", strerror(errno));
+		if (rl.rlim_max != RLIM_INFINITY && limit > rl.rlim_max)
+			fatal("dlimit exceeds the hard data limit");
+		rl.rlim_cur = limit;
+		if (setrlimit(RLIMIT_DATA, &rl) == -1)
+			fatal("cannot apply dlimit: %s", strerror(errno));
 	} else {
 		cvs_log(LP_ERR, "ignoring unknown option '%s'", opt);
 	}

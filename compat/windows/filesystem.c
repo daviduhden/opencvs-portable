@@ -1217,8 +1217,8 @@ pc_access(const char *path, int mode)
 	return 0;
 }
 
-int
-pc_mkstemp(char *template)
+static int
+create_temporary(char *template, int directory)
 {
 	static const char alphabet[] =
 	    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -1239,12 +1239,27 @@ pc_mkstemp(char *template)
 		for (size_t i = 0; i < 6; i++)
 			template[len - 6 + i] =
 			    alphabet[random[i] % (sizeof(alphabet) - 1)];
-		fd = pc_open(template, O_CREAT | O_EXCL | O_RDWR, 0600);
+		if (directory)
+			fd = pc_mkdir(template, 0700);
+		else
+			fd = pc_open(template, O_CREAT | O_EXCL | O_RDWR, 0600);
 		if (fd != -1 || errno != EEXIST)
 			return fd;
 	}
 	errno = EEXIST;
 	return -1;
+}
+
+int
+pc_mkstemp(char *template)
+{
+	return create_temporary(template, 0);
+}
+
+char *
+pc_mkdtemp(char *template)
+{
+	return create_temporary(template, 1) == -1 ? NULL : template;
 }
 
 int

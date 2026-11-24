@@ -56,6 +56,7 @@ int    cvs_chdir(const char *, int);
 int    cvs_rename(const char *, const char *);
 int    cvs_unlink(const char *);
 int    cvs_rmdir(const char *);
+int    cvs_remove_server_tree(const char *);
 char **cvs_makeargv(const char *, int *);
 void   cvs_freeargv(char **, int);
 int    cvs_exec(char *, char *, int);

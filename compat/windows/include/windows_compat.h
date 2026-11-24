@@ -226,6 +226,7 @@ int	     pc_fchmod(int, mode_t);
 int	     pc_access(const char *, int);
 mode_t	     pc_umask(mode_t);
 int	     pc_mkstemp(char *);
+char	    *pc_mkdtemp(char *);
 int	     pc_futimes(int, const struct pc_timeval[2]);
 int	     pc_futimens(int, const struct timespec[2]);
 pc_off_t     pc_lseek(int, pc_off_t, int);
@@ -267,6 +268,7 @@ time_t	     pc_timegm(struct tm *);
 #define fchmod pc_fchmod
 #define access pc_access
 #define mkstemp pc_mkstemp
+#define mkdtemp pc_mkdtemp
 #define futimes pc_futimes
 #define futimens pc_futimens
 #define lseek pc_lseek

@@ -1,22 +1,19 @@
 # Portability roadmap
 
-1. Establish clean strict builds with GCC, Clang, MSVC, ClangCL, and MinGW.
-2. Verify native OpenBSD Debug and Release and Linux ARM64 in manual CI.
-3. Verify repository preservation under I/O failure, binary handling, and GNU CVS interoperability.
-4. Close remaining parser resource limits and filesystem race gaps before release qualification.
+The native and experimental OpenBSD workflows passed for
+`a082ae830db901e85d7742baa5f639b33f2ccd73`. That revision exercised GCC,
+Clang, MSVC, clang-cl and MinGW-w64, including the Linux ARM64 Debug job,
+OpenBSD Debug and Release, and the native matrix's GNU CVS interoperability
+tests. Results apply to the recorded revision and test cases.
+[Native matrix](https://github.com/daviduhden/opencvs-portable/actions/runs/44953106619)
+and [OpenBSD matrix](https://github.com/daviduhden/opencvs-portable/actions/runs/44953106762).
 
-OpenBSD Debug and Release have completed configuration and built the
-compatibility archive in CI. Executable compilation and functional
-verification remain open on both configurations.
+1. Maintain the strict native matrix and verify later revisions by exact SHA.
+2. Preserve the regressions for I/O failure, binary archive handling and GNU
+   CVS interoperability.
+3. Evaluate parser resource limits and filesystem race boundaries against the
+   documented deployment model before broader release qualification.
+4. Require native package evidence before advertising an additional artifact
+   format or architecture.
 
-The b79f865 runs reached CTest on Linux, OpenBSD, and MinGW. Prioritize
-repository setup and cleanup before interpreting downstream CVS results.
-
-Both OpenBSD unit configurations passed at 9d03e23. The next gate is a clean
-functional run with conflict handling, diff status, and archive interchange.
-
-The ba0ad43 matrix compiled through CTest on all current targets. Complete
-functional and interoperability verification before expanding support claims.
-
-OpenBSD's two configurations passed at 4646494. Keep that regression
-coverage while pursuing a clean native matrix and GNU interoperability.
+Earlier failures and their fixes are tracked in the [CI inventories](docs/ci).

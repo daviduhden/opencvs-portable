@@ -21,4 +21,9 @@ assumptions separately from the syntax of a client-supplied path.
 
 ## Maintenance & Continuous Learning
 
+Test temporary workspace cleanup with a relative temporary base and a dry-run
+server session. Keep release of an owned repository lock separate from the
+outcome of archive publication. On Win32, evaluate directory handle support
+before making containment claims for paths with concurrently mutable parents.
+
 Update this skill when changes invalidate guidance within its scope.

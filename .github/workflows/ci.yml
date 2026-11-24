@@ -38,19 +38,7 @@ jobs:
       - name: Install the parser generator on the runner
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y byacc=1:2.0.20221106-1
       - name: Generate the public-domain date parser
-        run: |
-          mkdir -p "$RUNNER_TEMP/parser-check/src" "$RUNNER_TEMP/parser-check/generated"
-          cp src/date.y "$RUNNER_TEMP/parser-check/src/date.y"
-          (
-            cd "$RUNNER_TEMP/parser-check"
-            byacc -l -o generated/date.c src/date.y
-            {
-              byacc -V 2>&1
-              printf '\nCommand: byacc -l -o generated/date.c src/date.y\n'
-              printf 'Package: byacc=%s\n' "$(dpkg-query -W -f='${Version}' byacc)"
-              printf 'Grammar SHA256: %s\n' "$(sha256sum src/date.y | cut -d' ' -f1)"
-            } > generated/GENERATOR.txt
-          )
+        run: sh scripts/check-date-parser.sh generate "$RUNNER_TEMP/parser-check"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: generated-date-parser
@@ -59,9 +47,7 @@ jobs:
             ${{ runner.temp }}/parser-check/generated/GENERATOR.txt
           if-no-files-found: error
       - name: Verify the distributed parser and generator record
-        run: |
-          cmp generated/date.c "$RUNNER_TEMP/parser-check/generated/date.c"
-          diff -u generated/GENERATOR.txt "$RUNNER_TEMP/parser-check/generated/GENERATOR.txt"
+        run: sh scripts/check-date-parser.sh verify "$RUNNER_TEMP/parser-check"
 
   linux:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -155,7 +141,7 @@ jobs:
         run: sudo apt-get install --no-install-recommends -y strace time
       - name: Record hosted performance baseline
         if: matrix.compiler == 'gcc'
-        run: perl tests/integration.pl --opencvs build/opencvs --fs-probe build/test-fs-probe --suite benchmark --report build/benchmark.json
+        run: perl tests/integration.pl --opencvs build/opencvs --ssh-shim build/test-ssh-shim --fs-probe build/test-fs-probe --suite benchmark --report build/benchmark.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.compiler == 'gcc'
         with:
@@ -193,6 +179,17 @@ jobs:
           name: package-source
           path: dist-source/*.tar.gz
           if-no-files-found: error
+
+      - name: Retain native test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-linux-${{ matrix.compiler }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build/test-reports/*.json
+            build/build-info.txt
 
       - name: Preserve failure diagnostics
         if: failure()
@@ -292,6 +289,17 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+      - name: Retain native test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-windows-${{ matrix.compiler }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build/test-reports/*.json
+            build/build-info.txt
+
       - name: Preserve failure diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -347,6 +355,17 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+      - name: Retain native test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-mingw
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build/test-reports/*.json
+            build/build-info.txt
+
       - name: Preserve failure diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -390,6 +409,17 @@ jobs:
           name: package-linux-musl
           path: dist-musl/*
           if-no-files-found: error
+
+      - name: Retain native test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-musl
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build-musl/test-reports/*.json
+            build-musl/build-info.txt
 
       - name: Preserve failure diagnostics
         if: failure()

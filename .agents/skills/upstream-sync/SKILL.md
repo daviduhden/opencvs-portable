@@ -11,6 +11,11 @@ Review every added/removed source and auxiliary dependency, including Caldera an
 
 ## Maintenance & Continuous Learning
 
+Compare the pinned and candidate subtree identities before attributing a
+difference to upstream drift. Review historical removals when portability
+patches touch the same path. A retained parser field or manual entry can
+survive removal of the behavior it once described.
+
 Update this skill when changes invalidate guidance within its scope.
 
 Formatting an otherwise unmodified import requires a scoped ISC notice and a

@@ -15,11 +15,42 @@ the repository path ancestors and administrative configuration under trusted
 ownership. With the variable unset, the service account's OS permissions govern
 repository access. Use separate accounts or launchers for distinct access scopes.
 
+Client publication checks existing path components, then opens and renames
+files by path. Keep concurrent writers to parent directories outside that
+trust boundary. A descriptor-relative POSIX pilot should hold the verified
+parent through temporary creation, replacement and directory sync, and
+preserve lock ownership and failure reporting. On Win32, first verify
+handle-relative rename on the hosted filesystem. The current backend
+records an earlier native failure with that mode. Neither platform should
+claim protection from parent replacement until those checks pass.
+
 Each server process accepts up to one million requests, 256 MiB of protocol
 metadata and 64 GiB of aggregate input. Individual text lines retain the 16 MiB
 limit, and individual uploads retain the signed 32-bit length limit. These caps
 apply per session. Use service-level disk and process quotas for aggregate usage
 across sessions.
+
+## Operator recovery
+
+If a diagnostic says an archive was published before a later sync or cleanup
+failure, pause writers to the affected repository and preserve a backup of the
+remaining archives. For an Attic transition, inspect both archive paths.
+Compare the expected revision and bytes in a fresh checkout before retrying
+the write. A transport failure after an acknowledgement also warrants checking
+what reached the repository before retrying.
+
+When a command reports a repository lock wait, identify any active writer and
+let it finish. If the lock persists after a process exits, keep writers paused
+and confirm the lock has no live owner before treating it as stale. Inspect
+the affected archives for partial publication before removing a stale lock.
+
+An administrator can configure `dlimit` in `CVSROOT/config`. Confirm the
+effective limit under the same service launcher used in deployment. POSIX
+uses `RLIMIT_DATA` and Windows uses a per-process committed-memory limit in
+a Job Object. Apply service-level limits separately for several concurrent
+sessions. See [Windows resource controls](windows.md#dates-and-resource-controls).
+
+## Engineering checks
 
 [The initial audit](initial-audit.md) identifies inherited prefix-validation,
 file-creation-mode, same-user lock, shell-command, zero-length mmap and allocation

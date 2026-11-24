@@ -6,6 +6,13 @@ The existing import commit and `provenance/manifest.json` are the baseline.
 
 ## Architecture and ownership
 
+Portable OpenCVS follows OpenBSD OpenCVS. Use GNU CVS as an interoperability
+peer for shared behavior. Before adding a command, option, protocol handler or
+configuration key, check the pinned upstream source and its history for an
+explicit exclusion or reversal. Preserve those decisions across platforms and
+build configurations. Record unsupported features with uncertain intent
+separately. See [compatibility boundaries](docs/compatibility.md).
+
 - `src/`: CVS/RCS implementation. Preserve `$OpenBSD$` markers and notices.
 - `compat/include/portable.h`: forced inclusion, feature-selected libc
   declarations, namespaced BSD getopt, and portable initialization.
@@ -120,6 +127,12 @@ For resource lifetime failures, audit ownership across cwd changes and
 cleanup. Keep temporary server state distinct from persistent working-copy
 metadata. Use native failure stages to distinguish platform semantics from
 test fixture assumptions.
+
+The server owns its temporary workspace through cleanup, including when a
+client requests a dry run. Keep repository lock tracking through confirmed
+withdrawal and distinguish a cleanup error from a publication failure.
+Validate package digests at the handoff between producer and release jobs,
+and keep read-only release preparation available through manual dispatch.
 
 For wire commits, distinguish working-copy timestamps from protocol file state.
 Verify a new checkout reads the submitted bytes even when the remote commit

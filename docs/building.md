@@ -37,5 +37,7 @@ with native Windows Perl; MSYS2 is a build environment only. See
 CPack generates native ZIP/TGZ artifacts after the runner tests pass. Package
 jobs extract the archives and run the contained executable on the native host.
 The archive includes the original notices, manuals, documentation and build
-metadata. Use the recorded ABI, runner and library versions to determine runtime
-compatibility.
+metadata. `opencvs -v` reports the inherited engine version, currently
+`OpenCVS 4.5`. Use `build-info.txt` to identify the Portable OpenCVS package
+version configured in CMake and the source revision recorded by CI. Use the
+artifact's ABI, runner and library records to determine runtime compatibility.

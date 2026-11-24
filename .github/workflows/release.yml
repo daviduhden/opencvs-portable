@@ -23,6 +23,11 @@ on:
         description: Existing signed prerelease tag (for example v0.1.0-alpha.1)
         required: true
         type: string
+      publish:
+        description: Publish the verified prerelease after qualification
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -38,6 +43,7 @@ jobs:
     timeout-minutes: 35
     outputs:
       sha: ${{ steps.metadata.outputs.sha }}
+      tag_object: ${{ steps.metadata.outputs.tag_object }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -62,19 +68,7 @@ jobs:
       - name: Install the parser generator on the runner
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y byacc=1:2.0.20221106-1
       - name: Generate the public-domain date parser
-        run: |
-          mkdir -p "$RUNNER_TEMP/parser-check/src" "$RUNNER_TEMP/parser-check/generated"
-          cp src/date.y "$RUNNER_TEMP/parser-check/src/date.y"
-          (
-            cd "$RUNNER_TEMP/parser-check"
-            byacc -l -o generated/date.c src/date.y
-            {
-              byacc -V 2>&1
-              printf '\nCommand: byacc -l -o generated/date.c src/date.y\n'
-              printf 'Package: byacc=%s\n' "$(dpkg-query -W -f='${Version}' byacc)"
-              printf 'Grammar SHA256: %s\n' "$(sha256sum src/date.y | cut -d' ' -f1)"
-            } > generated/GENERATOR.txt
-          )
+        run: sh scripts/check-date-parser.sh generate "$RUNNER_TEMP/parser-check"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: generated-date-parser
@@ -83,9 +77,7 @@ jobs:
             ${{ runner.temp }}/parser-check/generated/GENERATOR.txt
           if-no-files-found: error
       - name: Verify the distributed parser and generator record
-        run: |
-          cmp generated/date.c "$RUNNER_TEMP/parser-check/generated/date.c"
-          diff -u generated/GENERATOR.txt "$RUNNER_TEMP/parser-check/generated/GENERATOR.txt"
+        run: sh scripts/check-date-parser.sh verify "$RUNNER_TEMP/parser-check"
 
   linux:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -133,7 +125,7 @@ jobs:
         run: |
           cpack --config build/CPackConfig.cmake -G TGZ -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
           ldd build/opencvs > "dist/$PACKAGE_NAME-runtime.txt"
-          perl scripts/check-package.pl --archive "dist/$PACKAGE_NAME.tar.gz" --binary build/opencvs
+          perl scripts/check-package.pl --archive "dist/$PACKAGE_NAME.tar.gz" --binary build/opencvs --manifest "dist/$PACKAGE_NAME.tar.gz.manifest.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.sanitizers == 'OFF'
         with:
@@ -148,13 +140,24 @@ jobs:
           SOURCE_PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-source
         run: |
           cpack --config build/CPackSourceConfig.cmake -G TGZ -B dist-source -D "CPACK_PACKAGE_FILE_NAME=$SOURCE_PACKAGE_NAME"
-          perl scripts/check-package.pl --archive "dist-source/$SOURCE_PACKAGE_NAME.tar.gz" --source
+          perl scripts/check-package.pl --archive "dist-source/$SOURCE_PACKAGE_NAME.tar.gz" --source --manifest "dist-source/$SOURCE_PACKAGE_NAME.tar.gz.manifest.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.compiler == 'gcc'
         with:
           name: package-source
-          path: dist-source/*.tar.gz
+          path: dist-source/*
           if-no-files-found: error
+
+      - name: Retain native test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-linux-${{ matrix.compiler }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build/test-reports/*.json
+            build/build-info.txt
 
       - name: Preserve failure diagnostics
         if: failure()
@@ -227,12 +230,23 @@ jobs:
         run: |
           cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$env:PACKAGE_NAME"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$env:PACKAGE_NAME.zip" --binary build/opencvs.exe
+          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$env:PACKAGE_NAME.zip" --binary build/opencvs.exe --manifest "dist/$env:PACKAGE_NAME.zip.manifest.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-windows-${{ matrix.compiler }}
           path: dist/*
           if-no-files-found: error
+
+      - name: Retain native test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-windows-${{ matrix.compiler }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build/test-reports/*.json
+            build/build-info.txt
 
       - name: Preserve failure diagnostics
         if: failure()
@@ -281,12 +295,23 @@ jobs:
           PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-windows-x86_64-mingw
         run: |
           cpack --config build/CPackConfig.cmake -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
-          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$PACKAGE_NAME.zip" --binary build/opencvs.exe
+          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$PACKAGE_NAME.zip" --binary build/opencvs.exe --manifest "dist/$PACKAGE_NAME.zip.manifest.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-windows-mingw
           path: dist/*
           if-no-files-found: error
+
+      - name: Retain native test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-mingw
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build/test-reports/*.json
+            build/build-info.txt
 
       - name: Preserve failure diagnostics
         if: failure()
@@ -325,13 +350,24 @@ jobs:
             su -s /bin/sh nobody -c "ctest --test-dir build-musl --no-tests=error --verbose"
             cpack --config build-musl/CPackConfig.cmake -G TGZ -B dist-musl -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
             readelf -l build-musl/opencvs > "dist-musl/$PACKAGE_NAME-runtime.txt"
-            perl scripts/check-package.pl --archive "dist-musl/$PACKAGE_NAME.tar.gz" --binary build-musl/opencvs
+            perl scripts/check-package.pl --archive "dist-musl/$PACKAGE_NAME.tar.gz" --binary build-musl/opencvs --manifest "dist-musl/$PACKAGE_NAME.tar.gz.manifest.json"
           '
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-linux-musl
           path: dist-musl/*
           if-no-files-found: error
+
+      - name: Retain native test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-musl
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build-musl/test-reports/*.json
+            build-musl/build-info.txt
 
       - name: Preserve failure diagnostics
         if: failure()
@@ -380,9 +416,41 @@ jobs:
           online-audits: true
           inputs: .github/workflows
 
-  publish:
+  prepare:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     needs: [release-metadata, parser, linux, windows, mingw, musl, audit]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-metadata.outputs.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: package-*
+          merge-multiple: true
+          path: release-assets
+      - name: Verify the release assets without publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ needs.release-metadata.outputs.sha }}
+          EXPECTED_TAG_OBJECT: ${{ needs.release-metadata.outputs.tag_object }}
+        run: perl scripts/publish-prerelease.pl --tag "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --expected-sha "$EXPECTED_SHA" --expected-tag-object "$EXPECTED_TAG_OBJECT" --assets release-assets
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-qualification
+          path: |
+            release-assets/*.manifest.json
+            release-assets/release-metadata.json
+            release-assets/RELEASE_NOTES.md
+            release-assets/SHA256SUMS
+          if-no-files-found: error
+
+  publish:
+    if: inputs.publish && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    needs: [release-metadata, prepare]
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions:
@@ -402,4 +470,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
           EXPECTED_SHA: ${{ needs.release-metadata.outputs.sha }}
-        run: perl scripts/publish-prerelease.pl --tag "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --expected-sha "$EXPECTED_SHA" --assets release-assets --publish
+          EXPECTED_TAG_OBJECT: ${{ needs.release-metadata.outputs.tag_object }}
+        run: perl scripts/publish-prerelease.pl --tag "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --expected-sha "$EXPECTED_SHA" --expected-tag-object "$EXPECTED_TAG_OBJECT" --assets release-assets --publish

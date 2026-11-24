@@ -37,46 +37,92 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "cvs.h"
 
-struct wklhead repo_locks;
+struct repository_lock {
+	SLIST_ENTRY(repository_lock) link;
+	char path[PATH_MAX];
+	struct stat identity;
+};
+
+static SLIST_HEAD(, repository_lock) repo_locks =
+    SLIST_HEAD_INITIALIZER(repo_locks);
+
+static int
+repository_release_lock(const struct repository_lock *lock)
+{
+	struct stat st;
+
+	if (lstat(lock->path, &st) == -1) {
+		if (errno == ENOENT)
+			return (0);
+	} else if (!S_ISREG(st.st_mode) ||
+	    st.st_dev != lock->identity.st_dev ||
+	    st.st_ino != lock->identity.st_ino) {
+		cvs_log(LP_ERR, "repository lock was replaced: %s", lock->path);
+		return (0);
+	} else if (unlink(lock->path) == 0 || errno == ENOENT)
+		return (0);
+
+	cvs_log(LP_ERRNO, "cannot remove owned repository lock: %s", lock->path);
+	return (-1);
+}
 
 void
 cvs_repository_unlock(const char *repo)
 {
-	struct worklist *lock;
-	char		 path[PATH_MAX];
+	struct repository_lock *lock;
+	char			path[PATH_MAX];
+
 	(void)xsnprintf(path, sizeof(path), "%s/%s", repo, CVS_LOCK);
-	SLIST_FOREACH(lock, &repo_locks, wkl_list)
-	{
-		if (strcmp(lock->wkl_path, path) != 0)
+	SLIST_FOREACH(lock, &repo_locks, link) {
+		if (strcmp(lock->path, path) != 0)
 			continue;
-		SLIST_REMOVE(&repo_locks, lock, worklist, wkl_list);
-		if (unlink(path) == -1 && errno != ENOENT)
-			cvs_log(LP_ERR,
-			    "cannot remove owned repository lock: %s", path);
-		free(lock);
+		if (repository_release_lock(lock) == 0) {
+			SLIST_REMOVE(&repo_locks, lock, repository_lock, link);
+			free(lock);
+		}
 		break;
+	}
+}
+
+void
+cvs_repository_unlock_all(void)
+{
+	struct repository_lock *lock, *next;
+
+	SLIST_FOREACH_SAFE(lock, &repo_locks, link, next) {
+		if (repository_release_lock(lock) == 0) {
+			SLIST_REMOVE(&repo_locks, lock, repository_lock, link);
+			free(lock);
+		}
 	}
 }
 
 void
 cvs_repository_lock(const char *repo, int wantlock)
 {
-	struct worklist *owned;
-	struct stat	 st;
-	char		 path[PATH_MAX];
-	int		 attempt, fd;
+	struct repository_lock *owned;
+	struct repository_lock *lock = NULL;
+	struct stat		st;
+	char			path[PATH_MAX];
+	int			attempt, fd, saved;
 
 	if (cvs_noexec || cvs_readonlyfs)
 		return;
 	(void)xsnprintf(path, sizeof(path), "%s/%s", repo, CVS_LOCK);
-	SLIST_FOREACH(owned, &repo_locks, wkl_list)
-	if (strcmp(owned->wkl_path, path) == 0)
-		return;
+	SLIST_FOREACH(owned, &repo_locks, link) {
+		if (strcmp(owned->path, path) == 0)
+			return;
+	}
+	if (wantlock) {
+		lock = xcalloc(1, sizeof(*lock));
+		(void)strlcpy(lock->path, path, sizeof(lock->path));
+	}
 	for (attempt = 0; attempt < CVS_LOCK_TRIES; attempt++) {
 		if (cvs_quit)
 			fatal("received signal %d", sig_received);
@@ -84,7 +130,17 @@ cvs_repository_lock(const char *repo, int wantlock)
 			fd = open(path,
 			    O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
 			if (fd != -1) {
-				worklist_add(path, &repo_locks);
+				if (fstat(fd, &lock->identity) == -1) {
+					saved = errno;
+					(void)close(fd);
+					if (unlink(path) == -1 && errno != ENOENT)
+						cvs_log(LP_ERRNO,
+						    "cannot remove new repository lock: %s",
+						    path);
+					fatal("cannot identify repository lock: %s",
+					    strerror(saved));
+				}
+				SLIST_INSERT_HEAD(&repo_locks, lock, link);
 				if (close(fd) == -1)
 					fatal(
 					    "cannot close repository lock: %s",

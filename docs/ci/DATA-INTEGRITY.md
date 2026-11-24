@@ -6,9 +6,7 @@ Evidence cutoff: November 20, 2026. This inventory covers the two accessible
 at `aca3007c760ff359b922144486f7eed3d2de06c3`, and
 [44754537542](https://github.com/daviduhden/opencvs-portable/actions/runs/44754537542)
 at `1038f5afb14df469723b711e71a76e8a6618f13c`.
-The linked GitHub Actions runs are the source for job logs and artifacts.
-The generated diagnostic index is retained locally at
-`docs/ci/diagnostic-index.json`. Downloaded evidence resides in `/tmp/opencvs-ci/`.
+Use the linked GitHub Actions runs to retrieve the job logs and artifacts.
 
 Both concluded **failure**. Parser and audit jobs succeeded in both; every native
 compilation job failed. No local build, configuration, or test was performed for

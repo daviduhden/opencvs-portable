@@ -45,17 +45,19 @@ binmode STDERR, ':encoding(UTF-8)';
 my ( $opencvs, $gnu_cvs, $ssh_shim, $fs_probe, $report, $require_gnu );
 my $suite   = 'all';
 my $timeout = 30;
+my $summary_report;
 my @selected;
 GetOptions(
-    'opencvs=s'   => \$opencvs,
-    'gnu-cvs=s'   => \$gnu_cvs,
-    'ssh-shim=s'  => \$ssh_shim,
-    'fs-probe=s'  => \$fs_probe,
-    'suite=s'     => \$suite,
-    'case=s@'     => \@selected,
-    'timeout=i'   => \$timeout,
-    'report=s'    => \$report,
-    'require-gnu' => \$require_gnu
+    'opencvs=s'      => \$opencvs,
+    'gnu-cvs=s'      => \$gnu_cvs,
+    'ssh-shim=s'     => \$ssh_shim,
+    'fs-probe=s'     => \$fs_probe,
+    'suite=s'        => \$suite,
+    'case=s@'        => \@selected,
+    'timeout=i'      => \$timeout,
+    'report=s'       => \$report,
+    'summary-report' => \$summary_report,
+    'require-gnu'    => \$require_gnu
 ) or die "Invalid options\n";
 die "--opencvs is required\n" unless defined $opencvs;
 die "Unknown suite $suite\n"
@@ -169,6 +171,10 @@ sub cleanup_sandbox {
 }
 
 sub invoke {
+    return finish_invocation( start_invocation(@_) );
+}
+
+sub start_invocation {
     my ( $s, $exe, $args, %options ) = @_;
     my @command = ( @{ $options{prefix} // [] }, $exe, @$args );
     my ( $in_fh, $in_name ) =
@@ -207,7 +213,21 @@ sub invoke {
         chdir $previous or die "restore working directory: $!\n";
     }
     die "Cannot start @command: $spawn_error\n" if defined $spawn_error;
-    my $deadline = time() + ( $options{timeout} // $timeout );
+    return {
+        pid      => $pid,
+        deadline => time() + ( $options{timeout} // $timeout ),
+        argv     => \@command,
+        cwd      => $working,
+        output   => $out_name,
+        error    => $err_name,
+        allowed  => exists $options{allowed} ? $options{allowed} : [0]
+    };
+}
+
+sub finish_invocation {
+    my ($invocation) = @_;
+    my $pid          = $invocation->{pid};
+    my @command      = @{ $invocation->{argv} };
     my ( $status, $native_status, $timed_out );
     while (1) {
         my $waited = waitpid( $pid, WNOHANG );
@@ -217,7 +237,7 @@ sub invoke {
             last;
         }
         die "waitpid $pid: $!\n" if $waited == -1;
-        if ( time() >= $deadline ) {
+        if ( time() >= $invocation->{deadline} ) {
             $timed_out = 1;
             if ( $^O eq 'MSWin32' ) {
 
@@ -234,8 +254,8 @@ sub invoke {
         }
         sleep 0.02;
     }
-    my $stdout_raw = read_bytes($out_name);
-    my $stderr_raw = read_bytes($err_name);
+    my $stdout_raw = read_bytes( $invocation->{output} );
+    my $stderr_raw = read_bytes( $invocation->{error} );
     my $stdout     = decode( 'UTF-8', $stdout_raw, FB_DEFAULT | LEAVE_SRC );
     my $stderr     = decode( 'UTF-8', $stderr_raw, FB_DEFAULT | LEAVE_SRC );
 
@@ -246,14 +266,15 @@ sub invoke {
       {
         test          => $current_test,
         argv          => \@command,
-        cwd           => $working,
+        cwd           => $invocation->{cwd},
         returncode    => $exit,
         raw_status    => $status,
         native_status => $native_status,
         stdout        => $stdout,
         stderr        => $stderr,
         timed_out     => $timed_out ? JSON::PP::true : JSON::PP::false
-      };
+      }
+      unless $summary_report;
     die "Command timed out: @command\n$stdout\n$stderr\n" if $timed_out;
 
     # NTSTATUS exceptions use severity 0xC. A normal C return(-1) is
@@ -276,7 +297,7 @@ sub invoke {
 /(?:ERROR: (?:AddressSanitizer|LeakSanitizer)|UndefinedBehaviorSanitizer|runtime error:)/,
         "Sanitizer finding: @command\n$stdout\n$stderr"
     );
-    my $allowed = exists $options{allowed} ? $options{allowed} : [0];
+    my $allowed = $invocation->{allowed};
     check(
         !defined $allowed || scalar( grep { $_ == $exit } @$allowed ),
         "Unexpected exit $exit: @command\n$stdout\n$stderr"
@@ -686,16 +707,65 @@ test_case core => missing_repository_is_explicit_error => sub {
 test_case core => unsupported_pserver_is_explicit => sub {
     my ($s) = @_;
     initialize($s);
-    my $result = cvs(
-        $s, [ 'checkout', 'module' ],
-        root    => ':pserver:test.invalid:' . slash_path( $s->{repo} ),
-        allowed => undef
+    my $root = ':pserver:test.invalid:' . slash_path( $s->{repo} );
+    my $args = [ '-f', '-T', $s->{tmp}, 'checkout', 'module' ];
+    my $env  = { %{ $s->{env} }, CVSROOT => $root };
+    make_path( path( $s->{seed}, 'CVS' ) );
+    write_bytes( path( $s->{seed}, 'CVS', 'Root' ),
+        encode( 'UTF-8', "$root\n" ) );
+    write_bytes( path( $s->{base}, '.cvsrc' ),
+        "cvs -d :pserver:test.invalid:/unused\n" );
+    my %result = (
+        '-d' => cvs(
+            $s, [ 'checkout', 'module' ],
+            root    => $root,
+            allowed => undef
+        ),
+        CVSROOT => invoke( $s, $opencvs, $args, env => $env, allowed => undef ),
+        'CVS/Root' => invoke(
+            $s, $opencvs, $args,
+            cwd     => $s->{seed},
+            allowed => undef
+        ),
+        '.cvsrc' => invoke(
+            $s, $opencvs, [ '-T', $s->{tmp}, 'checkout', 'module' ],
+            env     => { %{ $s->{env} }, HOME => $s->{base} },
+            allowed => undef
+        )
     );
-    check(
-        $result->{code} != 0
-          && $result->{text} =~ /(?:not supported|unsupported)/i,
-        'pserver was not rejected explicitly'
-    );
+
+    for my $source ( sort keys %result ) {
+        check(
+            $result{$source}{code} != 0
+              && $result{$source}{text} =~
+              /connection method is not supported/i,
+            "pserver from $source was not rejected explicitly"
+        );
+    }
+};
+
+test_case core => disabled_commands_remain_unavailable => sub {
+    my ($s) = @_;
+    for my $command (qw(login logout edit editors unedit watch watchers)) {
+        my $result = cvs( $s, [$command], allowed => undef );
+        check(
+            $result->{code} != 0
+              && $result->{text} =~ /Unknown command:.*\Q$command\E/,
+            "$command was accepted"
+        );
+    }
+};
+
+test_case security => pserver_authentication_is_unavailable => sub {
+    my ($s) = @_;
+    for my $request ( 'BEGIN AUTH REQUEST', 'BEGIN VERIFICATION REQUEST' ) {
+        my $result = server( $s, "$request\n" );
+        check(
+            $result->{code} != 0
+              && $result->{text} =~ /request 'BEGIN' is not supported/,
+            "$request was not rejected explicitly"
+        );
+    }
 };
 
 test_case security => unknown_server_request_is_error => sub {
@@ -706,6 +776,24 @@ test_case security => unknown_server_request_is_error => sub {
           && $result->{text} =~ /(?:not supported|unsupported|unknown)/i,
         'Unknown server request did not fail clearly'
     );
+};
+
+test_case core => admin_rejects_arbitrary_rcs_state => sub {
+    my ($s)     = @_;
+    my $work    = populated($s);
+    my $archive = path( $s->{repo}, 'module', 'sample.txt,v' );
+    my $before  = sha256_hex( read_bytes($archive) );
+    my $result  = cvs(
+        $s, [ 'admin', '-sExperimental', 'sample.txt' ],
+        cwd     => $work,
+        allowed => undef
+    );
+    check(
+        $result->{text} =~ /invalid state .*Experimental/,
+        'admin did not reject the arbitrary RCS state'
+    );
+    equal( sha256_hex( read_bytes($archive) ),
+        $before, 'admin changed the archive after rejecting the RCS state' );
 };
 test_case security => untrusted_server_responses_preserve_working_copy => sub {
     my ($s) = @_;
@@ -845,6 +933,67 @@ test_case security => invalid_lengths_and_truncated_body => sub {
               . "Modified frame.txt\nu=rw,g=r,o=r\n$length\n$body" );
         check( $result->{code} != 0, 'Invalid/truncated frame succeeded' );
     }
+};
+
+test_case security => private_server_workspace_is_removed => sub {
+    my ($s) = @_;
+    initialize($s);
+    my $sentinel = path( $s->{tmp}, 'sentinel' );
+    write_bytes( $sentinel, 'intact' );
+    for my $case (
+        [ "valid-requests\n", 0 ],
+        [
+            protocol_prefix($s)
+              . "Global_option -n\n"
+              . "Modified frame.txt\nu=rw,g=r,o=r\n1\nx",
+            0
+        ],
+        [ "Unrecognized-request\n", 1 ]
+      )
+    {
+        my ( $input, $exit ) = @$case;
+        invoke(
+            $s, $opencvs, [ '-f', '-T', 'temporary', 'server' ],
+            input   => $input,
+            allowed => [$exit]
+        );
+        opendir my $directory, bytes_path( $s->{tmp} )
+          or die "open temporary directory: $!";
+        my @remaining =
+          sort grep { $_ ne '.' && $_ ne '..' } readdir $directory;
+        closedir $directory or die "close temporary directory: $!";
+        equal( join( ',', @remaining ),
+            'sentinel', 'Server left its private workspace behind' );
+        equal( read_bytes($sentinel), 'intact' );
+    }
+};
+
+test_case security => protocol_text_boundaries => sub {
+    my ($s) = @_;
+    my $valid = server( $s, "valid-requests\r\n" );
+    check( $valid->{code} == 0 && $valid->{text} =~ /Valid-requests/,
+        'CRLF request was not accepted' );
+    for my $input ( "valid-requests\0\n", "valid-requests\rvalid-requests\n" ) {
+        my $invalid = server( $s, $input );
+        check(
+            $invalid->{code} != 0 && $invalid->{text} !~ /^Valid-requests/m,
+            'Invalid text boundary was accepted as a complete request'
+        );
+    }
+};
+
+test_case security => invalid_data_limit_rejects_repository_operation => sub {
+    my ($s) = @_;
+    initialize($s);
+    replace_fixture( path( $s->{repo}, 'CVSROOT', 'config' ),
+        "dlimit=not-a-number\n" );
+    my $result = cvs( $s, [ 'checkout', 'module' ], allowed => undef );
+    check(
+        $result->{code} != 0 && $result->{text} =~ /dlimit/i,
+        'Invalid data limit did not stop repository setup'
+    );
+    check( !-e path( $s->{base}, 'module' ),
+        'Invalid data limit left a populated working copy' );
 };
 test_case security => malformed_rcs_rejected_without_crash => sub {
     my ($s) = @_;
@@ -1174,51 +1323,44 @@ test_case core => entries_replay_after_compaction => sub {
 };
 
 test_case core => concurrent_tags_preserve_both_updates => sub {
-    my ($s) = @_;
-    skip_case('This test coordinates independent POSIX processes with fork')
-      if $^O eq 'MSWin32';
+    my ($s)   = @_;
     my $left  = populated($s);
     my $right = checkout( $s, 'other-work' );
-    pipe( my $start, my $ready ) or die "pipe: $!\n";
-    my $child = fork();
-    die "fork: $!\n" unless defined $child;
-    if ( $child == 0 ) {
-        close $ready;
-        my $token;
-        POSIX::_exit(1) unless sysread( $start, $token, 1 ) == 1;
-        close $start;
-        my $ok = eval {
-            cvs(
-                $s, [ 'tag', 'CONCURRENT_A', 'sample.txt' ],
-                cwd     => $left,
+    my @pending;
+    my $started = eval {
+        for my $target ( [ $left, 'CONCURRENT_A' ], [ $right, 'CONCURRENT_B' ] )
+        {
+            my ( $directory, $tag ) = @$target;
+            push @pending,
+              start_invocation(
+                $s, $opencvs,
+                [
+                    '-f',       '-T',  $s->{tmp}, '-d',
+                    $s->{repo}, 'tag', $tag,      'sample.txt'
+                ],
+                cwd     => $directory,
                 timeout => 65
-            );
-            1;
-        };
-        print STDERR $@ unless $ok;
-        POSIX::_exit( $ok ? 0 : 1 );
-    }
-    close $start;
-    my $sent = syswrite( $ready, '1' );
-    close $ready;
-    my $ok = eval {
-        cvs(
-            $s, [ 'tag', 'CONCURRENT_B', 'sample.txt' ],
-            cwd     => $right,
-            timeout => 65
-        );
+              );
+        }
         1;
     };
-    my $failure = $@;
-    my $waited  = waitpid( $child, 0 );
-    check( defined($sent) && $sent == 1 && $waited == $child && $? == 0,
-        'Concurrent tag subprocess failed' );
-    die $failure unless $ok;
+    my @errors = $started ? () : ($@);
+    for my $invocation (@pending) {
+        eval { finish_invocation($invocation); 1 } or push @errors, $@;
+    }
+    die join( "\n", @errors ) if @errors;
+    check(
+        !-e path( $s->{repo}, 'module', '#cvs.lock' ),
+        'Concurrent tags left a repository lock'
+    );
     my $log = cvs( $s, [ 'log', 'sample.txt' ], cwd => $left )->{text};
     check(
         $log =~ /CONCURRENT_A:/ && $log =~ /CONCURRENT_B:/,
         'An archive update was lost during concurrent tag operations'
     );
+    my $verified = checkout( $s, 'after-concurrent-tags' );
+    equal( read_bytes( path( $verified, 'sample.txt' ) ),
+        $TEXT, 'Concurrent tags changed checkout bytes' );
 };
 
 test_case core => transport_failure_after_response => sub {
@@ -1242,6 +1384,20 @@ test_case core => transport_failure_after_response => sub {
     );
     check( $result->{text} =~ /SSH transport exited with status 23/,
         'Missing transport exit status' );
+};
+
+test_case core => cvsroot_port_does_not_select_ssh_port => sub {
+    my ($s) = @_;
+    my $env = remote_environment( $s, $opencvs );
+    initialize($s);
+    import_tree($s);
+
+    # The shim accepts the host after -- and rejects an injected -p.
+    my $root = ':ext:test.invalid:2222:' . slash_path( $s->{repo} );
+    my $work = checkout( $s, 'ssh-root-port', root => $root, env => $env );
+    equal( read_bytes( path( $work, 'sample.txt' ) ),
+        $TEXT,
+        'Checkout forwarded the CVSROOT port or returned different content' );
 };
 
 test_case core => hosted_ssh => sub {
@@ -1335,7 +1491,7 @@ test_case benchmark => checkout_tree_size => sub {
     my %files =
       map { ( "group-" . int( $_ / 20 ) . "/file-$_.txt" ) => "file $_\n" }
       1 .. 100;
-    for my $size ( 100, 400 ) {
+    for my $size ( 100, 400, 1200 ) {
         for my $index ( 101 .. $size ) {
             $files{ 'group-' . int( $index / 20 ) . "/file-$index.txt" } =
               "file $index\n";
@@ -1363,6 +1519,56 @@ test_case benchmark => checkout_tree_size => sub {
             equal( read_bytes( path( $work, 'group-0', 'file-1.txt' ) ),
                 "file 1\n" );
         }
+    }
+};
+
+test_case benchmark => checkout_over_wire => sub {
+    my ($s)  = @_;
+    my $env  = remote_environment( $s, $opencvs );
+    my $root = ':ext:test.invalid:' . slash_path( $s->{repo} );
+    initialize($s);
+    my $content = "\0\xff\r\n" x 16384;
+    import_tree( $s, { 'wire.bin' => $content }, binary => 1 );
+    for my $sample ( 1 .. 3 ) {
+        my $usage = path( $s->{base}, 'wire-usage' );
+        my @prefix =
+          $^O eq 'linux' && -x '/usr/bin/time'
+          ? ( '/usr/bin/time', '-f', 'max_rss_kib=%M', '-o', $usage )
+          : ();
+        my $start = time();
+        my $work  = checkout(
+            $s, "wire-$sample",
+            root   => $root,
+            env    => $env,
+            prefix => \@prefix
+        );
+        push @measurements,
+          {
+            workload => 'wire_checkout_binary',
+            sample   => $sample,
+            seconds  => time() - $start,
+            resource => @prefix ? read_bytes($usage) : ''
+          };
+        equal( sha256_hex( read_bytes( path( $work, 'wire.bin' ) ) ),
+            sha256_hex($content), 'Wire benchmark changed the bytes' );
+    }
+    if ( $^O eq 'linux' && -x '/usr/bin/strace' ) {
+        my $trace = path( $s->{base}, 'wire-syscalls' );
+        checkout(
+            $s,
+            'wire-traced',
+            root   => $root,
+            env    => $env,
+            prefix => [
+                '/usr/bin/strace',  '-f', '-c', '-e',
+                'trace=read,write', '-o', $trace
+            ]
+        );
+        push @measurements,
+          {
+            workload    => 'wire_checkout_binary',
+            io_syscalls => read_bytes($trace)
+          };
     }
 };
 
@@ -1535,6 +1741,7 @@ test_case interop => gnu_client_opencvs_server_wire => sub {
 };
 
 my $run = 0;
+my @passed;
 for my $case (@cases) {
     my ( $group, $name, $code ) = @$case;
     next if $group eq 'benchmark' && $suite ne 'benchmark';
@@ -1561,11 +1768,16 @@ for my $case (@cases) {
       SKIP: { skip $error->{reason}, 1; }
     }
     elsif ( !$ok ) {
-        push @failures, { test => $current_test, detail => "$error" };
+        push @failures,
+          {
+            test   => $current_test,
+            detail => $summary_report ? substr( "$error", 0, 4096 ) : "$error"
+          };
         fail($current_test);
         diag("$error");
     }
     else {
+        push @passed, $current_test;
         pass($current_test);
     }
 }
@@ -1580,6 +1792,7 @@ if ( defined $report ) {
             gnu_cvs    => $gnu_cvs,
             suite      => $suite,
             tests_run  => $run,
+            passed     => \@passed,
             failures   => \@failures,
             errors     => [],
             skipped    => \@skips,

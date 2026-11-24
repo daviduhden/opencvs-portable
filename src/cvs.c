@@ -78,11 +78,14 @@ int cvs_cleanup_failed;
 
 char *cvs_tagname = NULL;
 char *cvs_defargs; /* default global arguments from .cvsrc */
+static char **cvs_rc_argv;
+static int cvs_rc_argc;
 char *cvs_rootstr;
 char *cvs_rsh = CVS_RSH_DEFAULT;
 char *cvs_editor = CVS_EDITOR_DEFAULT;
 char *cvs_homedir = NULL;
 char *cvs_tmpdir = CVS_TMPDIR_DEFAULT;
+static char cvs_server_tmpdir[PATH_MAX];
 
 struct cvsroot *current_cvsroot = NULL;
 struct cvs_cmd *cmdp; /* struct of command we are running */
@@ -127,7 +130,7 @@ cvs_cleanup(void)
 {
 	(void)cvs_client_disconnect();
 	cvs_log(LP_TRACE, "cvs_cleanup: removing locks");
-	worklist_run(&repo_locks, worklist_unlink);
+	cvs_repository_unlock_all();
 
 	cvs_log(LP_TRACE, "cvs_cleanup: removing temp files");
 	worklist_run(&temp_files, worklist_unlink);
@@ -137,7 +140,10 @@ cvs_cleanup(void)
 		 * deleted. */
 		if (current_list != NULL)
 			cvs_ent_close(current_list, ENT_NOSYNC);
-		if (cvs_rmdir(cvs_server_path) == -1)
+		/* Win32 cannot remove the process's current directory. */
+		if (chdir(cvs_tmpdir) == -1)
+			cvs_log(LP_ERRNO, "cannot leave server workspace");
+		if (cvs_remove_server_tree(cvs_server_path) == -1)
 			cvs_log(LP_ERR,
 			    "warning: failed to remove server directory: %s",
 			    cvs_server_path);
@@ -148,6 +154,11 @@ cvs_cleanup(void)
 	if (current_list != NULL)
 		cvs_ent_close(
 		    current_list, cvs_cleanup_failed ? ENT_NOSYNC : ENT_SYNC);
+
+	cvs_freeargv(cvs_rc_argv, cvs_rc_argc);
+	free(cvs_rc_argv);
+	cvs_rc_argv = NULL;
+	cvs_rc_argc = 0;
 }
 
 PC_NORETURN void
@@ -215,7 +226,7 @@ cvs_metadata_failure(const char *reason)
 int
 main(int argc, char **argv)
 {
-	char	      *envstr, **cmd_argv, **targv;
+	char	      *envstr, **cmd_argv;
 	int	       i, ret, cmd_argc;
 	struct passwd *pw;
 	struct stat    st;
@@ -228,7 +239,6 @@ main(int argc, char **argv)
 	tzset();
 
 	TAILQ_INIT(&cvs_variables);
-	SLIST_INIT(&repo_locks);
 	SLIST_INIT(&temp_files);
 
 	hash_table_init(&created_directories, 100);
@@ -276,29 +286,33 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	/*
-	 * check the tmp dir, either specified through
-	 * the environment variable TMPDIR, or via
-	 * the global option -T <dir>
-	 */
-	if (stat(cvs_tmpdir, &st) == -1)
-		fatal("stat failed on `%s': %s", cvs_tmpdir, strerror(errno));
-	else if (!S_ISDIR(st.st_mode))
-		fatal("`%s' is not valid temporary directory", cvs_tmpdir);
-
 	if (cvs_readrc == 1 && cvs_homedir != NULL) {
 		cvs_read_rcfile();
 
 		if (cvs_defargs != NULL) {
-			if ((targv = cvs_makeargv(cvs_defargs, &i)) == NULL)
+			cvs_rc_argv = cvs_makeargv(cvs_defargs, &cvs_rc_argc);
+			if (cvs_rc_argv == NULL)
 				fatal("failed to load default arguments to %s",
 				    __progname);
 
-			cvs_getopt(i, targv);
-			cvs_freeargv(targv, i);
-			free(targv);
+			/* String options borrow their arguments until cleanup. */
+			cvs_getopt(cvs_rc_argc, cvs_rc_argv);
 		}
 	}
+
+	/* Resolve the server's temporary base before entering the workspace. */
+	if (cmdp->cmd_op == CVS_OP_SERVER && !pc_native_absolute(cvs_tmpdir)) {
+		if (getcwd(fpath, sizeof(fpath)) == NULL)
+			fatal("cannot resolve temporary directory: %s",
+			    strerror(errno));
+		(void)xsnprintf(cvs_server_tmpdir, sizeof(cvs_server_tmpdir),
+		    "%s/%s", fpath, cvs_tmpdir);
+		cvs_tmpdir = cvs_server_tmpdir;
+	}
+	if (stat(cvs_tmpdir, &st) == -1)
+		fatal("stat failed on `%s': %s", cvs_tmpdir, strerror(errno));
+	if (!S_ISDIR(st.st_mode))
+		fatal("`%s' is not valid temporary directory", cvs_tmpdir);
 
 	/* setup signal handlers */
 	signal(SIGTERM, sighandler);

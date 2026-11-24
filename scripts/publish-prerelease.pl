@@ -27,19 +27,20 @@ use IPC::Open3;
 use Symbol qw(gensym);
 use IO::Select;
 
-my ( $tag, $repo, $expected, $assets, $publish, $help );
+my ( $tag, $repo, $expected, $expected_tag, $assets, $publish, $help );
 GetOptions(
-    'tag=s'          => \$tag,
-    'repo=s'         => \$repo,
-    'expected-sha=s' => \$expected,
-    'assets=s'       => \$assets,
-    'publish'        => \$publish,
-    'help'           => \$help
+    'tag=s'                 => \$tag,
+    'repo=s'                => \$repo,
+    'expected-sha=s'        => \$expected,
+    'expected-tag-object=s' => \$expected_tag,
+    'assets=s'              => \$assets,
+    'publish'               => \$publish,
+    'help'                  => \$help
 ) or die "invalid arguments\n";
 
 if ($help) {
     print
-"usage: $0 --tag vX.Y.Z-alpha.N --repo OWNER/REPO --expected-sha SHA --assets DIRECTORY [--publish]\nDefault: validate and prepare checksums/notes only. Publishing requires the owner-gated manual workflow.\n";
+"usage: $0 --tag vX.Y.Z-alpha.N --repo OWNER/REPO --expected-sha SHA --assets DIRECTORY [--expected-tag-object SHA] [--publish]\nDefault: validate and prepare checksums/notes only. Publishing requires the owner-gated manual workflow.\n";
     exit 0;
 }
 die "valid tag, expected SHA and existing assets directory required\n"
@@ -69,32 +70,74 @@ sub capture {
             else                        { $stderr .= $buffer; }
         }
     }
-    waitpid( $pid, 0 );
-    return ( $? >> 8, $stdout, $stderr );
+    waitpid( $pid, 0 ) == $pid or die "cannot wait for $args[0]: $!\n";
+    my $status = $?;
+    my $signal = $status & 127;
+    return ( $signal ? 128 + $signal : $status >> 8, $stdout, $stderr );
 }
 my $root     = abs_path( File::Spec->catdir( dirname(__FILE__), '..' ) );
 my $metadata = File::Spec->catfile( $assets, 'release-metadata.json' );
-my ( $code, $stdout, $stderr ) = capture( $^X, "$root/scripts/release-check.pl",
-    '--tag', $tag, '--repo', $repo, '--expected-sha', $expected, '--output',
-    $metadata );
-die "release identity check failed: $stdout $stderr\n" if $code;
-print $stdout;
+
+sub read_json {
+    my ($path) = @_;
+    open my $in, '<:raw', $path or die "cannot read $path: $!\n";
+    my $json = do { local $/; <$in> };
+    close $in or die "cannot close $path: $!\n";
+    return JSON::PP->new->utf8->decode($json);
+}
+
+sub verify_release_identity {
+    my @identity = (
+        '--tag',    $tag, '--repo', $repo, '--expected-sha', $expected,
+        '--output', $metadata
+    );
+    push @identity, '--expected-tag-object', $expected_tag
+      if defined $expected_tag;
+    my ( $code, $stdout, $stderr ) =
+      capture( $^X, "$root/scripts/release-check.pl", @identity );
+    die "release identity check failed: $stdout $stderr\n" if $code;
+    print $stdout;
+    $expected_tag = read_json($metadata)->{tag_object};
+}
+verify_release_identity();
 opendir my $dir, $assets or die "cannot read assets: $!\n";
 my @names =
   sort grep { /\.(?:tar\.gz|zip)\z/ && -f File::Spec->catfile( $assets, $_ ) }
   readdir $dir;
 closedir $dir;
-my @targets =
-  qw(linux-x86_64-gcc linux-x86_64-clang linux-x86_64-musl windows-x86_64-msvc windows-x86_64-clang-cl windows-x86_64-mingw source);
+my %targets = (
+    'linux-x86_64-gcc'        => [ 'glibc',        'GNU' ],
+    'linux-x86_64-clang'      => [ 'glibc',        'Clang' ],
+    'linux-x86_64-musl'       => [ 'musl',         'GNU' ],
+    'windows-x86_64-msvc'     => [ 'windows-nt',   'MSVC' ],
+    'windows-x86_64-clang-cl' => [ 'windows-nt',   'Clang' ],
+    'windows-x86_64-mingw'    => [ 'windows-ucrt', 'GNU' ],
+    'source'                  => [ 'glibc',        'GNU' ]
+);
 my @archives;
+my %digests;
 
-for my $target (@targets) {
+for my $target ( sort keys %targets ) {
     my $extension = $target =~ /^windows/ ? 'zip' : 'tar.gz';
     my $name      = "opencvs-portable-$tag-$target.$extension";
     die "missing expected tested artifact: $name\n"
       unless grep { $_ eq $name } @names;
     my $path = File::Spec->catfile( $assets, $name );
     die "empty artifact $name\n" unless -s $path;
+    my $manifest = read_json("$path.manifest.json");
+    my ( $abi, $compiler ) = @{ $targets{$target} };
+    die "invalid package producer metadata for $name\n"
+      unless ref($manifest) eq 'HASH'
+      && ( $manifest->{archive}         // '' ) eq $name
+      && ( $manifest->{source_revision} // '' ) eq $expected
+      && ( $manifest->{abi}             // '' ) eq $abi
+      && ( $manifest->{compiler}        // '' ) =~ /\A\Q$compiler\E \S+\z/;
+    open my $archive, '<:raw', $path or die "cannot hash $path: $!\n";
+    my $sha = Digest::SHA->new(256)->addfile($archive)->hexdigest;
+    close $archive or die "cannot close archive: $!\n";
+    die "package digest differs from the qualified artifact for $name\n"
+      unless $sha eq ( $manifest->{sha256} // '' );
+    $digests{$path} = $sha;
     my @list_command =
       $extension eq 'zip' ? ( 'unzip', '-Z1', $path ) : ( 'tar', '-tf', $path );
     my ( $status, $listing, $errors ) = capture(@list_command);
@@ -130,14 +173,11 @@ for my $target (@targets) {
     push @archives, $path;
 }
 die "unexpected archive names present; review the artifact set\n"
-  unless @names == @targets;
+  unless @names == keys %targets;
 my $checksums = File::Spec->catfile( $assets, 'SHA256SUMS' );
 open my $sums, '>:raw', $checksums or die "cannot create checksums: $!\n";
 for my $path (@archives) {
-    open my $fh, '<:raw', $path or die "cannot hash $path: $!\n";
-    my $sha = Digest::SHA->new(256)->addfile($fh)->hexdigest;
-    close $fh or die "cannot close archive: $!\n";
-    print {$sums} "$sha  ", basename($path), "\n";
+    print {$sums} "$digests{$path}  ", basename($path), "\n";
 }
 close $sums or die "cannot close checksums: $!\n";
 my $notes = File::Spec->catfile( $assets, 'RELEASE_NOTES.md' );
@@ -162,6 +202,7 @@ my ( $existing, $body, $error ) =
   capture( 'gh', 'api', "repos/$repo/releases/tags/$tag" );
 die "release already exists; no assets will be overwritten\n" if $existing == 0;
 die "cannot establish release absence: $error\n" unless $error =~ /HTTP 404/;
+verify_release_identity();
 my @command = (
     'gh',           'release',
     'create',       $tag,

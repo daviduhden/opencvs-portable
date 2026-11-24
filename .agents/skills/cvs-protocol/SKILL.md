@@ -11,6 +11,16 @@ Exercise `tests/integration.pl` through hosted CTest using `--suite core`, `secu
 
 ## Maintenance & Continuous Learning
 
+Use OpenBSD OpenCVS as the authority for command and wire behavior. GNU CVS
+tests establish interoperability only for behavior OpenCVS supports. Preserve
+the explicit pserver exclusion and upstream's removal of SSH port forwarding
+from CVSROOT. Configure the transport port through SSH or `CVS_RSH`. For an
+unimplemented request, check history before calling its absence deliberate.
+
+When testing root selection through `.cvsrc`, keep global default option
+arguments alive until command cleanup. The option parser borrows string
+values for the root, editor and temporary directory.
+
 Update this skill when changes invalidate guidance within its scope.
 
 For an ordinary modified file upload, the Entry timestamp field is empty.

@@ -35,6 +35,13 @@
 #ifndef H_REMOTE
 #define H_REMOTE
 
+#include <sys/stat.h>
+
+#include <limits.h>
+#include <stdint.h>
+
+#define CVS_PROTOCOL_FILE_MAX INT_MAX
+
 struct cvs_req {
 	char name[32];
 	int  supported;
@@ -139,7 +146,9 @@ void  cvs_remote_classify_file(struct cvs_file *);
 void  cvs_remote_output(char *);
 char *cvs_remote_input(void);
 void  cvs_remote_receive_file(int, size_t);
-void  cvs_remote_send_file(const char *, int);
+void  cvs_remote_check_file_size(const char *, uintmax_t);
+void  cvs_remote_stat_file(const char *, int, struct stat *);
+void  cvs_remote_send_file(const char *, int, const struct stat *);
 void  cvs_remote_send_file_buf(char *, BUF *, mode_t);
 
 extern int cvs_client_inlog_fd;

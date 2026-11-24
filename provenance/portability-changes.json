@@ -132,6 +132,7 @@
     "platform/windows/opencvs.manifest",
     "platform/windows/opencvs.manifest.rc",
     "platform/windows/process.c",
+    "scripts/check-date-parser.sh",
     "scripts/check-license-notices.pl",
     "scripts/check-package.pl",
     "scripts/check-project-guidance.pl",

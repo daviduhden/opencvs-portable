@@ -202,13 +202,30 @@ cvs_remote_receive_file(int fd, size_t len)
 }
 
 void
-cvs_remote_send_file(const char *path, int _fd)
+cvs_remote_check_file_size(const char *path, uintmax_t size)
+{
+	if (size > CVS_PROTOCOL_FILE_MAX)
+		fatal("file exceeds the CVS protocol size limit: %s", path);
+}
+
+void
+cvs_remote_stat_file(const char *path, int fd, struct stat *st)
+{
+	if (fstat(fd, st) == -1)
+		fatal("cvs_remote_send_file: %s: fstat: %s", path,
+		    strerror(errno));
+	if (st->st_size < 0)
+		fatal("negative file size: %s", path);
+	cvs_remote_check_file_size(path, (uintmax_t)st->st_size);
+}
+
+void
+cvs_remote_send_file(const char *path, int _fd, const struct stat *st)
 {
 	int	    fd;
 	FILE	   *out, *in;
 	size_t	    ret, rw;
 	off_t	    total;
-	struct stat st;
 	char	    buf[32], data[_MAXBSIZE];
 
 	if (cvs_server_active)
@@ -224,16 +241,10 @@ cvs_remote_send_file(const char *path, int _fd)
 		fatal("cvs_remote_send_file: %s: lseek: %s", path,
 		    strerror(errno));
 
-	if (fstat(fd, &st) == -1)
-		fatal("cvs_remote_send_file: %s: fstat: %s", path,
-		    strerror(errno));
-
-	if (st.st_size < 0)
-		fatal("negative file size");
-	cvs_modetostr(st.st_mode, buf, sizeof(buf));
+	cvs_modetostr(st->st_mode, buf, sizeof(buf));
 	cvs_remote_output(buf);
 
-	(void)xsnprintf(buf, sizeof(buf), "%jd", (intmax_t)st.st_size);
+	(void)xsnprintf(buf, sizeof(buf), "%jd", (intmax_t)st->st_size);
 	cvs_remote_output(buf);
 
 	if ((in = fdopen(fd, "r")) == NULL)
@@ -241,7 +252,7 @@ cvs_remote_send_file(const char *path, int _fd)
 
 	total = 0;
 	while ((ret = fread(data, sizeof(char), sizeof data, in)) != 0) {
-		if ((uintmax_t)ret > (uintmax_t)st.st_size - (uintmax_t)total)
+		if ((uintmax_t)ret > (uintmax_t)st->st_size - (uintmax_t)total)
 			fatal("file grew while being sent");
 		rw = fwrite(data, sizeof(char), ret, out);
 		if (rw != ret)
@@ -256,9 +267,9 @@ cvs_remote_send_file(const char *path, int _fd)
 
 	if (ferror(in))
 		fatal("read error while sending %s", path);
-	if (total != st.st_size)
+	if (total != st->st_size)
 		fatal("length mismatch, %jd vs %jd", (intmax_t)total,
-		    (intmax_t)st.st_size);
+		    (intmax_t)st->st_size);
 
 	(void)fclose(in);
 }

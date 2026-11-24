@@ -20,16 +20,17 @@ use warnings;
 use Getopt::Long qw(GetOptions);
 use JSON::PP;
 
-my ( $tag, $repo, $output, $expected, $help );
+my ( $tag, $repo, $output, $expected, $expected_tag, $help );
 GetOptions(
-    'tag=s'          => \$tag,
-    'repo=s'         => \$repo,
-    'output=s'       => \$output,
-    'expected-sha=s' => \$expected,
-    'help'           => \$help
+    'tag=s'                 => \$tag,
+    'repo=s'                => \$repo,
+    'output=s'              => \$output,
+    'expected-sha=s'        => \$expected,
+    'expected-tag-object=s' => \$expected_tag,
+    'help'                  => \$help
   )
   or die
-"usage: $0 --tag vX.Y.Z-alpha.N --repo OWNER/REPO [--output FILE] [--expected-sha SHA]\n";
+"usage: $0 --tag vX.Y.Z-alpha.N --repo OWNER/REPO [--output FILE] [--expected-sha SHA] [--expected-tag-object SHA]\n";
 if ($help) {
     print
 "Validate an existing signed prerelease tag and its signed target commit through GitHub. No mutations.\n";
@@ -55,6 +56,8 @@ my $ref = api("repos/$repo/git/ref/tags/$tag");
 die "release requires an existing annotated signed tag, not a lightweight ref\n"
   unless $ref->{object}{type} eq 'tag';
 my $object = api("repos/$repo/git/tags/$ref->{object}{sha}");
+die "tag object changed since qualification\n"
+  if defined($expected_tag) && $expected_tag ne $object->{sha};
 die "tag signature is not verified by GitHub\n"
   unless $object->{verification}{verified}
   && $object->{verification}{reason} eq 'valid';
@@ -87,6 +90,7 @@ if ( defined $ENV{GITHUB_OUTPUT} ) {
     open my $fh, '>>:raw', $ENV{GITHUB_OUTPUT}
       or die "cannot open GitHub output: $!\n";
     print {$fh} "sha=$sha\n";
+    print {$fh} "tag_object=$object->{sha}\n";
     close $fh or die "cannot write GitHub output: $!\n";
 }
 print "PASS: $repo $tag -> $sha; annotated tag and commit are Verified\n";

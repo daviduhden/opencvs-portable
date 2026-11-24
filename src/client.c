@@ -412,7 +412,6 @@ cvs_client_connect_to_server(void)
 {
 	struct cvs_var *vp;
 	char	       *cmd, *argv[64], *resp, **rsh;
-	char		port[6];
 	int		ifd[2], ofd[2], argc, index;
 
 	if (cvs_server_active == 1)
@@ -454,12 +453,6 @@ cvs_client_connect_to_server(void)
 	if (current_cvsroot->cr_user != NULL) {
 		argv[argc++] = "-l";
 		argv[argc++] = current_cvsroot->cr_user;
-	}
-	if (current_cvsroot->cr_port != 0) {
-		(void)xsnprintf(
-		    port, sizeof(port), "%u", current_cvsroot->cr_port);
-		argv[argc++] = "-p";
-		argv[argc++] = port;
 	}
 	argv[argc++] = "--";
 	argv[argc++] = current_cvsroot->cr_host;
@@ -667,6 +660,7 @@ cvs_client_senddir(const char *dir)
 void
 cvs_client_sendfile(struct cvs_file *cf)
 {
+	struct stat st;
 	size_t	  len;
 	struct tm datetm;
 	char rev[CVS_REV_BUFSZ], timebuf[CVS_TIME_BUFSZ], sticky[CVS_REV_BUFSZ];
@@ -743,8 +737,9 @@ cvs_client_sendfile(struct cvs_file *cf)
 		if (backup_local_changes) /* for update -C */
 			cvs_backup_file(cf);
 
+		cvs_remote_stat_file(cf->file_path, cf->fd, &st);
 		cvs_client_send_request("Modified %s", cf->file_name);
-		cvs_remote_send_file(cf->file_path, cf->fd);
+		cvs_remote_send_file(cf->file_path, cf->fd, &st);
 		break;
 	case FILE_MODIFIED:
 		if (backup_local_changes) { /* for update -C */
@@ -756,8 +751,9 @@ cvs_client_sendfile(struct cvs_file *cf)
 			break;
 		}
 
+		cvs_remote_stat_file(cf->file_path, cf->fd, &st);
 		cvs_client_send_request("Modified %s", cf->file_name);
-		cvs_remote_send_file(cf->file_path, cf->fd);
+		cvs_remote_send_file(cf->file_path, cf->fd, &st);
 		break;
 	case FILE_UPTODATE:
 		cvs_client_send_request("Unchanged %s", cf->file_name);
@@ -936,7 +932,7 @@ cvs_client_updated(char *data)
 	p = client_repository_filename(rpath);
 	(void)xsnprintf(fpath, sizeof(fpath), "%s/%s", data, p);
 
-	flen = strtonum(len, 0, INT_MAX, &errstr);
+	flen = strtonum(len, 0, CVS_PROTOCOL_FILE_MAX, &errstr);
 	if (errstr != NULL)
 		fatal("cvs_client_updated: %s: %s", len, errstr);
 	free(len);
@@ -1011,7 +1007,7 @@ cvs_client_merged(char *data)
 		fatal("Merged file and Entries names disagree");
 	cvs_ent_free(parsed);
 
-	flen = strtonum(len, 0, INT_MAX, &errstr);
+	flen = strtonum(len, 0, CVS_PROTOCOL_FILE_MAX, &errstr);
 	if (errstr != NULL)
 		fatal("cvs_client_merged: %s: %s", len, errstr);
 	free(len);

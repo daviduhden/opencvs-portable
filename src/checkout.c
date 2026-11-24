@@ -575,7 +575,7 @@ checkout_repository(const char *repobase, const char *wdbase)
 void
 cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 {
-	BUF	      *bp;
+	BUF	      *bp = NULL;
 	mode_t	       mode;
 	int	       cf_kflag, exists, oldfd = -1;
 	time_t	       rcstime;
@@ -710,9 +710,19 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 			cf->file_ent = cvs_ent_parse(entry);
 		}
 	} else {
+		struct stat send_stat;
+
 		if (co_flags & CO_MERGE) {
 			cvs_merge_file(cf, (cvs_join_rev1 == NULL));
 			tosend = cf->file_path;
+		}
+		if (!(co_flags & CO_REMOVE)) {
+			if (co_flags & CO_MERGE)
+				cvs_remote_stat_file(tosend, cf->fd, &send_stat);
+			else {
+				bp = rcs_rev_getbuf(cf->file_rcs, rnum, 0);
+				cvs_remote_check_file_size(cf->file_path, buf_len(bp));
+			}
 		}
 
 		/*
@@ -741,11 +751,10 @@ cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 			if (!(co_flags & CO_MERGE)) {
 				mode = cf->file_rcs->rf_mode;
 				mode |= S_IWUSR;
-				bp = rcs_rev_getbuf(cf->file_rcs, rnum, 0);
 				cvs_remote_send_file_buf(
 				    cf->file_path, bp, mode);
 			} else {
-				cvs_remote_send_file(tosend, cf->fd);
+				cvs_remote_send_file(tosend, cf->fd, &send_stat);
 			}
 		}
 	}

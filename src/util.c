@@ -370,13 +370,13 @@ cvs_unlink(const char *path)
 }
 
 /*
- * cvs_rmdir()
+ * cvs_remove_tree()
  *
  * Remove a directory tree from disk.
  * Returns 0 on success, or -1 on failure.
  */
-int
-cvs_rmdir(const char *path)
+static int
+cvs_remove_tree(const char *path)
 {
 	int	       type, ret = -1;
 	DIR	      *dirp;
@@ -386,9 +386,6 @@ cvs_rmdir(const char *path)
 
 	if (cvs_server_active == 0)
 		cvs_log(LP_TRACE, "cvs_rmdir(%s)", path);
-
-	if (cvs_noexec == 1 && disable_fast_checkout != 0)
-		return (0);
 
 	if ((dirp = opendir(path)) == NULL) {
 		cvs_log(LP_ERR, "failed to open '%s'", path);
@@ -440,12 +437,14 @@ cvs_rmdir(const char *path)
 		}
 		switch (type) {
 		case CVS_DIR:
-			if (cvs_rmdir(fpath) == -1)
+			if (cvs_remove_tree(fpath) == -1)
 				goto done;
 			break;
 		case CVS_FILE:
-			if (cvs_unlink(fpath) == -1 && errno != ENOENT)
+			if (unlink(fpath) == -1 && errno != ENOENT) {
+				cvs_log(LP_ERRNO, "%s", fpath);
 				goto done;
+			}
 			break;
 		default:
 			fatal("type %d unknown, shouldn't happen", type);
@@ -464,6 +463,21 @@ done:
 		ret = -1;
 	}
 	return (ret);
+}
+
+int
+cvs_rmdir(const char *path)
+{
+	if (cvs_noexec == 1 && disable_fast_checkout != 0)
+		return (0);
+	return (cvs_remove_tree(path));
+}
+
+/* A server workspace belongs to the process even in dry-run mode. */
+int
+cvs_remove_server_tree(const char *path)
+{
+	return (cvs_remove_tree(path));
 }
 
 void

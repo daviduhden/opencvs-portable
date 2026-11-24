@@ -51,3 +51,11 @@ It reports elapsed times for fixed history depths and tree sizes. Linux can also
 record peak RSS and file syscalls through `time` and `strace`. Compare samples
 within the same runner and compiler configuration. These observations establish a
 baseline for any index or path optimization and have no fixed timing threshold.
+The Linux transport benchmark uses the native process shim and checks binary
+checkout bytes. It records elapsed time and RSS, with separate read/write
+syscall counts when strace is available. Compare those results before changing
+the existing protocol buffering or framing.
+
+CTest writes bounded JSON summaries for the Perl integration suites under
+`test-reports/`. They identify passed, failed and skipped cases. Native CI
+retains these summaries with the runner and compiler metadata.

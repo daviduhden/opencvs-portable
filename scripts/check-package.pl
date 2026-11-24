@@ -25,17 +25,21 @@ use File::Find;
 use File::Spec;
 use File::Temp   qw(tempdir);
 use Getopt::Long qw(GetOptions);
+use JSON::PP;
 
-my ( $archive, $binary, $source );
+my ( $archive, $binary, $source, $manifest );
 GetOptions(
-    'archive=s' => \$archive,
-    'binary=s'  => \$binary,
-    'source'    => \$source
+    'archive=s'  => \$archive,
+    'binary=s'   => \$binary,
+    'source'     => \$source,
+    'manifest=s' => \$manifest
 ) or die "invalid arguments\n";
-die "usage: $0 --archive FILE (--binary TESTED_EXECUTABLE | --source)\n"
+die
+"usage: $0 --archive FILE (--binary TESTED_EXECUTABLE | --source) [--manifest FILE]\n"
   unless defined($archive) && ( defined($binary) xor $source );
 die "missing archive: $archive\n" unless -s $archive;
-$archive = abs_path($archive);
+$archive  = abs_path($archive);
+$manifest = File::Spec->rel2abs($manifest) if defined $manifest;
 
 if ( defined $binary ) {
     die "missing tested executable: $binary\n" unless -s $binary;
@@ -76,6 +80,7 @@ sub find_member {
 
 my $cwd = getcwd();
 my $dir = tempdir( 'opencvs-package-XXXXXXXX', TMPDIR => 1, CLEANUP => 1 );
+my $verified_info;
 chdir $dir or die "cannot enter extraction directory: $!\n";
 my $ok = eval {
     run( 'cmake', '-E', 'tar', 'xf', $archive );
@@ -90,6 +95,7 @@ my $ok = eval {
             '-DPC_STRICT_WARNINGS=ON' );
         run( 'cmake', '--build', $build, '--parallel', '2' );
         run( File::Spec->catfile( $build, 'opencvs' ), '-v' );
+        $verified_info = File::Spec->catfile( $build, 'build-info.txt' );
     }
     else {
         my $packaged = find_member( $dir, basename($binary) );
@@ -103,11 +109,41 @@ my $ok = eval {
         die "packaged build metadata differs from the tested build metadata\n"
           unless digest($build_info) eq digest($tested_info);
         run( $packaged, '-v' );
+        $verified_info = $build_info;
     }
     1;
 };
 my $error = $@;
 chdir $cwd or die "cannot restore working directory: $!\n";
 die $error unless $ok;
+if ( defined $manifest ) {
+    open my $info, '<:raw', $verified_info
+      or die "cannot read verified build metadata: $!\n";
+    my %info;
+    while ( my $line = <$info> ) {
+        $info{$1} = $2 if $line =~ /\A([^:]+): ([^\r\n]*)\r?\n\z/;
+    }
+    close $info or die "cannot close build metadata: $!\n";
+    my $sha      = $info{'Source revision'} // '';
+    my $abi      = $info{'Target ABI'}      // '';
+    my $compiler = $info{'Compiler'}        // '';
+    die "missing or inconsistent package build identity\n"
+      unless $sha =~ /\A[0-9a-f]{40}\z/
+      && $sha eq ( $ENV{PC_SOURCE_REVISION} // '' )
+      && $abi ne ''
+      && $abi eq ( $ENV{PC_BUILD_ABI} // '' )
+      && $compiler ne '';
+    open my $out, '>:raw', $manifest or die "cannot create $manifest: $!\n";
+    print {$out} JSON::PP->new->canonical->pretty->encode(
+        {
+            archive         => basename($archive),
+            sha256          => digest($archive),
+            source_revision => $sha,
+            abi             => $abi,
+            compiler        => $compiler
+        }
+    );
+    close $out or die "cannot write $manifest: $!\n";
+}
 print "PASS: inspected and ran the extracted package ", basename($archive),
   "\n";

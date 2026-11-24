@@ -115,9 +115,9 @@ cvs_server(int argc, char **argv)
 	server_argv = xcalloc(server_argc + 1, sizeof(*server_argv));
 	server_argv[0] = xstrdup("server");
 
-	(void)xasprintf(&temporary, "%s/cvs-serv%d", cvs_tmpdir, getpid());
+	(void)xasprintf(&temporary, "%s/cvs-serv-XXXXXX", cvs_tmpdir);
 
-	if (mkdir(temporary, 0700) == -1)
+	if (mkdtemp(temporary) == NULL)
 		fatal("failed to create temporary server directory: %s, %s",
 		    temporary, strerror(errno));
 	cvs_server_path = temporary;
@@ -441,7 +441,7 @@ cvs_server_modified(char *data)
 	cvs_strtomode(mode, &fmode);
 	free(mode);
 
-	flen = strtonum(len, 0, INT_MAX, &errstr);
+	flen = strtonum(len, 0, CVS_PROTOCOL_FILE_MAX, &errstr);
 	if (errstr != NULL)
 		fatal("cvs_server_modified: %s", errstr);
 	free(len);
