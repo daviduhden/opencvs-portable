@@ -46,6 +46,9 @@ file redirection. Preserve binary mode and separate stdout and stderr capture.
 Run the native Windows jobs after include sorting. Linux may select libc regex
 and never compile the fallback, and the Windows dirent shim can read feature
 flags before the rest of the forced compatibility header is processed.
+Keep `utils.h` ahead of `regex2.h` in `regcomp.c`, `regexec.c` and
+`regfree.c`. Preserve the checked-in parser and compare notices after a
+formatter has reflowed comments.
 
 Run Agent Knowledge Validation against the full change range. When code and
 guidance land in separate commits, select the commit before both so the
