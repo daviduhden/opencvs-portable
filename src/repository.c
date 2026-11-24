@@ -45,12 +45,12 @@
 
 struct repository_lock {
 	SLIST_ENTRY(repository_lock) link;
-	char path[PATH_MAX];
+	char	    path[PATH_MAX];
 	struct stat identity;
 };
 
-static SLIST_HEAD(, repository_lock) repo_locks =
-    SLIST_HEAD_INITIALIZER(repo_locks);
+static SLIST_HEAD(, repository_lock) repo_locks = SLIST_HEAD_INITIALIZER(
+    repo_locks);
 
 static int
 repository_release_lock(const struct repository_lock *lock)
@@ -60,15 +60,15 @@ repository_release_lock(const struct repository_lock *lock)
 	if (lstat(lock->path, &st) == -1) {
 		if (errno == ENOENT)
 			return (0);
-	} else if (!S_ISREG(st.st_mode) ||
-	    st.st_dev != lock->identity.st_dev ||
+	} else if (!S_ISREG(st.st_mode) || st.st_dev != lock->identity.st_dev ||
 	    st.st_ino != lock->identity.st_ino) {
 		cvs_log(LP_ERR, "repository lock was replaced: %s", lock->path);
 		return (0);
 	} else if (unlink(lock->path) == 0 || errno == ENOENT)
 		return (0);
 
-	cvs_log(LP_ERRNO, "cannot remove owned repository lock: %s", lock->path);
+	cvs_log(
+	    LP_ERRNO, "cannot remove owned repository lock: %s", lock->path);
 	return (-1);
 }
 
@@ -79,7 +79,8 @@ cvs_repository_unlock(const char *repo)
 	char			path[PATH_MAX];
 
 	(void)xsnprintf(path, sizeof(path), "%s/%s", repo, CVS_LOCK);
-	SLIST_FOREACH(lock, &repo_locks, link) {
+	SLIST_FOREACH(lock, &repo_locks, link)
+	{
 		if (strcmp(lock->path, path) != 0)
 			continue;
 		if (repository_release_lock(lock) == 0) {
@@ -116,7 +117,8 @@ cvs_repository_lock(const char *repo, int wantlock)
 	if (cvs_noexec || cvs_readonlyfs)
 		return;
 	(void)xsnprintf(path, sizeof(path), "%s/%s", repo, CVS_LOCK);
-	SLIST_FOREACH(owned, &repo_locks, link) {
+	SLIST_FOREACH(owned, &repo_locks, link)
+	{
 		if (strcmp(owned->path, path) == 0)
 			return;
 	}
@@ -134,11 +136,14 @@ cvs_repository_lock(const char *repo, int wantlock)
 				if (fstat(fd, &lock->identity) == -1) {
 					saved = errno;
 					(void)close(fd);
-					if (unlink(path) == -1 && errno != ENOENT)
+					if (unlink(path) == -1 &&
+					    errno != ENOENT)
 						cvs_log(LP_ERRNO,
-						    "cannot remove new repository lock: %s",
+						    "cannot remove new "
+						    "repository lock: %s",
 						    path);
-					fatal("cannot identify repository lock: %s",
+					fatal("cannot identify repository "
+					      "lock: %s",
 					    strerror(saved));
 				}
 				SLIST_INSERT_HEAD(&repo_locks, lock, link);
