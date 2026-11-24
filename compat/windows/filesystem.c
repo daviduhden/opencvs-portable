@@ -1080,7 +1080,8 @@ pc_chdir(const char *path)
 	} else if (wcslen(wide + 4) < MAX_PATH)
 		directory = wide + 4;
 	result = SetCurrentDirectoryW(directory) ?
-	    0 : pc_windows_errno(GetLastError());
+	    0 :
+	    pc_windows_errno(GetLastError());
 	free(wide);
 	return result;
 }
