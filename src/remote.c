@@ -222,11 +222,11 @@ cvs_remote_stat_file(const char *path, int fd, struct stat *st)
 void
 cvs_remote_send_file(const char *path, int _fd, const struct stat *st)
 {
-	int	    fd;
-	FILE	   *out, *in;
-	size_t	    ret, rw;
-	off_t	    total;
-	char	    buf[32], data[_MAXBSIZE];
+	int    fd;
+	FILE  *out, *in;
+	size_t ret, rw;
+	off_t  total;
+	char   buf[32], data[_MAXBSIZE];
 
 	if (cvs_server_active)
 		out = stdout;

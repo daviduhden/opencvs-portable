@@ -661,8 +661,8 @@ void
 cvs_client_sendfile(struct cvs_file *cf)
 {
 	struct stat st;
-	size_t	  len;
-	struct tm datetm;
+	size_t	    len;
+	struct tm   datetm;
 	char rev[CVS_REV_BUFSZ], timebuf[CVS_TIME_BUFSZ], sticky[CVS_REV_BUFSZ];
 
 	cvs_client_senddir(cf->file_wd);
