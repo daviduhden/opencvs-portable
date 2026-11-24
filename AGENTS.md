@@ -135,6 +135,8 @@ Validate package digests at the handoff between producer and release jobs,
 and keep read-only release preparation available through manual dispatch.
 When using native BSD-style queue headers, verify each required macro or
 restrict traversal to the basic operations available across the matrix.
+On Win32, exercise a relative child operation after changing to the server
+workspace as well as testing its creation and deletion.
 
 For wire commits, distinguish working-copy timestamps from protocol file state.
 Verify a new checkout reads the submitted bytes even when the remote commit

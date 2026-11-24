@@ -9,6 +9,14 @@ reached CTest, where remote checkout and server workspace cases failed on
 current directory while still creating its CVS metadata. The lock traversal
 saves the next pointer explicitly.
 
+[45475857160](https://github.com/daviduhden/opencvs-portable/actions/runs/45475857160)
+at `aa85d7e2a7697e16005bfffa97d9ef7b5759f251` passed Linux, including glibc
+on x86-64 and ARM64, and musl. Windows passed compilation and reached CTest,
+where the same cases advanced to `cvs_mkadmin: ./CVS: Input/output error`.
+The Win32 backend now passes a validated absolute DOS or UNC spelling to
+`SetCurrentDirectoryW` when it fits, avoiding extended-prefix handling during
+the following relative operations. The existing long-path branch is retained.
+
 Evidence cutoff: November 20, 2026. This inventory covers the two accessible
 [GitHub Actions runs](https://github.com/daviduhden/opencvs-portable/actions):
 [44752958590](https://github.com/daviduhden/opencvs-portable/actions/runs/44752958590)

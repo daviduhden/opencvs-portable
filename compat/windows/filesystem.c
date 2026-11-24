@@ -1054,6 +1054,7 @@ int
 pc_chdir(const char *path)
 {
 	wchar_t *wide = pc_windows_path(path);
+	wchar_t *directory;
 	int	 result;
 	if (wide == NULL)
 		return -1;
@@ -1065,8 +1066,21 @@ pc_chdir(const char *path)
 		free(wide);
 		return -1;
 	}
-	result =
-	    SetCurrentDirectoryW(wide) ? 0 : pc_windows_errno(GetLastError());
+	/*
+	 * Use DOS spelling when it fits. Setting an extended path as the
+	 * current directory can carry its prefix into subsequent relative
+	 * path resolution.
+	 */
+	directory = wide;
+	if (!wcsncmp(wide, L"\\\\?\\UNC\\", 8)) {
+		if (wcslen(wide + 6) < MAX_PATH) {
+			wide[6] = L'\\';
+			directory = wide + 6;
+		}
+	} else if (wcslen(wide + 4) < MAX_PATH)
+		directory = wide + 4;
+	result = SetCurrentDirectoryW(directory) ?
+	    0 : pc_windows_errno(GetLastError());
 	free(wide);
 	return result;
 }

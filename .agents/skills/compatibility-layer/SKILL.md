@@ -20,4 +20,8 @@ Native glibc queue headers can provide the basic SLIST operations without
 providing `SLIST_FOREACH_SAFE`. Save the next element before removing the
 current item unless CMake probes the exact macro being used.
 
+Include relative operations after a Win32 current-directory change in native
+tests. A successful directory change alone does not verify resolution of
+subsequent relative paths.
+
 Update this skill when changes invalidate guidance within its scope.
