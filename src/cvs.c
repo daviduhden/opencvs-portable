@@ -76,16 +76,16 @@ int cvs_umask = CVS_UMASK_DEFAULT;
 int cvs_server_active = 0;
 int cvs_cleanup_failed;
 
-char *cvs_tagname = NULL;
-char *cvs_defargs; /* default global arguments from .cvsrc */
+char	     *cvs_tagname = NULL;
+char	     *cvs_defargs; /* default global arguments from .cvsrc */
 static char **cvs_rc_argv;
-static int cvs_rc_argc;
-char *cvs_rootstr;
-char *cvs_rsh = CVS_RSH_DEFAULT;
-char *cvs_editor = CVS_EDITOR_DEFAULT;
-char *cvs_homedir = NULL;
-char *cvs_tmpdir = CVS_TMPDIR_DEFAULT;
-static char cvs_server_tmpdir[PATH_MAX];
+static int    cvs_rc_argc;
+char	     *cvs_rootstr;
+char	     *cvs_rsh = CVS_RSH_DEFAULT;
+char	     *cvs_editor = CVS_EDITOR_DEFAULT;
+char	     *cvs_homedir = NULL;
+char	     *cvs_tmpdir = CVS_TMPDIR_DEFAULT;
+static char   cvs_server_tmpdir[PATH_MAX];
 
 struct cvsroot *current_cvsroot = NULL;
 struct cvs_cmd *cmdp; /* struct of command we are running */
@@ -295,7 +295,8 @@ main(int argc, char **argv)
 				fatal("failed to load default arguments to %s",
 				    __progname);
 
-			/* String options borrow their arguments until cleanup. */
+			/* String options borrow their arguments until cleanup.
+			 */
 			cvs_getopt(cvs_rc_argc, cvs_rc_argv);
 		}
 	}

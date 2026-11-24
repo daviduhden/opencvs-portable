@@ -83,7 +83,7 @@ config_parse_line(char *line, int lineno)
 		cvs_umask = (int)mask;
 	} else if (!strcmp(opt, "dlimit")) {
 		uintmax_t kib, bytes;
-		rlim_t limit;
+		rlim_t	  limit;
 
 		kib = (uintmax_t)strtonum(val, 0, INT_MAX, &errstr);
 		if (errstr != NULL)
