@@ -68,7 +68,9 @@ opencvs -d /absolute/path/to/repository checkout module
 ```
 
 Windows invocation uses the native `opencvs.exe` binary and Windows paths as
-documented in [the Windows guide](docs/windows.md). `opencvs` deliberately has a
+documented in [the Windows guide](docs/windows.md). Windows packages also
+include `opencvs.chm` for offline reading in the native HTML Help viewer.
+`opencvs` deliberately has a
 different executable name from GNU `cvs`, allowing explicit interoperability
 testing without accidentally selecting the wrong implementation.
 

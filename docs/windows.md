@@ -104,12 +104,21 @@ blocking.
 
 ## Validation and distribution
 
+Windows ZIPs install `opencvs.chm` in the same documentation directory as
+`build-info.txt`. Extract the ZIP and open the local CHM to view the command,
+file format and introductory manuals in Windows HTML Help. Use Contents
+to browse by manual section, Index to look up a topic and Search for words
+inside the manuals. The viewer (`hh.exe`) is part of Windows 10 and Windows 11.
+Follow the system's security policy when opening downloaded files.
+[Microsoft HTML Help viewer](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/htmlhelp/about-the-html-help-executable-program),
+[help generation and validation](building.md#windows-html-help)
+
 Use the MSVC, Clang/LLVM and MinGW-w64 jobs described in
 [building.md](building.md) and [testing.md](testing.md). Inspect the actual job
 results and executable import tables. Successful compilation does not establish
 CVS interoperability, Unicode correctness, security isolation, or absence of
 a POSIX runtime dependency. The native ZIP must include the executable,
-licenses, version information and the actual compatibility matrix.
+licenses, version information, the actual compatibility matrix and the CHM.
 
 No stable Windows release should be published while critical build, data
 integrity, or interoperability tests fail. This document describes implemented

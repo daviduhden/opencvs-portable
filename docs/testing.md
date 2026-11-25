@@ -59,3 +59,16 @@ the existing protocol buffering or framing.
 CTest writes bounded JSON summaries for the Perl integration suites under
 `test-reports/`. They identify passed, failed and skipped cases. Native CI
 retains these summaries with the runner and compiler metadata.
+
+## Windows manual acceptance
+
+The manual CI and release workflows validate the generated topics, test
+the CHM container, and compare the packaged bytes with the validated input.
+For desktop acceptance, open the packaged `opencvs.chm` in Windows HTML Help
+on Windows 10 and Windows 11 with network access unavailable. Check that
+the start page shows the package version and that Contents opens
+`cvs(1)`, `cvs(5)` and `cvsintro(7)` under sections 1, 5 and 7. Follow
+a cross-reference from the introduction to the command manual, use Index
+to open a heading, and search for `CVSROOT` across topics. Check the command
+examples, lists and tables in the topic pane. Record the Windows build,
+package SHA and outcome for each desktop test.

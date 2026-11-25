@@ -7,7 +7,7 @@ unverified. A compiler pass alone is not a release qualification.
 The manual native matrix packages successful target builds with CPack. Artifact
 names identify source SHA, architecture, ABI/platform and compiler. Linux glibc
 and musl archives are separate; neither is a universal Linux binary. Windows ZIPs
-must include `opencvs.exe`, the original notices, documentation and version data,
+must include `opencvs.exe`, `opencvs.chm`, the original notices and version data,
 and must pass native PE import inspection. No Authenticode certificate is created
 or assumed.
 
@@ -46,6 +46,9 @@ The parser job compares the checked-in output with the pinned generator.
 Native package jobs extract the actual archive, compare the contained
 executable with the tested binary and run it. The source package job
 validates notices and builds and runs the extracted source without Yacc.
+The release workflow builds help from the resolved tag commit. Every Windows
+package must contain that same verified CHM, and the release handoff checks
+the help digest in each producer manifest against the archived file.
 
 Before dispatch, inspect the exact revision and its evidence, create/push the
 reviewed signed prerelease tag through normal authorized Git operations, and
