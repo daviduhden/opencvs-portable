@@ -315,6 +315,11 @@ import_loginfo(char *repo)
 	buf_putc(logbuf, '\n');
 }
 
+/*
+ * Seed the trunk with full text and the vendor branch with an empty
+ * delta. They start with identical bytes, while release tags identify
+ * the first revision on the vendor branch.
+ */
 static void
 import_new(struct cvs_file *cf)
 {
