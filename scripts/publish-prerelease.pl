@@ -121,6 +121,7 @@ my %targets = (
 );
 my @archives;
 my %digests;
+my $windows_help_sha;
 
 for my $target ( sort keys %targets ) {
     my $extension = $target =~ /^windows/ ? 'zip' : 'tar.gz';
@@ -177,6 +178,21 @@ for my $target ( sort keys %targets ) {
           unless grep { m{(?:\A|/)UPSTREAM\z} } @entries;
         die "build metadata absent in $name\n"
           unless grep { m{(?:\A|/)build-info\.txt\z} } @entries;
+        if ( $extension eq 'zip' ) {
+            my @help = grep { m{(?:\A|/)opencvs\.chm\z} } @entries;
+            die "expected one Windows help file in $name\n" unless @help == 1;
+            my $help_sha = $manifest->{chm_sha256} // '';
+            die "missing Windows help digest for $name\n"
+              unless $help_sha =~ /\A[0-9a-f]{64}\z/;
+            my ( $status, $bytes, $errors ) =
+              capture( 'unzip', '-p', $path, $help[0] );
+            die "cannot read Windows help in $name: $errors\n" if $status;
+            die "Windows help differs from the qualified CHM in $name\n"
+              unless Digest::SHA::sha256_hex($bytes) eq $help_sha;
+            $windows_help_sha //= $help_sha;
+            die "Windows packages contain different help files\n"
+              unless $windows_help_sha eq $help_sha;
+        }
     }
     push @archives, $path;
 }

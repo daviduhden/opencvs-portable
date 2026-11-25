@@ -27,15 +27,16 @@ use File::Temp   qw(tempdir);
 use Getopt::Long qw(GetOptions);
 use JSON::PP;
 
-my ( $archive, $binary, $source, $manifest );
+my ( $archive, $binary, $chm, $source, $manifest );
 GetOptions(
     'archive=s'  => \$archive,
     'binary=s'   => \$binary,
+    'chm=s'      => \$chm,
     'source'     => \$source,
     'manifest=s' => \$manifest
 ) or die "invalid arguments\n";
 die
-"usage: $0 --archive FILE (--binary TESTED_EXECUTABLE | --source) [--manifest FILE]\n"
+"usage: $0 --archive FILE (--binary TESTED_EXECUTABLE [--chm VERIFIED_HELP] | --source) [--manifest FILE]\n"
   unless defined($archive) && ( defined($binary) xor $source );
 die "missing archive: $archive\n" unless -s $archive;
 $archive  = abs_path($archive);
@@ -44,6 +45,15 @@ $manifest = File::Spec->rel2abs($manifest) if defined $manifest;
 if ( defined $binary ) {
     die "missing tested executable: $binary\n" unless -s $binary;
     $binary = abs_path($binary);
+}
+my $windows_package = defined($binary) && basename($binary) =~ /\.exe\z/i;
+die "Windows binary packages require --chm VERIFIED_HELP\n"
+  if $windows_package && !defined($chm);
+die "--chm applies only to Windows binary packages\n"
+  if defined($chm) && !$windows_package;
+if ( defined $chm ) {
+    die "missing verified HTML Help file: $chm\n" unless -s $chm;
+    $chm = abs_path($chm);
 }
 
 sub run {
@@ -83,7 +93,7 @@ sub find_member {
 # path builds from that copy and the binary path verifies the tested bytes.
 my $cwd = getcwd();
 my $dir = tempdir( 'opencvs-package-XXXXXXXX', TMPDIR => 1, CLEANUP => 1 );
-my $verified_info;
+my ( $verified_info, $chm_sha256 );
 chdir $dir or die "cannot enter extraction directory: $!\n";
 my $ok = eval {
     run( 'cmake', '-E', 'tar', 'xf', $archive );
@@ -111,6 +121,12 @@ my $ok = eval {
           unless digest($packaged) eq digest($binary);
         die "packaged build metadata differs from the tested build metadata\n"
           unless digest($build_info) eq digest($tested_info);
+        if ($windows_package) {
+            my $packaged_help = find_member( $dir, 'opencvs.chm' );
+            $chm_sha256 = digest($chm);
+            die "packaged HTML Help differs from the verified file\n"
+              unless digest($packaged_help) eq $chm_sha256;
+        }
         run( $packaged, '-v' );
         $verified_info = $build_info;
     }
@@ -149,7 +165,8 @@ if ( defined $manifest ) {
             sha256          => digest($archive),
             source_revision => $sha,
             abi             => $abi,
-            compiler        => $compiler
+            compiler        => $compiler,
+            ( defined($chm_sha256) ? ( chm_sha256 => $chm_sha256 ) : () )
         }
     );
     close $out or die "cannot write $manifest: $!\n";

@@ -82,6 +82,27 @@ jobs:
       - name: Verify the distributed parser and generator record
         run: sh scripts/check-date-parser.sh verify "$RUNNER_TEMP/parser-check"
 
+  # Produce one version-matched help file for all Windows packaging jobs.
+  windows-help:
+    needs: release-metadata
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-metadata.outputs.sha }}
+      - name: Install the manual conversion and CHM tools
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y mandoc=1.14.6-1 fp-utils-3.2.2=3.2.2+dfsg-32 7zip
+      - name: Lint and compile the Windows manual
+        run: cmake "-DPC_CHM_OUTPUT_DIR=$RUNNER_TEMP/windows-help" -DPC_CHM_COMPILER=/usr/bin/chmcmd-3.2.2 -P cmake/BuildHtmlHelp.cmake
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-html-help
+          path: ${{ runner.temp }}/windows-help/opencvs.chm
+          if-no-files-found: error
+
   linux:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     needs: [parser, release-metadata]
@@ -177,7 +198,7 @@ jobs:
 
   windows:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
-    needs: [parser, release-metadata]
+    needs: [parser, release-metadata, windows-help]
     runs-on: windows-2025
     timeout-minutes: 45
     env:
@@ -196,6 +217,16 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.release-metadata.outputs.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-html-help
+          path: ${{ runner.temp }}/windows-help
+      - name: Test the CHM container on Windows
+        if: matrix.compiler == 'msvc'
+        shell: pwsh
+        run: |
+          & "$env:ProgramFiles/7-Zip/7z.exe" t "$env:RUNNER_TEMP/windows-help/opencvs.chm"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Check native Perl
         shell: pwsh
         run: |
@@ -220,7 +251,7 @@ jobs:
       - name: Configure
         env:
           NATIVE_CC: ${{ matrix.cc }}
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_C_COMPILER=$env:NATIVE_CC" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_C_COMPILER=$env:NATIVE_CC" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON "-DPC_CHM_FILE=$env:RUNNER_TEMP/windows-help/opencvs.chm"
       - name: Compile
         run: |
           cmake --build build --parallel 2 2>&1 | Tee-Object -FilePath build/compile.log
@@ -235,7 +266,7 @@ jobs:
         run: |
           cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$env:PACKAGE_NAME"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$env:PACKAGE_NAME.zip" --binary build/opencvs.exe --manifest "dist/$env:PACKAGE_NAME.zip.manifest.json"
+          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$env:PACKAGE_NAME.zip" --binary build/opencvs.exe --chm "$env:RUNNER_TEMP/windows-help/opencvs.chm" --manifest "dist/$env:PACKAGE_NAME.zip.manifest.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-windows-${{ matrix.compiler }}
@@ -266,7 +297,7 @@ jobs:
 
   mingw:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
-    needs: [parser, release-metadata]
+    needs: [parser, release-metadata, windows-help]
     runs-on: windows-2025
     timeout-minutes: 45
     env:
@@ -280,13 +311,17 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.release-metadata.outputs.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-html-help
+          path: ${{ runner.temp }}/windows-help
       - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
           msystem: UCRT64
           update: true
           install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
       - name: Configure the native MinGW executable
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON "-DPC_CHM_FILE=$(cygpath -m "$RUNNER_TEMP/windows-help/opencvs.chm")"
       - name: Compile
         run: |
           set -o pipefail
@@ -300,7 +335,7 @@ jobs:
           PACKAGE_NAME: opencvs-portable-${{ inputs.tag }}-windows-x86_64-mingw
         run: |
           cpack --config build/CPackConfig.cmake -G ZIP -B dist -D "CPACK_PACKAGE_FILE_NAME=$PACKAGE_NAME"
-          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$PACKAGE_NAME.zip" --binary build/opencvs.exe --manifest "dist/$PACKAGE_NAME.zip.manifest.json"
+          C:/Strawberry/perl/bin/perl.exe scripts/check-package.pl --archive "dist/$PACKAGE_NAME.zip" --binary build/opencvs.exe --chm "$(cygpath -m "$RUNNER_TEMP/windows-help/opencvs.chm")" --manifest "dist/$PACKAGE_NAME.zip.manifest.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-windows-mingw
