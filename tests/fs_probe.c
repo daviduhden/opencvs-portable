@@ -345,10 +345,11 @@ main(int argc, char **argv)
 #endif
 	if (!((argc == 4 &&
 		  (strcmp(argv[1], "read") == 0 ||
+		      strcmp(argv[1], "read-relative") == 0 ||
 		      strcmp(argv[1], "write") == 0)) ||
 		(argc == 3 && strcmp(argv[1], "cleanup") == 0))) {
 		fprintf(stderr,
-		    "usage: test-fs-probe read|write UTF8-control-file "
+		    "usage: test-fs-probe read|read-relative|write UTF8-control-file "
 		    "data-file\n"
 		    "       test-fs-probe cleanup UTF8-control-file\n");
 		return 64;
@@ -375,6 +376,22 @@ main(int argc, char **argv)
 	} else {
 		source_name = target;
 		destination_name = argv[3];
+		if (strcmp(argv[1], "read-relative") == 0) {
+			char *cwd;
+
+			if (chdir(target) != 0) {
+				perror("enter long test directory");
+				goto done;
+			}
+			cwd = getcwd(NULL, 0);
+			if (cwd == NULL || chdir(cwd) != 0 || chdir(".") != 0) {
+				perror("reuse long test directory");
+				free(cwd);
+				goto done;
+			}
+			free(cwd);
+			source_name = "./long.txt";
+		}
 	}
 	source = fopen(source_name, "rb");
 	if (source == NULL) {

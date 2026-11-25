@@ -409,7 +409,7 @@ sub native_file {
     print {$data_fh} $content if $operation eq 'write';
     close $data_fh;
     invoke( $s, $fs_probe, [ $operation, $control, $data ] );
-    return $operation eq 'read' ? read_bytes($data) : undef;
+    return $operation eq 'write' ? undef : read_bytes($data);
 }
 
 sub server {
@@ -641,6 +641,17 @@ test_case core => long_nested_paths => sub {
     );
     equal( native_file( $s, 'read', path( checkout($s), $relative ) ),
         "long path data\n" );
+
+    if ( $^O eq 'MSWin32' ) {
+        equal(
+            native_file(
+                $s, 'read-relative',
+                dirname( path( $s->{seed}, $relative ) )
+            ),
+            "long path data\n",
+            'Read relative to a long native current directory'
+        );
+    }
 };
 test_case core => conflict_and_recovery => sub {
     my ($s)    = @_;

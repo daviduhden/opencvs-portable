@@ -218,60 +218,92 @@ valid_native_path(const wchar_t *path)
 }
 
 /*
- * Convert strict UTF-8 to an owned extended-length Win32 path. Resolve
- * relative components against the current directory before adding the prefix.
+ * Convert a path returned by Win32 to its DOS or UNC spelling. UNC has two
+ * leading separators, so reuse the last two characters of its prefix.
  */
-wchar_t *
-pc_windows_path(const char *path)
+static wchar_t *
+dos_path(wchar_t *path)
 {
-	wchar_t *input, *full, *out;
-	DWORD	 len, got, error;
-	size_t	 i, count, prefix;
-	input = pc_windows_utf16(path);
-	if (input == NULL)
-		return NULL;
-	for (i = 0; input[i] != L'\0'; i++)
-		if (input[i] == L'/')
-			input[i] = L'\\';
-	if (!wcsncmp(input, L"\\\\?\\", 4) || !wcsncmp(input, L"\\\\.\\", 4)) {
-		free(input);
+	if (wcsncmp(path, L"\\\\?\\UNC\\", 8) == 0) {
+		path[6] = L'\\';
+		return path + 6;
+	}
+	if (wcsncmp(path, L"\\\\?\\", 4) == 0) {
+		if (((path[4] >= L'A' && path[4] <= L'Z') ||
+			(path[4] >= L'a' && path[4] <= L'z')) &&
+		    path[5] == L':' && path[6] == L'\\')
+			return path + 4;
 		errno = EINVAL;
 		return NULL;
 	}
-	if (!valid_native_path(input)) {
-		free(input);
-		errno = EINVAL;
-		return NULL;
-	}
+	return path;
+}
+
+static wchar_t *
+full_path(const wchar_t *input)
+{
+	wchar_t *full;
+	DWORD	 len, got;
+
 	len = GetFullPathNameW(input, 0, NULL, NULL);
 	if (len == 0 || len > 32760) {
 		if (len == 0)
 			pc_windows_errno(GetLastError());
 		else
 			errno = ENAMETOOLONG;
-		free(input);
 		return NULL;
 	}
 	full = malloc(((size_t)len + 1) * sizeof(*full));
-	if (full == NULL) {
-		free(input);
+	if (full == NULL)
 		return NULL;
-	}
 	got = GetFullPathNameW(input, len + 1, full, NULL);
-	error = GetLastError();
-	free(input);
 	if (got == 0 || got > len) {
 		if (got == 0)
-			pc_windows_errno(error);
+			pc_windows_errno(GetLastError());
 		else
 			errno = EAGAIN;
 		free(full);
 		return NULL;
 	}
-	count = wcslen(full);
-	while (count > 3 && full[count - 1] == L'\\')
-		full[--count] = L'\0';
-	prefix = !wcsncmp(full, L"\\\\", 2) ? 6 : 4;
+	return full;
+}
+
+/*
+ * Convert strict UTF-8 to an owned extended-length Win32 path. Resolve
+ * relative components against the current directory before adding the prefix.
+ */
+wchar_t *
+pc_windows_path(const char *path)
+{
+	wchar_t *input, *full, *plain, *out;
+	size_t	 i, count, prefix;
+
+	input = pc_windows_utf16(path);
+	if (input == NULL)
+		return NULL;
+	for (i = 0; input[i] != L'\0'; i++)
+		if (input[i] == L'/')
+			input[i] = L'\\';
+	if (!wcsncmp(input, L"\\\\?\\", 4) || !wcsncmp(input, L"\\\\.\\", 4) ||
+	    !valid_native_path(input)) {
+		free(input);
+		errno = EINVAL;
+		return NULL;
+	}
+	full = full_path(input);
+	free(input);
+	if (full == NULL)
+		return NULL;
+	/* A long native cwd may carry its prefix into a relative result. */
+	plain = dos_path(full);
+	if (plain == NULL) {
+		free(full);
+		return NULL;
+	}
+	count = wcslen(plain);
+	while (count > 3 && plain[count - 1] == L'\\')
+		plain[--count] = L'\0';
+	prefix = !wcsncmp(plain, L"\\\\", 2) ? 6 : 4;
 	out = malloc((count + prefix + 1) * sizeof(*out));
 	if (out == NULL) {
 		free(full);
@@ -279,10 +311,10 @@ pc_windows_path(const char *path)
 	}
 	if (prefix == 6) {
 		memcpy(out, L"\\\\?\\UNC\\", 8 * sizeof(*out));
-		memcpy(out + 8, full + 2, (count - 1) * sizeof(*out));
+		memcpy(out + 8, plain + 2, (count - 1) * sizeof(*out));
 	} else {
 		memcpy(out, L"\\\\?\\", 4 * sizeof(*out));
-		memcpy(out + 4, full, (count + 1) * sizeof(*out));
+		memcpy(out + 4, plain, (count + 1) * sizeof(*out));
 	}
 	free(full);
 	return out;
@@ -1100,14 +1132,10 @@ pc_chdir(const char *path)
 	 * current directory can carry its prefix into subsequent relative
 	 * path resolution.
 	 */
-	directory = wide;
-	if (!wcsncmp(wide, L"\\\\?\\UNC\\", 8)) {
-		if (wcslen(wide + 6) < MAX_PATH) {
-			wide[6] = L'\\';
-			directory = wide + 6;
-		}
-	} else if (wcslen(wide + 4) < MAX_PATH)
-		directory = wide + 4;
+	if (!wcsncmp(wide, L"\\\\?\\UNC\\", 8))
+		directory = wcslen(wide + 6) < MAX_PATH ? dos_path(wide) : wide;
+	else
+		directory = wcslen(wide + 4) < MAX_PATH ? dos_path(wide) : wide;
 	result = SetCurrentDirectoryW(directory) ?
 	    0 :
 	    pc_windows_errno(GetLastError());
@@ -1119,7 +1147,7 @@ char *
 pc_getcwd(char *buffer, size_t size)
 {
 	DWORD	 len = GetCurrentDirectoryW(0, NULL), got;
-	wchar_t *wide;
+	wchar_t *wide, *plain;
 	char	*utf8;
 	size_t	 bytes;
 	if (len == 0) {
@@ -1138,7 +1166,8 @@ pc_getcwd(char *buffer, size_t size)
 		free(wide);
 		return NULL;
 	}
-	utf8 = pc_windows_utf8(wide);
+	plain = dos_path(wide);
+	utf8 = plain == NULL ? NULL : pc_windows_utf8(plain);
 	free(wide);
 	if (utf8 == NULL)
 		return NULL;

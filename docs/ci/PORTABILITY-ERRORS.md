@@ -17,6 +17,13 @@ The Win32 backend now passes a validated absolute DOS or UNC spelling to
 `SetCurrentDirectoryW` when it fits, avoiding extended-prefix handling during
 the following relative operations. The existing long-path branch is retained.
 
+Static follow-up at `f20b51ce284c14ff4cb478c0264645fe97679304` identified
+two paths for the extended cwd spelling to reach the engine. A full-path
+lookup can inherit it from the cwd, and getcwd can return it directly.
+The local patch converts OS-returned spellings before reuse. The native
+probe checks a long local directory and a relative file; UNC and SMB/DFS
+behavior still needs a runner with a suitable share.
+
 Evidence cutoff: November 20, 2026. This inventory covers the two accessible
 [GitHub Actions runs](https://github.com/daviduhden/opencvs-portable/actions):
 [44752958590](https://github.com/daviduhden/opencvs-portable/actions/runs/44752958590)
