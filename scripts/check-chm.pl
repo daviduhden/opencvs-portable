@@ -129,7 +129,9 @@ capture( 't', '-tchm', '-bso0', '-bsp0', '--', $chm );
 
 # 7-Zip decodes the LZX payload and reports each logical member. Accept
 # only the planned files and well-known compiler-owned metadata streams.
-my %metadata = map { $_ => 1 } (
+my $compiler_notice = '_#_README_#_';
+my %metadata        = map { $_ => 1 } (
+    $compiler_notice,
     (
         map { "#$_" }
           qw(IDXHDR ITBITS IVB STRINGS SYSTEM TOCIDX TOPICS URLSTR URLTBL WINDOWS)
@@ -165,6 +167,17 @@ sub extract_member {
     die "invalid decompressed size for CHM member: $name\n"
       unless length($data) == $members{$name};
     return $data;
+}
+
+# chmcmd emits a plain-text compiler notice outside the HHP file list.
+# Accept its stock text, rather than treating the name as a content exemption.
+if ( exists $members{$compiler_notice} ) {
+    my $notice = extract_member($compiler_notice);
+    my $prefix =
+"This archive was not made by the MS HTML Help Workshop(r)(tm) program, but by Free Pascal's chm package ";
+    die "unexpected Free Pascal compiler notice\n"
+      unless $notice =~
+/\A\Q$prefix\E[0-9]+(?:\.[0-9]+)+\.\r\n\x00?Compiled by CHMCmd [0-9]+(?:\.[0-9]+)+\z/;
 }
 
 for my $name ( sort keys %expected ) {

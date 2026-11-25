@@ -1,5 +1,15 @@
 # Test failures and unexecuted tests
 
+Native run [45680142461](https://github.com/daviduhden/opencvs-portable/actions/runs/45680142461)
+at `cad879967c53eaae198bd397f108841a480b136a` rendered all three manuals
+and compiled the CHM with Free Pascal 3.2.2 on Ubuntu 24.04. The verifier then
+rejected the compiler's internal plain-text `_#_README_#_` member. Windows
+MSVC, clang-cl and MinGW were skipped because they need the validated CHM.
+The parser, audit, five glibc jobs and musl passed. The separate OpenBSD
+Debug and Release jobs passed at the same SHA. The local correction checks
+the compiler notice's contents. Native verification of the correction is
+pending.
+
 Evidence cutoff: November 20, 2026. This inventory covers the two accessible
 [GitHub Actions runs](https://github.com/daviduhden/opencvs-portable/actions):
 [44752958590](https://github.com/daviduhden/opencvs-portable/actions/runs/44752958590)
