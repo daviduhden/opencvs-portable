@@ -179,3 +179,9 @@ static equivalence separately from hosted runtime evidence for the same SHA.
 Run repository-wide C formatters on an isolated source copy when they cannot
 exclude generated or vendored files. Before applying the output, compare
 leading notices and retain the feature-header order in portable.h.
+
+Keep command-specific .cvsrc storage alive until cleanup because command
+options can borrow strings from it. A working-copy callback that changes
+cwd must restore it before returning to the operand walker. Convert a Win32
+extended prefix only on an OS-returned path and keep caller-supplied device
+namespaces rejected. Verify a prerelease signer's key before dispatch.

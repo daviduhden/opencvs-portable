@@ -1,5 +1,13 @@
 # Runtime errors
 
+Static follow-up at `f20b51ce284c14ff4cb478c0264645fe97679304` identified
+two lifetime issues. The local release callback could leave the process
+in an unversioned operand directory, affecting the next relative operand.
+The command argument builder retained its .cvsrc vector and backing storage
+through process exit. The local patch restores the starting directory before
+return or deletion and makes command cleanup own the default arguments.
+Hosted tests for the changed revision are pending.
+
 Evidence cutoff: November 20, 2026. This inventory covers the two accessible
 [GitHub Actions runs](https://github.com/daviduhden/opencvs-portable/actions):
 [44752958590](https://github.com/daviduhden/opencvs-portable/actions/runs/44752958590)

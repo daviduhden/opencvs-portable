@@ -62,3 +62,9 @@ full. An existing hosted run only validates the revision it checked out.
 The repository-wide formatter can sort `portable_config.h` below system
 headers even when its adjacent comment describes the dependency. Compare
 the include block with the source before applying formatter output.
+
+Exercise a command-specific .cvsrc option through normal command dispatch
+under the sanitizer matrix. Test multiple relative operands after a
+working-copy callback skips an invalid directory. The native filesystem
+probe must use the product's long-path manifest when testing getcwd
+round-trips and relative operations from a long directory.
