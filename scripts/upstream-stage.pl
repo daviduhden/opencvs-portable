@@ -48,6 +48,8 @@ sub read_file {
     return do { local $/; <$fh> };
 }
 
+# Drain stdout and stderr together. Stdout may contain an upstream source file
+# whose exact bytes are needed for the baseline and candidate digests.
 sub run {
     my (@args) = @_;
     my $error  = gensym;
@@ -99,6 +101,8 @@ my $commit =
   $json->decode( run( 'gh', 'api', "repos/openbsd/src/commits/$revision" ) );
 die "GitHub resolved a different revision\n" unless $commit->{sha} eq $revision;
 
+# Resolve the parent first to catch aliases of the project directory. A new
+# output directory keeps both staged versions separate from the checkout.
 if ( defined $output ) {
     $output = File::Spec->rel2abs($output);
     die "output must not already exist\n" if -e $output || -l $output;
@@ -155,6 +159,9 @@ for my $item (@selected) {
           unless sha256_hex($base) eq $old{$local}{sha256};
         write_file( "$output/baseline/$local", $base );
     }
+
+    # Compare the workspace and upstream candidate independently to the same
+    # pinned baseline. Overlap marks a path for manual three-way review.
     my $working =
       -f "$root/$local" ? sha256_hex( read_file("$root/$local") ) : undef;
     my $upstream_changed =

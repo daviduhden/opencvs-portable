@@ -52,6 +52,8 @@ sub safe_path {
     return $path;
 }
 
+# Read the leading comment region using each source format's delimiters.
+# Notices in later code do not satisfy the required file preamble.
 sub header {
     my ( $text, $path ) = @_;
     $text =~ s/\A\xEF\xBB\xBF//;
@@ -76,6 +78,8 @@ sub header {
     return $prefix;
 }
 
+# Compare the project ISC text after removing language-specific decoration.
+# The import check hashes comment blocks with their delimiters intact.
 sub uncomment {
     my ($text) = @_;
     $text =~ s/\r\n/\n/g;
@@ -108,6 +112,9 @@ for my $manifest (qw(provenance/manifest.json provenance/compat-manifest.json))
 }
 my $inventory_path = 'provenance/portability-changes.json';
 my $inventory      = json($inventory_path);
+
+# Compare imported files to the recorded upstream bytes, including comments.
+# A documentation-only edit can therefore change the modified-import inventory.
 my @modified;
 for my $path ( sort keys %imports ) {
     if ( !-f "$root/$path" ) {
@@ -124,6 +131,9 @@ my $grammar_sha   = sha256_hex( read_file('src/date.y') );
 push @errors,
   "generated parser record is stale: regenerate from the current date grammar"
   unless $parser_record =~ /^Grammar SHA256: \Q$grammar_sha\E\r?$/m;
+
+# An inventory update also adopts the current parser hash. Review the parser
+# separately before using this mode when generated/date.c has local changes.
 if ( $update && -f "$root/generated/date.c" ) {
     my $generated = read_file('generated/date.c');
     die "generated date parser lacks its public-domain provenance\n"
