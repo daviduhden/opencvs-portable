@@ -190,3 +190,7 @@ Maintain manual content in the original sectioned sources. The Windows help
 job uses the same inventory as Unix installation. A Windows ZIP must carry
 the validated CHM from its source revision. Keep generated topics, projects
 and CHM files in the build or artifact directories.
+
+When a CHM verifier rejects an extra member, trace its origin in the
+selected compiler. Validate the exact member name and expected content
+before accepting compiler-specific output.

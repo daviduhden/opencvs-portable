@@ -73,3 +73,7 @@ Use the shared manual inventory for Unix installation and to build Windows
 help in the manual workflows. Validate rendering, local references and
 search data before sharing the CHM artifact with the Windows jobs. Verify
 the exact CHM bytes after extraction from every Windows package.
+
+Free Pascal chmcmd adds a stock plain-text `_#_README_#_` member outside the
+HHP file list. Check its text separately from the rendered topic bytes and
+retain the rejection of unexpected members.
