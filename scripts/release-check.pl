@@ -65,6 +65,10 @@ die "tag object changed since qualification\n"
 die "tag signature is not verified by GitHub\n"
   unless $object->{verification}{verified}
   && $object->{verification}{reason} eq 'valid';
+my $signature = $object->{verification}{signature} // '';
+die "prerelease tag must have an OpenPGP signature\n"
+  unless $signature =~ /\A-----BEGIN PGP SIGNATURE-----\r?\n/
+  && $signature =~ /\n-----END PGP SIGNATURE-----\r?\n?\z/;
 die "tag must point directly to a commit\n"
   unless $object->{object}{type} eq 'commit';
 my $sha = $object->{object}{sha};

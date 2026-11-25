@@ -28,7 +28,13 @@ and download the manifests, notes and checksums from `release-qualification`.
 An explicitly authorized dispatch with `publish` true can publish only after
 the same qualification passes.
 
-[The tag check](../scripts/release-check.pl) verifies the existing annotated tag and target commit through GitHub; both must be Verified. [The release helper](../scripts/publish-prerelease.pl) validates the prerelease name, selected commit, expected
+The tag check requires an OpenPGP signature on the annotated tag and relies
+on GitHub's verification result for both the tag and its target commit.
+Before dispatch, the owner reviews the tag and confirms the signing key belongs
+to the intended signer. The automated check has no project signing-key
+allowlist. [Tag check](../scripts/release-check.pl)
+
+[The release helper](../scripts/publish-prerelease.pl) validates the prerelease name, selected commit, expected
 artifact set and nonempty files, generates SHA-256 checksums and compatibility
 notes, and can invoke `gh release create --prerelease --verify-tag`.
 Each producer records the validated archive's digest, source SHA, ABI and
