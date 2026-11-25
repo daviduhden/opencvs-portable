@@ -52,6 +52,11 @@ struct repository_lock {
 static SLIST_HEAD(, repository_lock) repo_locks = SLIST_HEAD_INITIALIZER(
     repo_locks);
 
+/*
+ * Forget the lock when its name is gone or belongs to a different file.
+ * Retain the record after an unlink failure so cleanup can retry. The
+ * identity check and unlink are separate filesystem operations.
+ */
 static int
 repository_release_lock(const struct repository_lock *lock)
 {
@@ -105,6 +110,10 @@ cvs_repository_unlock_all(void)
 	}
 }
 
+/*
+ * Writers acquire the lock by exclusive creation. Readers only wait for
+ * the current writer to leave and hold no lock after returning.
+ */
 void
 cvs_repository_lock(const char *repo, int wantlock)
 {
@@ -170,6 +179,10 @@ cvs_repository_lock(const char *repo, int wantlock)
 	fatal("maximum wait time for repository lock in '%s' reached", repo);
 }
 
+/*
+ * Enumerate archive paths under dir and construct the corresponding
+ * working paths under wdir. The two prefixes can differ during checkout.
+ */
 void
 cvs_repository_getdir(const char *dir, const char *wdir,
     struct cvs_flisthead *fl, struct cvs_flisthead *dl, int flags)

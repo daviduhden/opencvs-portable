@@ -126,6 +126,10 @@ entries_date(const char *text)
 
 CVSENTRIES *current_list = NULL;
 
+/*
+ * Return the process-wide cache for one directory. Opening a different
+ * cache path closes the old cache and invalidates pointers to it.
+ */
 CVSENTRIES *
 cvs_ent_open(const char *dir)
 {
@@ -184,6 +188,10 @@ cvs_ent_open(const char *dir)
 	} else if (errno != ENOENT)
 		fatal("open %s: %s", ep->cef_path, strerror(errno));
 
+	/*
+	 * Replay journal records in order. Both operations replace the cached
+	 * state for the name, and only an add leaves an entry behind.
+	 */
 	if ((fp = fopen(ep->cef_lpath, "r")) != NULL) {
 		ep->cef_modified = 1;
 		while (pc_metadata_fgets(buf, sizeof(buf), fp)) {
@@ -344,6 +352,11 @@ cvs_ent_get(CVSENTRIES *ep, const char *name)
 	return (ent);
 }
 
+/*
+ * Sync compacts the journal into a replacement Entries file. Keep the
+ * journal until the replacement has been published and its parent sync
+ * attempted without error. A no-sync close still consumes the cache handle.
+ */
 void
 cvs_ent_close(CVSENTRIES *ep, int writefile)
 {

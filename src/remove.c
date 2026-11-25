@@ -149,6 +149,10 @@ cvs_remove_force(struct cvs_file *cf)
 	}
 }
 
+/*
+ * A missing tracked file can be scheduled for removal in Entries. Commit
+ * publishes that removal as a dead revision in its archive.
+ */
 void
 cvs_remove_local(struct cvs_file *cf)
 {

@@ -413,6 +413,10 @@ add_directory(struct cvs_file *cf)
 	cf->file_status = FILE_SKIP;
 }
 
+/*
+ * Schedule an addition in Entries for later commit. A previously scheduled
+ * removal can instead restore the recorded archive revision.
+ */
 static void
 add_file(struct cvs_file *cf)
 {

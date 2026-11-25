@@ -70,6 +70,11 @@ struct cvs_cmd cvs_cmd_commit = {CVS_OP_COMMIT, CVS_USE_WDIR, "commit",
     {"ci", "com"}, "Check files into the repository",
     "[-flR] [-F logfile | -m msg] [-r rev] ...", "F:flm:Rr:", NULL, cvs_commit};
 
+/*
+ * Collect and check candidates before local repository writes or remote
+ * upload. Local commit locks the affected repositories in a separate pass
+ * before publishing per-file revisions.
+ */
 int
 cvs_commit(int argc, char **argv)
 {
@@ -313,7 +318,7 @@ cvs_commit_lock_dirs(struct cvs_file *cf)
 	cvs_get_repository_path(cf->file_wd, repo, sizeof(repo));
 	cvs_log(LP_TRACE, "cvs_commit_lock_dirs: %s", repo);
 
-	/* locks stay in place until we are fully done and exit */
+	/* Keep these locks through archive publication and command cleanup. */
 	cvs_repository_lock(repo, 1);
 }
 

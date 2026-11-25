@@ -99,6 +99,10 @@ export_set_base(const char *repository, const char *directory, int single_file)
 	}
 }
 
+/*
+ * Export omits CVS/Repository. Translate the output directory back to the
+ * selected repository module using the mapping recorded when export began.
+ */
 int
 cvs_export_repository_name(const char *directory, char *dst, size_t size)
 {
@@ -572,6 +576,10 @@ checkout_repository(const char *repobase, const char *wdbase)
 	export_repository[0] = '\0';
 }
 
+/*
+ * Materialize a revision locally or send it as a protocol response. For
+ * an ordinary local checkout, publish the staged file before updating Entries.
+ */
 void
 cvs_checkout_file(struct cvs_file *cf, RCSNUM *rnum, char *tag, int co_flags)
 {
