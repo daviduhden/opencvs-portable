@@ -349,7 +349,8 @@ main(int argc, char **argv)
 		      strcmp(argv[1], "write") == 0)) ||
 		(argc == 3 && strcmp(argv[1], "cleanup") == 0))) {
 		fprintf(stderr,
-		    "usage: test-fs-probe read|read-relative|write UTF8-control-file "
+		    "usage: test-fs-probe read|read-relative|write "
+		    "UTF8-control-file "
 		    "data-file\n"
 		    "       test-fs-probe cleanup UTF8-control-file\n");
 		return 64;

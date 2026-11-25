@@ -222,8 +222,8 @@ cvs_build_cmd(char ***cmd_argv, char **argv, int argc)
 
 	if (cmd_argc + argc > cur) {
 		cur = cmd_argc + argc + 1;
-		cvs_command_argv = xreallocarray(
-		    cvs_command_argv, cur, sizeof(char *));
+		cvs_command_argv =
+		    xreallocarray(cvs_command_argv, cur, sizeof(char *));
 	}
 
 	for (i = 1; i < argc; i++)
