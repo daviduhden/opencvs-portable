@@ -19,26 +19,26 @@
 set -eu
 
 case ${1:-} in
-	generate)
-		output=${2:?parser output directory required}
-		mkdir -p "$output/src" "$output/generated"
-		cp src/date.y "$output/src/date.y"
-		cd "$output"
-		byacc -l -o generated/date.c src/date.y
-		{
-			byacc -V 2>&1
-			printf '\nCommand: byacc -l -o generated/date.c src/date.y\n'
-			printf 'Package: byacc=%s\n' "$(dpkg-query -W -f='${Version}' byacc)"
-			printf 'Grammar SHA256: %s\n' "$(sha256sum src/date.y | cut -d' ' -f1)"
-		} > generated/GENERATOR.txt
-		;;
-	verify)
-		output=${2:?parser output directory required}
-		cmp generated/date.c "$output/generated/date.c"
-		diff -u generated/GENERATOR.txt "$output/generated/GENERATOR.txt"
-		;;
-	*)
-		printf 'usage: %s {generate|verify} RUNNER_OUTPUT_DIRECTORY\n' "$0" >&2
-		exit 1
-		;;
+generate)
+	output=${2:?parser output directory required}
+	mkdir -p "$output/src" "$output/generated"
+	cp src/date.y "$output/src/date.y"
+	cd "$output"
+	byacc -l -o generated/date.c src/date.y
+	{
+		byacc -V 2>&1
+		printf '\nCommand: byacc -l -o generated/date.c src/date.y\n'
+		printf 'Package: byacc=%s\n' "$(dpkg-query -W -f='${Version}' byacc)"
+		printf 'Grammar SHA256: %s\n' "$(sha256sum src/date.y | cut -d' ' -f1)"
+	} >generated/GENERATOR.txt
+	;;
+verify)
+	output=${2:?parser output directory required}
+	cmp generated/date.c "$output/generated/date.c"
+	diff -u generated/GENERATOR.txt "$output/generated/GENERATOR.txt"
+	;;
+*)
+	printf 'usage: %s {generate|verify} RUNNER_OUTPUT_DIRECTORY\n' "$0" >&2
+	exit 1
+	;;
 esac
