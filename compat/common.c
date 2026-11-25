@@ -150,7 +150,10 @@ asprintf(char **out, const char *fmt, ...)
 }
 #endif
 
-/* Retain the descriptor anchor on POSIX; Win32 validates native path handles.
+/*
+ * The POSIX iterator owns a duplicate of the directory descriptor. Rewinding
+ * starts a fresh scan and also changes the shared directory offset. Win32
+ * starts a new enumeration by name.
  */
 DIR *
 pc_directory_open(int fd, const char *path)
@@ -182,7 +185,11 @@ pc_directory_open(int fd, const char *path)
 #endif
 }
 
-/* Each fallback stream owns its buffer until the next fgetln or fclose. */
+/*
+ * Fallback and metadata readers share this registry. A subsequent read on
+ * the same stream can overwrite or relocate its buffer. The registry relies
+ * on the engine's single-threaded access to streams.
+ */
 struct line_buffer {
 	FILE		   *stream;
 	char		   *data;
@@ -396,7 +403,10 @@ pc_strip_slash(char *path)
 	}
 }
 
-/* Only CVS metadata and protocol text use these adapters; file bytes do not. */
+/*
+ * CVS metadata and protocol command lines are text even on binary streams.
+ * Normalize CRLF here so raw file payloads keep their original bytes.
+ */
 #define PC_METADATA_LIMIT (16U * 1024U * 1024U)
 static void (*metadata_error_handler)(const char *);
 
@@ -406,6 +416,7 @@ pc_set_metadata_error_handler(void (*handler)(const char *))
 	metadata_error_handler = handler;
 }
 
+/* Let the caller report a fatal metadata error in its own execution context. */
 static PC_NORETURN void
 metadata_error(const char *reason)
 {

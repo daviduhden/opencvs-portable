@@ -19,16 +19,27 @@
 #ifndef PC_PROCESS_H
 #define PC_PROCESS_H
 #include <stdint.h>
+/* Backend-owned child token. A handle of zero means no child is held. */
 typedef struct pc_process {
 	intptr_t handle;
 } pc_process;
-/* -1 means inherit the corresponding standard stream. No shell is invoked. */
-int  pc_spawn(pc_process *, const char *const[], int, int, int);
-int  pc_wait(pc_process *, int *);
+/*
+ * Spawn takes a NULL-terminated argv and borrows the caller's descriptors.
+ * A stream argument of -1 selects the caller's corresponding standard
+ * stream. Launch bypasses the shell.
+ */
+int pc_spawn(pc_process *, const char *const[], int, int, int);
+/* A successful wait consumes the token and reports child status separately. */
+int pc_wait(pc_process *, int *);
+/* Relinquish the child token. POSIX can wait if it cannot arrange reaping. */
 void pc_detach(pc_process *);
-int  pc_pipe(int[2]);
-int  pc_run(const char *const[]);
-/* Parse quoting/escaping only, never shell operators or substitutions. */
+/* Return caller-owned read and write descriptors, in that order. */
+int pc_pipe(int[2]);
+int pc_run(const char *const[]);
+/*
+ * Parse words with quoting and escaping. If provided, append the last
+ * argument verbatim as one word. Free the result with pc_free_argv.
+ */
 char **pc_command_argv(const char *, const char *);
 void   pc_free_argv(char **);
 #endif

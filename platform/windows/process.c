@@ -22,6 +22,7 @@
 #include "pc_process.h"
 #include "windows_compat.h"
 
+/* CreateProcessW counts UTF-16 code units, including the terminating NUL. */
 #define PC_COMMAND_LIMIT 32767
 
 static int
@@ -56,6 +57,8 @@ quote_arg(wchar_t *out, size_t *used, const wchar_t *arg)
 		if (append(out, used, *arg) == -1)
 			return -1;
 	}
+	/* Double trailing backslashes so they cannot escape the closing quote.
+	 */
 	for (i = 0; i < slashes * 2; i++)
 		if (append(out, used, L'\\') == -1)
 			return -1;
@@ -127,6 +130,10 @@ find_program(const char *program)
 	return full;
 }
 
+/*
+ * Create an inheritable duplicate and leave the original owned by its
+ * caller. When there is no standard handle, bind that stream to NUL.
+ */
 static HANDLE
 child_handle(int fd, DWORD standard, int input)
 {
@@ -225,6 +232,7 @@ pc_spawn(pc_process *child, const char *const argv[], int input, int output,
 		goto done;
 	}
 	initialized = TRUE;
+	/* The handle list confines inheritance to the three child streams. */
 	if (!UpdateProcThreadAttribute(startup.lpAttributeList, 0,
 		PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles, sizeof(handles),
 		NULL, NULL)) {

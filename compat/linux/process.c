@@ -40,6 +40,8 @@ pc_pipe(int fds[2])
 	if (errno != ENOSYS)
 		return -1;
 #endif
+	/* The pipe/fcntl fallback assumes the engine spawns on a single thread.
+	 */
 	if (pipe(fds) == -1)
 		return -1;
 	if (fcntl(fds[0], F_SETFD, FD_CLOEXEC) == -1 ||
@@ -264,6 +266,8 @@ pc_detach(pc_process *process)
 		if (pc_detached[i] == 0)
 			break;
 	if (i < PC_DETACHED_MAX) {
+		/* SIGCHLD may have arrived before the child entered the
+		 * registry. */
 		pc_detached[i] = (sig_atomic_t)process->handle;
 		process->handle = 0;
 		pc_reap(0);

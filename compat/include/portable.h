@@ -18,7 +18,7 @@
 /* Portable OpenCVS compatibility declarations. SPDX-License-Identifier: ISC */
 #ifndef PC_PORTABLE_H
 #define PC_PORTABLE_H
-/* The Windows dirent shim consumes the feature configuration. */
+/* Load the detected libc features before any header can enter a Win32 shim. */
 #include "portable_config.h"
 
 #include <assert.h>
@@ -129,15 +129,21 @@ char *strsep(char **, const char *);
 #ifndef PC_HAVE_VASPRINTF
 #define vasprintf pc_vasprintf
 #endif
-int   asprintf(char **, const char *, ...) PC_PRINTF(2, 3);
-int   vasprintf(char **, const char *, va_list) PC_PRINTF(2, 0);
+int asprintf(char **, const char *, ...) PC_PRINTF(2, 3);
+int vasprintf(char **, const char *, va_list) PC_PRINTF(2, 0);
+/*
+ * fgetln returns borrowed bytes and a length. Callers must not assume a
+ * terminating NUL. Close streams through pc_fclose to release fallback storage.
+ */
 char *pc_fgetln(FILE *, size_t *);
+/* Metadata readers normalize CRLF and report malformed input as fatal. */
 char *pc_metadata_getln(FILE *, size_t *);
 char *pc_metadata_fgets(char *, int, FILE *);
 int   pc_fclose(FILE *);
 void  pc_set_metadata_error_handler(void (*)(const char *));
-DIR  *pc_directory_open(int, const char *);
-/* 0 synced, 1 unsupported, -1 failed with errno. */
+/* The returned stream belongs to the caller. The input fd remains open. */
+DIR *pc_directory_open(int, const char *);
+/* Sync after publication. Return 0 on success, 1 if unsupported, or -1. */
 int pc_sync_parent_directory(const char *);
 #ifndef PC_HAVE_FGETLN
 #define fgetln pc_fgetln
