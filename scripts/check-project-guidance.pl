@@ -45,6 +45,9 @@ for my $dir ( "$root/tests", "$root/scripts", "$root/.agents/skills" ) {
         $dir
     );
 }
+
+# Keep an explicit inventory so an accidentally removed required instruction
+# is reported even when there is no file to discover on disk.
 my @skills =
   qw(upstream-sync linux-portability windows-portability compatibility-layer cvs-protocol security-audit build-and-test release-management);
 my @agents =
@@ -84,6 +87,9 @@ for my $relative (@docs) {
       unless -s "$root/$relative";
 }
 push @instruction_files, map { "$root/$_" } @docs;
+
+# Resolve relative links from their containing documents and check that the
+# resulting paths stay inside the project. Remote links are outside this check.
 my %seen;
 for my $path ( grep { !$seen{$_}++ && -f $_ } @instruction_files ) {
     my $text = read_file($path);

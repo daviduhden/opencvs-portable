@@ -130,6 +130,9 @@ sub read_file {
     return defined $content ? $content : '';
 }
 
+# Every case starts from a real baseline commit in a disposable repository.
+# Run a copy of the current validator there so worktree discovery and
+# revision-range checks see only that case's files and history.
 sub new_repository {
     my $temporary  = File::Temp->newdir();
     my $repository = File::Spec->catdir( $temporary->dirname, 'repo' );

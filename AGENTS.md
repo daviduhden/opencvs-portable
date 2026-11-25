@@ -170,3 +170,12 @@ accepting a repository-wide formatting pass.
 For formatting-only changes to imported files, retain the original notice
 blocks byte-for-byte. Check the exact staged tree and update the portability
 inventory without including a separately modified generated parser.
+
+For comment-only reviews, compare C tokens and logical preprocessor lines
+and check the exact contents of Perl and workflow literals, including
+heredocs and YAML blocks. Keep fixture and protocol bytes intact. Report
+static equivalence separately from hosted runtime evidence for the same SHA.
+
+Run repository-wide C formatters on an isolated source copy when they cannot
+exclude generated or vendored files. Before applying the output, compare
+leading notices and retain the feature-header order in portable.h.

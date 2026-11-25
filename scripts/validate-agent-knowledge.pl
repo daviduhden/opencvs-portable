@@ -1130,6 +1130,8 @@ sub deduplicate_changes {
     return map { $by_path{$_} } sort keys %by_path;
 }
 
+# Use NUL-delimited status entries so unusual pathnames stay intact. Disable
+# rename detection because the reader expects one path per status record.
 sub discover_changes {
     my ( $root, $scope, $base, $head ) = @_;
     if ( $scope eq 'worktree' ) {
@@ -1231,6 +1233,8 @@ sub normalize_knowledge_line {
     return $content;
 }
 
+# Cancel matching additions and removals after normalization so moving a line
+# contributes no effective knowledge change. Repeated lines cancel one for one.
 sub update_metrics {
     my ( $added, $removed ) = @_;
     my @remaining_added = @{$added};

@@ -1,4 +1,6 @@
 [validator]
 contract_version = "1.0.0"
+# Require both instruction scopes when project changes need knowledge updates.
 require_agents_and_skills = true
+# The generated diagnostic index adds no instruction-maintenance requirement.
 exclude_paths = ["docs/ci/diagnostic-index.json"]

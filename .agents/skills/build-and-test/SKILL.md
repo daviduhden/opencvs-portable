@@ -53,3 +53,12 @@ formatter has reflowed comments.
 Run Agent Knowledge Validation against the full change range. When code and
 guidance land in separate commits, select the commit before both so the
 validator can see the implementation and its corresponding instruction updates.
+
+For comment-only changes, compare executable text before selecting the hosted
+revision. Perl fixture heredocs and workflow block scalars can contain
+comment-looking lines that are data or shell input. Check those blocks in
+full. An existing hosted run only validates the revision it checked out.
+
+The repository-wide formatter can sort `portable_config.h` below system
+headers even when its adjacent comment describes the dependency. Compare
+the include block with the source before applying formatter output.
