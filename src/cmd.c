@@ -47,6 +47,7 @@
 
 #include "cvs.h"
 
+/* Only descriptors in this table are selectable by name or alias. */
 struct cvs_cmd *cvs_cdt[] = {&cvs_cmd_add, &cvs_cmd_admin, &cvs_cmd_annotate,
     &cvs_cmd_commit, &cvs_cmd_checkout, &cvs_cmd_diff, &cvs_cmd_export,
     &cvs_cmd_history, &cvs_cmd_import, &cvs_cmd_init, &cvs_cmd_log,

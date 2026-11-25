@@ -752,7 +752,8 @@ cvs_mkdir(const char *path, mode_t mode)
 }
 
 /*
- * Split the contents of a file into a list of lines.
+ * Return line views into data, retaining newline bytes when present.
+ * The first node is a sentinel. Keep data alive while views are in use.
  */
 struct rcs_lines *
 cvs_splitlines(u_char *data, size_t len)
@@ -935,9 +936,10 @@ cvs_yesno(void)
 /*
  * cvs_exec()
  *
- * Execute <prog> and send <in> to the STDIN if not NULL.
- * If <needwait> == 1, return the result of <prog>,
- * else, 0 or -1 if an error occur.
+ * Parse prog as explicit argv and launch it with the repository CVSROOT.
+ * If in is supplied, write it to the child's stdin and close the pipe.
+ * Return -1 on a launch, input or wait failure. Otherwise return the
+ * child's status when needwait is set, or zero after detaching.
  */
 int
 cvs_exec(char *prog, char *in, int needwait)

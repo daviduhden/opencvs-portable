@@ -109,6 +109,10 @@ config_parse_line(char *line, int lineno)
 	return (0);
 }
 
+/*
+ * Read a repository configuration file. Callbacks receive a mutable line
+ * valid for the duration of the call. A negative return stops parsing.
+ */
 void
 cvs_read_config(char *name, int (*cb)(char *, int))
 {

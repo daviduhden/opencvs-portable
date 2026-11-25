@@ -360,6 +360,10 @@ bad:
 	return (NULL);
 }
 
+/*
+ * Pre-operation hooks can veto the command through their exit status.
+ * Informational hooks run with optional input and ignore the child status.
+ */
 int
 cvs_trigger_handle(int type, char *repo, char *in, struct trigger_list *list,
     struct file_info_list *files)

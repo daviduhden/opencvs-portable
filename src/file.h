@@ -53,6 +53,10 @@
 
 #include "rcs.h"
 
+/*
+ * A walk item owns its working descriptor and classification data.
+ * Once opened, file_rcs owns repo_fd. Close it through rcs_close.
+ */
 struct cvs_file {
 	char *file_name;
 	char *file_wd;

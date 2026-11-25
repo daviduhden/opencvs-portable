@@ -68,10 +68,9 @@ cvs_log(u_int level, const char *fmt, ...)
 }
 
 /*
- * cvs_vlog()
- *
- * The <fmt> argument should not have a terminating newline, as this is taken
- * care of by the logging facility.
+ * Server diagnostics share the protocol stream. Prefix ordinary output
+ * with M and diagnostics with E so clients can route them. Omit the
+ * terminating newline from fmt because the logging facility supplies it.
  */
 void
 cvs_vlog(u_int level, const char *fmt, va_list vap)

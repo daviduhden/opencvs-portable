@@ -226,6 +226,11 @@ bad:
 	return (0);
 }
 
+/*
+ * The caller frees the result wrapper. For a configured module, its lists
+ * borrow the parsed configuration. An implicit alias owns its lists
+ * and sets mc_canfree so the caller can dispose of them.
+ */
 struct module_checkout *
 cvs_module_lookup(char *name)
 {

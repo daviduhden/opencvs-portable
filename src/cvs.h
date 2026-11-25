@@ -189,6 +189,10 @@ struct cvs_cmd {
 
 struct cvsroot;
 
+/*
+ * The walker owns callback file objects. fileproc can receive directories;
+ * a skipped directory can return before the leavedir callback.
+ */
 struct cvs_recursion {
 	void (*enterdir)(struct cvs_file *);
 	void (*leavedir)(struct cvs_file *);
@@ -254,6 +258,7 @@ struct cvsroot {
 
 #define STRIP_SLASH(p) pc_strip_slash(p)
 
+/* Parsed Entries record. Text fields can refer to its owned ce_buf. */
 struct cvs_ent {
 	char	 *ce_buf;
 	char	 *ce_conflict;
@@ -373,6 +378,7 @@ void	    cvs_cleanup(void);
 time_t date_parse(const char *);
 
 /* entries.c */
+/* Parse and lookup return independent records freed with cvs_ent_free. */
 struct cvs_ent *cvs_ent_parse(const char *);
 struct cvs_ent *cvs_ent_get(CVSENTRIES *, const char *);
 CVSENTRIES     *cvs_ent_open(const char *);

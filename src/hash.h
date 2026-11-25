@@ -60,7 +60,8 @@ struct hash_table {
 #define MIN_HASH_SIZE (1 << 4)
 #define MAX_HASH_SIZE ((size_t)1 << (sizeof(size_t) * 8 - 1 - 5))
 
-void		  hash_table_init(struct hash_table *, size_t);
+void hash_table_init(struct hash_table *, size_t);
+/* The table copies the entry wrapper and retains the key and value pointers. */
 void		  hash_table_enter(struct hash_table *, struct hash_data *);
 struct hash_data *hash_table_find(struct hash_table *, const char *, size_t);
 

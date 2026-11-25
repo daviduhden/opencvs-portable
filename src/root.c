@@ -188,12 +188,10 @@ cvsroot_parse(const char *str)
 /*
  * cvsroot_get()
  *
- * Get the CVSROOT information for a specific directory <dir>.  The
- * value is taken from one of 3 possible sources (in order of precedence):
- *
- * 1) the `-d' command-line option
- * 2) the CVS/Root file found in checked-out trees
- * 3) the CVSROOT environment variable
+ * An explicit root takes precedence. In server mode dir is the root
+ * string from the protocol. Import reads CVSROOT without consulting
+ * working-copy metadata. Other commands fall back from CVS/Root to
+ * the environment when the file is absent.
  */
 struct cvsroot *
 cvsroot_get(const char *dir)

@@ -84,7 +84,8 @@ worklist_run(struct wklhead *list, void (*cb)(struct worklist *))
 }
 
 /*
- * pass elements to the specified callback, which has to be signal safe.
+ * Visit the paths without disposing of the records. The callback must
+ * leave the list structure intact.
  */
 void
 worklist_clean(struct wklhead *list, void (*cb)(struct worklist *))

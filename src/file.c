@@ -412,6 +412,11 @@ cvs_file_walklist(struct cvs_flisthead *fl, struct cvs_recursion *cr)
 	}
 }
 
+/*
+ * Combine discovered working paths, Entries, and repository paths as the
+ * command permits. Walk files before subdirectories to finish this
+ * directory's tag and lock handling before changing directory context.
+ */
 void
 cvs_file_walkdir(struct cvs_file *cf, struct cvs_recursion *cr)
 {

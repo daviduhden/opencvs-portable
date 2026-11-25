@@ -70,7 +70,7 @@ int cvs_nolog = 0;
 int cvs_readonly = 0;
 int cvs_readonlyfs = 0;
 int cvs_nocase = 0; /* set to 1 to disable filename case sensitivity */
-int cvs_noexec = 0; /* set to 1 to disable disk operations (-n option) */
+int cvs_noexec = 0; /* request a dry run (-n) */
 int cvs_cmdop;
 int cvs_umask = CVS_UMASK_DEFAULT;
 int cvs_server_active = 0;
@@ -107,6 +107,8 @@ extern CVSENTRIES *current_list;
 struct hash_table created_directories;
 struct hash_table created_cvs_directories;
 
+/* Defer cleanup to normal control flow. The handler only records signal state.
+ */
 void
 sighandler(int sig)
 {
@@ -125,6 +127,11 @@ sighandler(int sig)
 	}
 }
 
+/*
+ * Release repository locks and staged paths before leaving the current
+ * directory. The private server Entries cache must be discarded before
+ * removing its workspace. A working-copy cache may still need to be saved.
+ */
 void
 cvs_cleanup(void)
 {
