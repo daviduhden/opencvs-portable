@@ -230,6 +230,23 @@ install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(FILES src/cvs.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 RENAME opencvs.1)
 install(FILES src/cvs.5 DESTINATION ${CMAKE_INSTALL_MANDIR}/man5)
 install(FILES src/cvsintro.7 DESTINATION ${CMAKE_INSTALL_MANDIR}/man7)
+
+set(PC_CHM_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/html-help")
+set(PC_CHM_FILE "${PC_CHM_OUTPUT_DIR}/opencvs.chm" CACHE FILEPATH
+  "Verified compiled HTML Help file to install on Windows")
+set(chm_tool_args)
+foreach(tool PERL MANDOC COMPILER 7ZIP)
+  if(PC_CHM_${tool})
+    list(APPEND chm_tool_args "-DPC_CHM_${tool}=${PC_CHM_${tool}}")
+  endif()
+endforeach()
+add_custom_target(windows-help
+  COMMAND "${CMAKE_COMMAND}" "-DPC_CHM_OUTPUT_DIR=${PC_CHM_OUTPUT_DIR}"
+    "-DPC_CHM_VERSION=${PROJECT_VERSION}" ${chm_tool_args}
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildHtmlHelp.cmake"
+  BYPRODUCTS "${PC_CHM_OUTPUT_DIR}/opencvs.chm"
+  COMMENT "Build and validate Portable OpenCVS HTML Help"
+  VERBATIM)
 if(PC_BUILD_TESTS)
   enable_testing()
   find_package(Perl REQUIRED)
