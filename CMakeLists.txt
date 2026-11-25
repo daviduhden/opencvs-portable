@@ -68,6 +68,8 @@ if(NOT WIN32)
     endif()
   endif()
 endif()
+# The engine resets option parsing between global, command, and rc-file passes.
+# Use native getopt only when its reset interface is available too.
 if(PC_HAVE_GETOPT AND PC_HAVE_OPTRESET)
   set(PC_HAVE_BSD_GETOPT TRUE)
 endif()
@@ -135,6 +137,8 @@ else()
     target_link_options(pc_options INTERFACE -fsanitize=address,undefined)
   endif()
 endif()
+# Both the executable and the test helpers link this compatibility library.
+# Select the process backend by platform and the libc fallbacks by probe result.
 set(PC_COMPAT compat/common.c)
 if(NOT PC_HAVE_BSD_GETOPT)
   list(APPEND PC_COMPAT compat/imported/getopt.c)
@@ -171,6 +175,7 @@ target_link_libraries(pc_compat PUBLIC pc_options)
 # with the incompatible imported regex_t layout when only fnmatch is absent.
 set(PC_FALLBACK_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/compat-fallback")
 file(MAKE_DIRECTORY "${PC_FALLBACK_INCLUDE}")
+# Clear old copies on reconfigure so a native header can become visible again.
 file(REMOVE "${PC_FALLBACK_INCLUDE}/regex.h" "${PC_FALLBACK_INCLUDE}/fnmatch.h")
 foreach(feature REGEX FNMATCH)
   if(NOT PC_HAVE_${feature})
@@ -197,6 +202,8 @@ target_include_directories(pc_compat PUBLIC "${PC_FALLBACK_INCLUDE}")
 if(WIN32)
   target_link_libraries(pc_compat PUBLIC shell32 advapi32 bcrypt)
 endif()
+# Native builds consume the distributed parser. Hosted regeneration is a
+# separate reproducibility check and does not feed files into this build.
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/date.c")
   message(FATAL_ERROR "generated/date.c is missing. Run the manual parser workflow and retrieve its generated-date-parser artifact; release/source archives include this file.")
 endif()
@@ -210,6 +217,7 @@ if(WIN32)
   target_sources(opencvs PRIVATE platform/windows/opencvs.manifest.rc)
   target_include_directories(opencvs PRIVATE platform/windows)
   if(MSVC)
+    # The resource file already embeds the application manifest.
     target_link_options(opencvs PRIVATE /STACK:8388608 /MANIFEST:NO)
   else()
     target_link_options(opencvs PRIVATE -Wl,--stack,8388608)
@@ -243,6 +251,8 @@ if(PC_BUILD_TESTS)
     add_test(NAME ${suite} COMMAND "${PERL_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration.pl" --opencvs $<TARGET_FILE:opencvs> --ssh-shim $<TARGET_FILE:test-ssh-shim> --fs-probe $<TARGET_FILE:test-fs-probe> --suite ${suite} --summary-report --report "${PC_TEST_REPORT_DIR}/${suite}.json")
     set_tests_properties(${suite} PROPERTIES TIMEOUT 240)
   endforeach()
+  # A bare cvs executable may be OpenBSD's base implementation. Identify the
+  # GNU peer before registering a suite whose assertions rely on it.
   find_program(PC_GNU_CVS NAMES cvs gcvs)
   set(PC_GNU_CVS_CONFIRMED FALSE)
   if(PC_GNU_CVS AND NOT WIN32)
@@ -268,6 +278,8 @@ if(PC_BUILD_TESTS)
     message(STATUS "GNU CVS interoperability omitted: GNU CVS oracle unavailable")
   endif()
 endif()
+# The package verifier compares this metadata with the tested build. CI supplies
+# the source revision and ABI, while CMake records the selected toolchain.
 set(PC_BUILD_INFO "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt")
 file(WRITE "${PC_BUILD_INFO}"
   "Package version: ${PROJECT_VERSION}\n"

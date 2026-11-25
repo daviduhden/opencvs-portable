@@ -27,6 +27,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Build jobs use the parser in the checkout. This job gates them on parity
+  # with separate regeneration using the recorded generator package.
   parser:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     runs-on: ubuntu-24.04
@@ -101,6 +103,8 @@ jobs:
           cmake --build build --parallel 2 -- -k 0 2>&1 | tee build/compile.log
       - name: Run unit, integration, security, and GNU CVS interoperability tests
         run: ctest --test-dir build --no-tests=error --verbose
+      # The CTest shim covers framing. This loopback case also exercises
+      # OpenSSH host-key checking, authentication, and command launch.
       - name: Verify checkout and commit using local OpenSSH
         if: matrix.compiler == 'gcc' && matrix.configuration == 'Release'
         run: |
@@ -271,6 +275,8 @@ jobs:
         with:
           name: benchmark-windows-msvc
           path: build/benchmark.json
+      # Inspect a linked binary even if a later test fails. A failed test still
+      # prevents packaging.
       - name: Check native executable dependencies
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: C:/Strawberry/perl/bin/perl.exe scripts/check-windows-imports.pl --tool "C:/Program Files/LLVM/bin/llvm-readobj.exe" --exe build/opencvs.exe
@@ -331,6 +337,8 @@ jobs:
           msystem: UCRT64
           update: true
           install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
+      # MSYS2 provides the build shell. UCRT64 tools and native Perl exercise
+      # the Windows executable, whose imports are then inspected separately.
       - name: Configure the native MinGW executable
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -DPERL_EXECUTABLE=C:/Strawberry/perl/bin/perl.exe -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON
       - name: Compile

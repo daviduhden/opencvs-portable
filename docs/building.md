@@ -15,6 +15,12 @@ allows users to build without Yacc. The manual parser job checks the checked-in
 output against the pinned generator and records the grammar digest. The selected
 engine revision builds without OpenSSL, LibreSSL or zlib.
 
+The portable build uses the root `CMakeLists.txt` on all hosted platforms,
+including OpenBSD. The inherited `src/Makefile` describes the upstream BSD
+build through `bsd.prog.mk` and lists the grammar as a build input. Use the
+root build to exercise feature probes, platform adapters and the versioned
+parser used for portable packages.
+
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DPC_BUILD_TESTS=ON -DPC_STRICT_WARNINGS=ON

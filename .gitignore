@@ -1,3 +1,4 @@
+# Build trees and package staging contain generated output.
 /build*/
 /dist*/
 /out/

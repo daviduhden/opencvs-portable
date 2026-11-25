@@ -18,6 +18,8 @@
 
 set -eu
 
+# Generate in an isolated directory with the same relative input/output paths.
+# Parity checks both the C output and the recipe, package, and grammar record.
 case ${1:-} in
 generate)
 	output=${2:?parser output directory required}

@@ -29,6 +29,9 @@ if ($help) {
 }
 die "--tool and an existing --exe are required\n"
   unless defined($tool) && defined($exe) && -f $exe;
+
+# Read the executable's import listing without launching the executable. The
+# two supported inspectors use different labels for the imported DLL names.
 my @args =
   basename($tool) =~ /llvm-readobj/i
   ? ( '--coff-imports', $exe )

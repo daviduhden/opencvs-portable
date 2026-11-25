@@ -53,9 +53,11 @@ jobs:
           cat build/configure.log
           cmake --build build --parallel 2 -- -k 0 > build/compile.log 2>&1 || { status=$?; cat build/compile.log; exit "$status"; }
           cat build/compile.log
+      # Base OpenBSD CVS does not serve as the GNU interoperability peer.
       - name: Run native unit, integration, and security tests
         shell: openbsd {0}
         run: ctest --test-dir build --no-tests=error --verbose
+      # Platform and configure logs are useful even if no executable was built.
       - name: Preserve native VM evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
