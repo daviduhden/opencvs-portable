@@ -32,6 +32,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * Advance the archive parser through the requested record or the whole
+ * section if the revision is NULL. Parser state belongs to the RCSFILE.
+ */
 int  rcsparse_deltas(RCSFILE *, RCSNUM *);
 int  rcsparse_deltatexts(RCSFILE *, RCSNUM *);
 void rcsparse_free(RCSFILE *);

@@ -46,14 +46,18 @@
 
 #include <sys/types.h>
 
+/* Growable byte buffer. Use buf_len for the extent of its contents. */
 typedef struct buf BUF;
 struct timeval;
 
-BUF    *buf_alloc(size_t);
-BUF    *buf_load(const char *);
-BUF    *buf_load_fd(int);
-void	buf_free(BUF *);
-void   *buf_release(BUF *);
+BUF *buf_alloc(size_t);
+BUF *buf_load(const char *);
+/* Borrow the descriptor and read from offset zero through the measured size. */
+BUF *buf_load_fd(int);
+void buf_free(BUF *);
+/* Consume the BUF and transfer ownership of its allocation to the caller. */
+void *buf_release(BUF *);
+/* Borrow the allocation until a growth operation or destruction. */
 u_char *buf_get(BUF *);
 void	buf_append(BUF *, const void *, size_t);
 void	buf_putc(BUF *, int);

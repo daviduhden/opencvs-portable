@@ -199,6 +199,10 @@ merge_check_text(int fd)
 		fatal("merge: restore position: %s", strerror(errno));
 }
 
+/*
+ * Form both comparisons against the incoming revision, derive an edit
+ * script for the working file, and apply it in memory before replacement.
+ */
 void
 cvs_merge_file(struct cvs_file *cf, int verbose)
 {
@@ -279,8 +283,8 @@ cvs_merge_file(struct cvs_file *cf, int verbose)
 		cvs_printf("Merging differences between %s and %s into `%s'\n",
 		    r1, r2, cf->file_path);
 
-	/* These owned buffers are byte arrays; line views retain that
-	 * representation. */
+	/* The line nodes borrow these byte arrays until merge output is copied.
+	 */
 	dlines = cvs_splitlines((u_char *)data, dlen);
 	plines = cvs_splitlines((u_char *)patch, plen);
 

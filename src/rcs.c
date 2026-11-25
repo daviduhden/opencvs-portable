@@ -230,7 +230,8 @@ rcs_open(const char *path, int fd, int flags, ...)
 /*
  * rcs_close()
  *
- * Close an RCS file handle.
+ * Publish unsynced changes on a writable handle, then release the archive
+ * data, parser state and input stream.
  */
 void
 rcs_close(RCSFILE *rfp)
@@ -298,7 +299,12 @@ rcs_write(RCSFILE *rfp)
 	rcs_write_to(rfp, NULL);
 }
 
-/* A new archive or an Attic transition must not replace another archive. */
+/*
+ * Stage beside the destination before publishing. Writer serialization
+ * belongs to the caller. Check for an existing destination when creating
+ * or moving an archive. An Attic move publishes the new name before removing
+ * the old name, so an error after publication can leave both names visible.
+ */
 void
 rcs_write_to(RCSFILE *rfp, const char *destination)
 {
@@ -460,8 +466,7 @@ rcs_write_to(RCSFILE *rfp, const char *destination)
 		fputs("@\n", fp);
 	}
 
-	/* Never replace the original archive until every buffered byte is
-	 * durable. */
+	/* Flush the stdio buffer and sync the staged archive before rename. */
 	if (fflush(fp) == EOF || ferror(fp) || fchmod(fd, rfp->rf_mode) == -1 ||
 	    fsync(fd) == -1) {
 		saved_errno = errno != 0 ? errno : EIO;
@@ -1593,8 +1598,8 @@ rcs_strprint(const u_char *str, size_t slen, FILE *stream)
 /*
  * rcs_deltatext_set()
  *
- * Set deltatext for <rev> in RCS file <rfp> to <dtext>
- * Returns -1 on error, 0 on success.
+ * Replace the stored deltatext for rev. Success consumes bp, including an
+ * empty buffer. On a -1 return the caller still owns bp.
  */
 int
 rcs_deltatext_set(RCSFILE *rfp, RCSNUM *rev, BUF *bp)
@@ -1814,8 +1819,9 @@ rcs_get_revision(const char *revstr, RCSFILE *rfp)
 /*
  * rcs_rev_getlines()
  *
- * Get the entire contents of revision <frev> from the RCSFILE <rfp> and
- * return it as a pointer to a struct rcs_lines.
+ * Reconstruct a revision from the full trunk head. Follow reverse deltas
+ * down the trunk, then forward deltas from each branch point. If alines
+ * is supplied, track lines in the requested revision for annotate.
  */
 struct rcs_lines *
 rcs_rev_getlines(RCSFILE *rfp, RCSNUM *frev, struct rcs_line ***alines)

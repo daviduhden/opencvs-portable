@@ -946,6 +946,10 @@ rcsparse_expand(RCSFILE *rfp, struct rcs_pdata *pdp)
 		pdp->rp_tlen++;                                                \
 	} while (0);
 
+/*
+ * The lexer enters after the opening delimiter. A doubled at sign is
+ * one literal byte, while a lone at sign ends the string.
+ */
 static int
 rcsparse_string(RCSFILE *rfp, int allowed)
 {
