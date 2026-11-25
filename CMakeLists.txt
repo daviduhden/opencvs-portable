@@ -205,7 +205,7 @@ endif()
 # Native builds consume the distributed parser. Hosted regeneration is a
 # separate reproducibility check and does not feed files into this build.
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/date.c")
-  message(FATAL_ERROR "generated/date.c is missing. Run the manual parser workflow and retrieve its generated-date-parser artifact; release/source archives include this file.")
+  message(FATAL_ERROR "generated/date.c is missing. Dispatch the native portability workflow (ci.yml) and retrieve generated-date-parser from its parser job; release/source archives include this file.")
 endif()
 set(PC_SOURCES cvs add admin annotate atomicio commit config checkout client buf cmd diff diff3 diff_internals edit entries fatal file getlog hash hash_func history log logmsg modules import init release remove repository rcs rcsnum rcsparse remote root server status tag trigger worklist util update version watch xmalloc)
 list(TRANSFORM PC_SOURCES PREPEND "src/")
