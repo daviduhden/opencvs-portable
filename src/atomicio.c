@@ -52,7 +52,9 @@
 #include "atomicio.h"
 
 /*
- * ensure all of data on socket comes through. f==read || f==vwrite
+ * Retry interrupted or temporarily blocked reads and writes. Compare
+ * the return value with n: end of stream or poll failure can yield a
+ * short count, and a hard I/O error returns zero even after progress.
  */
 size_t
 atomicio(ssize_t (*f)(int, void *, size_t), int fd, void *_s, size_t n)

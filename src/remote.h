@@ -40,6 +40,8 @@
 #include <limits.h>
 #include <stdint.h>
 
+/* Shared ceiling for a single counted wire body, independent of size_t width.
+ */
 #define CVS_PROTOCOL_FILE_MAX INT_MAX
 
 struct cvs_req {
@@ -68,6 +70,7 @@ extern int server_response;
 #define SERVER_OK 0
 #define SERVER_ERROR 1
 
+/* Synthetic Entries state for files represented by Unchanged on the wire. */
 #define CVS_SERVER_UNCHANGED "d[o.o]b"
 #define CVS_SERVER_UPTODATE (time_t)-2
 #define CVS_SERVER_QUESTIONABLE '?'
@@ -142,14 +145,17 @@ void cvs_server_tag(char *);
 void cvs_server_update(char *);
 void cvs_server_version(char *);
 
-void  cvs_remote_classify_file(struct cvs_file *);
-void  cvs_remote_output(char *);
+void cvs_remote_classify_file(struct cvs_file *);
+void cvs_remote_output(char *);
+/* Return a caller-owned text line with the terminating newline removed. */
 char *cvs_remote_input(void);
-void  cvs_remote_receive_file(int, size_t);
-void  cvs_remote_check_file_size(const char *, uintmax_t);
-void  cvs_remote_stat_file(const char *, int, struct stat *);
-void  cvs_remote_send_file(const char *, int, const struct stat *);
-void  cvs_remote_send_file_buf(char *, BUF *, mode_t);
+/* Copy exactly the announced body length. The caller owns the destination fd.
+ */
+void cvs_remote_receive_file(int, size_t);
+void cvs_remote_check_file_size(const char *, uintmax_t);
+void cvs_remote_stat_file(const char *, int, struct stat *);
+void cvs_remote_send_file(const char *, int, const struct stat *);
+void cvs_remote_send_file_buf(char *, BUF *, mode_t);
 
 extern int cvs_client_inlog_fd;
 extern int cvs_client_outlog_fd;

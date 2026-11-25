@@ -86,6 +86,10 @@ extern int disable_fast_checkout;
 struct cvs_cmd cvs_cmd_server = {CVS_OP_SERVER, CVS_USE_WDIR, "server",
     {"", ""}, "server mode", NULL, NULL, NULL, cvs_server};
 
+/*
+ * One process serves one CVS session. Requests build argv and a private
+ * working tree before command handlers call the ordinary CVS engine.
+ */
 int
 cvs_server(int argc, char **argv)
 {
@@ -169,6 +173,10 @@ cvs_server_send_response(char *fmt, ...)
 	free(data);
 }
 
+/*
+ * Bind the session before opening repository-controlled configuration.
+ * When an operator supplies a root, use an exact pathname match.
+ */
 void
 cvs_server_root(char *data)
 {
@@ -335,6 +343,10 @@ cvs_server_set(char *data)
 		fatal("cvs_server_set: cvs_var_set failed");
 }
 
+/*
+ * Directory carries a second line in the repository namespace. Derive the
+ * private working directory from its validated root-relative suffix.
+ */
 void
 cvs_server_directory(char *data)
 {

@@ -211,6 +211,10 @@ client_check_workdir(const char *path)
 	}
 }
 
+/*
+ * Return a borrowed suffix of the wire repository name. Keep this namespace
+ * separate from the working-directory name carried by the same response.
+ */
 static const char *
 client_repository_relative(const char *path)
 {
@@ -259,7 +263,7 @@ client_repository_filename(const char *path)
 	return name;
 }
 
-/* Publish only after the complete body and metadata reached stable storage. */
+/* Stage the complete body, set its metadata and sync it before rename. */
 static void
 client_receive_file(const char *path, size_t length, mode_t mode, time_t now)
 {
@@ -374,6 +378,10 @@ client_check_directory(char *data, char *repository)
 
 static pc_process cvs_client_process;
 
+/*
+ * Close both protocol streams before waiting for the SSH child. Its exit
+ * status is independent of the terminal CVS response.
+ */
 int
 cvs_client_disconnect(void)
 {
@@ -501,7 +509,7 @@ cvs_client_connect_to_server(void)
 		cvs_client_send_request("Global_option -Q");
 		break;
 	case 1:
-		/* Be quiet. This is the default in OpenCVS. */
+		/* Forward the local quiet option to the server. */
 		cvs_client_send_request("Global_option -q");
 		break;
 	default:

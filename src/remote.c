@@ -51,6 +51,10 @@
 #define SERVER_INPUT_LIMIT (UINT64_C(64) * 1024 * 1024 * 1024)
 #define SERVER_METADATA_LIMIT (UINT64_C(256) * 1024 * 1024)
 
+/*
+ * Charge declared bodies before reading them. Metadata has a separate
+ * budget because requests can retain text in memory for later command dispatch.
+ */
 static void
 server_account_input(size_t len, int metadata)
 {
