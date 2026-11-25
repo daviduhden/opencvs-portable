@@ -68,3 +68,8 @@ under the sanitizer matrix. Test multiple relative operands after a
 working-copy callback skips an invalid directory. The native filesystem
 probe must use the product's long-path manifest when testing getcwd
 round-trips and relative operations from a long directory.
+
+Use the shared manual inventory for Unix installation and to build Windows
+help in the manual workflows. Validate rendering, local references and
+search data before sharing the CHM artifact with the Windows jobs. Verify
+the exact CHM bytes after extraction from every Windows package.

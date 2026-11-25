@@ -185,3 +185,8 @@ options can borrow strings from it. A working-copy callback that changes
 cwd must restore it before returning to the operand walker. Convert a Win32
 extended prefix only on an OS-returned path and keep caller-supplied device
 namespaces rejected. Verify a prerelease signer's key before dispatch.
+
+Maintain manual content in the original sectioned sources. The Windows help
+job uses the same inventory as Unix installation. A Windows ZIP must carry
+the validated CHM from its source revision. Keep generated topics, projects
+and CHM files in the build or artifact directories.
