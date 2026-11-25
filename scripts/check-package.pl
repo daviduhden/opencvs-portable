@@ -60,6 +60,7 @@ sub digest {
     return $sha;
 }
 
+# Require an unambiguous match while allowing CPack's archive root to vary.
 sub find_member {
     my ( $dir, $name ) = @_;
     my @matches;
@@ -78,6 +79,8 @@ sub find_member {
     return $matches[0];
 }
 
+# Extract the runner-produced archive into an isolated directory. The source
+# path builds from that copy and the binary path verifies the tested bytes.
 my $cwd = getcwd();
 my $dir = tempdir( 'opencvs-package-XXXXXXXX', TMPDIR => 1, CLEANUP => 1 );
 my $verified_info;
@@ -113,9 +116,15 @@ my $ok = eval {
     }
     1;
 };
+
+# Leave the extraction directory before propagating failure or letting File::Temp
+# remove it at process exit. The optional manifest still needs its metadata.
 my $error = $@;
 chdir $cwd or die "cannot restore working directory: $!\n";
 die $error unless $ok;
+
+# Bind the actual archive digest to the verified build and expected CI target.
+# The release job checks this manifest again after downloading the archive.
 if ( defined $manifest ) {
     open my $info, '<:raw', $verified_info
       or die "cannot read verified build metadata: $!\n";

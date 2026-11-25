@@ -54,6 +54,8 @@ $repo //= $ENV{GITHUB_REPOSITORY};
 die "invalid repository\n"
   unless defined($repo) && $repo =~ m{\A[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\z};
 
+# Drain both child pipes before waiting so either stream can exceed the pipe
+# buffer without blocking the other. The caller receives each stream separately.
 sub capture {
     my (@args) = @_;
     my $err    = gensym;
@@ -105,6 +107,9 @@ my @names =
   sort grep { /\.(?:tar\.gz|zip)\z/ && -f File::Spec->catfile( $assets, $_ ) }
   readdir $dir;
 closedir $dir;
+
+# Map each archive suffix to its expected producer ABI and compiler family.
+# The matrix has separate glibc, musl, and native Windows builds.
 my %targets = (
     'linux-x86_64-gcc'        => [ 'glibc',        'GNU' ],
     'linux-x86_64-clang'      => [ 'glibc',        'Clang' ],
@@ -124,6 +129,9 @@ for my $target ( sort keys %targets ) {
       unless grep { $_ eq $name } @names;
     my $path = File::Spec->catfile( $assets, $name );
     die "empty artifact $name\n" unless -s $path;
+
+    # Check the uploaded archive against the producer's recorded build identity
+    # and digest before inspecting its contents or writing release checksums.
     my $manifest = read_json("$path.manifest.json");
     my ( $abi, $compiler ) = @{ $targets{$target} };
     die "invalid package producer metadata for $name\n"
@@ -198,6 +206,9 @@ die "publication is restricted to an explicitly dispatched owner workflow\n"
   && ( $ENV{GITHUB_EVENT_NAME} // '' ) eq 'workflow_dispatch'
   && ( $ENV{GITHUB_ACTOR}      // '' ) eq $owner
   && ( $ENV{GITHUB_TRIGGERING_ACTOR} // $ENV{GITHUB_ACTOR} // '' ) eq $owner;
+
+# Only a confirmed absence permits publication. Recheck the tag object after
+# asset preparation to detect updates since the matrix selected the commit.
 my ( $existing, $body, $error ) =
   capture( 'gh', 'api', "repos/$repo/releases/tags/$tag" );
 die "release already exists; no assets will be overwritten\n" if $existing == 0;

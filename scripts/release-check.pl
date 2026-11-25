@@ -49,6 +49,10 @@ sub api {
     close $fh or die "GitHub API request failed\n";
     return JSON::PP->new->decode($data);
 }
+
+# Resolve the ref through its annotated tag object to the commit. Carry both
+# identities forward so a replaced tag object can be detected even if its
+# target commit has stayed the same.
 my $metadata = api("repos/$repo");
 die "repository identity differs\n"
   unless lc( $metadata->{full_name} ) eq lc($repo);
@@ -67,6 +71,8 @@ my $sha = $object->{object}{sha};
 die "invalid target SHA\n" unless $sha =~ /\A[0-9a-f]{40}\z/;
 die "tag moved since the tested build\n"
   if defined($expected) && $expected ne $sha;
+
+# GitHub reports signature verification independently for the tag and commit.
 my $commit = api("repos/$repo/commits/$sha");
 die "target commit signature is not verified\n"
   unless $commit->{commit}{verification}{verified}

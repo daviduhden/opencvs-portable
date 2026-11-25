@@ -32,6 +32,7 @@ on:
 permissions:
   contents: read
 
+# Keep concurrent runs for the same tag from reaching publication together.
 concurrency:
   group: prerelease-${{ inputs.tag }}
   cancel-in-progress: false
@@ -55,6 +56,8 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: perl scripts/release-check.pl --tag "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --output "$RUNNER_TEMP/release-metadata.json"
 
+  # Check the parser at the resolved commit. Native builds consume that
+  # commit's distributed copy independently of the regenerated artifact.
   parser:
     needs: release-metadata
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -118,6 +121,8 @@ jobs:
         run: ctest --test-dir build --no-tests=error --verbose
       - name: Validate agent knowledge
         run: perl scripts/check-project-guidance.pl
+      # Sanitizers qualify behavior in their own matrix entry. Distributions
+      # come from the ordinary builds and carry a verified producer manifest.
       - name: Create the glibc distribution
         if: matrix.sanitizers == 'OFF'
         env:
@@ -416,6 +421,8 @@ jobs:
           online-audits: true
           inputs: .github/workflows
 
+  # This read-only job joins the passing matrix and verifies the downloaded
+  # archives against the producer digests before preparing release metadata.
   prepare:
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     needs: [release-metadata, parser, linux, windows, mingw, musl, audit]
@@ -448,6 +455,8 @@ jobs:
             release-assets/SHA256SUMS
           if-no-files-found: error
 
+  # Give write access only to the optional publication job. It downloads the
+  # producer artifacts again and repeats the asset and tag identity checks.
   publish:
     if: inputs.publish && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     needs: [release-metadata, prepare]
