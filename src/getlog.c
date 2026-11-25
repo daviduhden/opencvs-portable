@@ -431,6 +431,11 @@ push_date(char *dest, const char *src)
 	return (dest);
 }
 
+/*
+ * Set selection flags on matching deltas. A single date selects the
+ * first revision at or before the cutoff, while range expressions can
+ * select multiple revisions.
+ */
 static u_int
 date_select(RCSFILE *file, char *date)
 {

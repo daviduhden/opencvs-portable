@@ -15,3 +15,17 @@ The manual CI parser job regenerates in a temporary directory, uploads
 a grammar change, retrieve the artifact even if the comparison fails.
 Review and incorporate both files together with the provenance hash before
 requesting verification of the new revision.
+
+## Date expression semantics
+
+`date_parse` in `src/date.y` parses user-supplied dates and revision
+selectors. Missing calendar fields default to the current local date.
+The clock fields default to midnight and the time zone defaults to local
+time. A relative-only expression starts from the current instant.
+The parser applies relative seconds, then calendar months, then a weekday
+adjustment when there was no explicit date.
+It uses shared parser state for the current expression, so calls must be
+serialized. Callers treat a return value of `(time_t)-1` as an error.
+
+The Entries and Tag readers in `src/entries.c` use a separate fixed UTC
+timestamp format for on-disk sticky dates.
