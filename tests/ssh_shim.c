@@ -63,6 +63,7 @@ main(int argc, char **argv)
 		pc_free_argv(parsed);
 		return 64;
 	}
+	/* Inherit the client's streams so framing and EOF reach the server. */
 	if (pc_spawn(&child, command, -1, -1, -1) != 0) {
 		perror("test transport spawn");
 		pc_free_argv(parsed);

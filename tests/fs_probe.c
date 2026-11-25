@@ -69,6 +69,7 @@ parents(char *path)
 	return 0;
 }
 
+/* Copy the control-file path before fclose releases the fgetln buffer. */
 static char *
 control_path(const char *filename)
 {
@@ -174,8 +175,11 @@ cleanup_sandbox(const char *path)
 	for (scan = path; *scan != '\0'; scan++)
 		if (separator(*scan))
 			name = scan + 1;
-	/* This operation is exclusively for File::Temp-created test roots.
-	 * Refuse drive roots, arbitrary paths, and a reparse/link root. */
+	/*
+	 * Before recursing, check the fixture name and directory type.
+	 * Ownership of the private File::Temp test root is a caller
+	 * precondition.
+	 */
 	if (strncmp(name, "portable-opencvs-",
 		sizeof("portable-opencvs-") - 1) != 0 ||
 	    strlen(name) <= sizeof("portable-opencvs-") - 1 ||
@@ -186,7 +190,11 @@ cleanup_sandbox(const char *path)
 	return remove_private_tree(path);
 }
 
-/* Deliberately untrusted server fixtures, confined to the test subprocess. */
+/*
+ * Negotiate enough of the protocol to reach update, then replay the
+ * fixture byte for byte. Consume any Modified payload by its byte count
+ * so file contents cannot be mistaken for the next request.
+ */
 static int
 fixture_server(const char *response)
 {

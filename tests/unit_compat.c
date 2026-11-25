@@ -175,6 +175,7 @@ stream_lines(void)
 	expect(other != NULL && other_length == 4 &&
 		memcmp(other, "xyz\n", 4) == 0,
 	    "fgetln reads a second stream");
+	/* A shared scratch buffer would invalidate this pointer here. */
 	expect(line != NULL && length == 4 && memcmp(line, input, 4) == 0,
 	    "reading another stream does not invalidate the first buffer");
 	line = fgetln(first, &length);
@@ -347,6 +348,10 @@ swapped_redirect_child(const char *self)
 	    91;
 }
 
+/*
+ * Self-invocation observes descriptor state after exec. A parent-side
+ * descriptor check alone would miss an accidental child inheritance.
+ */
 static void
 posix_process_contracts(const char *self)
 {

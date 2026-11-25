@@ -113,6 +113,8 @@ sub read_bytes {
     return defined $data ? $data : '';
 }
 
+# Spawn product processes with case-local roots and temporary directories.
+# Keep the File::Temp object alive until the case and its children are done.
 sub sandbox {
     my $native_cleanup = $^O eq 'MSWin32' && defined $fs_probe;
     my $object         = File::Temp->newdir(
@@ -174,6 +176,9 @@ sub invoke {
     return finish_invocation( start_invocation(@_) );
 }
 
+# Stage all three streams as binary files so a child producing large output
+# can exit without the parent having to drain pipes while waiting. Return
+# the process and capture paths separately so contention cases can overlap.
 sub start_invocation {
     my ( $s, $exe, $args, %options ) = @_;
     my @command = ( @{ $options{prefix} // [] }, $exe, @$args );
@@ -254,6 +259,9 @@ sub finish_invocation {
         }
         sleep 0.02;
     }
+
+    # Keep the captured bytes for content and wire assertions. Decode a
+    # separate copy for TAP diagnostics and JSON reports.
     my $stdout_raw = read_bytes( $invocation->{output} );
     my $stderr_raw = read_bytes( $invocation->{error} );
     my $stdout     = decode( 'UTF-8', $stdout_raw, FB_DEFAULT | LEAVE_SRC );
@@ -364,6 +372,8 @@ sub populated {
         : () );
 }
 
+# Advance the timestamp beyond its previous value so CVS detects a rapid
+# rewrite even when the filesystem rounds modification times.
 sub changed {
     my ( $filename, $content ) = @_;
     my $stamp = ( stat( bytes_path($filename) ) )[9] + 5;
@@ -372,6 +382,9 @@ sub changed {
 }
 sub slash_path { my $p = $_[0]; $p =~ s{\\}{/}g; return $p; }
 
+# Send UTF-8 paths through a control file when using the native helper.
+# The child can then exercise the filesystem adapter independently of
+# how Perl passes Unicode arguments on Windows.
 sub native_file {
     my ( $s, $operation, $target, $content ) = @_;
     if ( !defined $fs_probe ) {
@@ -1740,6 +1753,8 @@ test_case interop => gnu_client_opencvs_server_wire => sub {
     );
 };
 
+# Cleanup participates in the result, even when the case body skips or
+# fails. A leftover private tree is reported as a failure.
 my $run = 0;
 my @passed;
 for my $case (@cases) {
