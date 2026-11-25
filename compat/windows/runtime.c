@@ -25,6 +25,11 @@
 
 #include "windows_compat.h"
 
+/*
+ * UTF-8 copies let the engine borrow values while native APIs use UTF-16.
+ * An unchanged value keeps its address, and a changed value replaces only
+ * that name's entry on the next successful lookup.
+ */
 struct environment_value {
 	char			 *name;
 	char			 *value;
@@ -180,6 +185,7 @@ pc_unsetenv(const char *name)
 	return result;
 }
 
+/* The engine needs a numeric account hint. A SID hash can collide. */
 static uint32_t
 sid_identity(PSID sid)
 {
@@ -415,6 +421,8 @@ pc_localtime_r(const time_t *value, struct tm *out)
 		errno = EINVAL;
 		return NULL;
 	}
+	/* The CRT rejects pre-epoch timestamps. Use Win32 time zones for those.
+	 */
 	if (*value >= 0 && localtime_s(out, value) == 0)
 		return out;
 	if (pc_gmtime_r(value, &normalized) == NULL ||
@@ -518,6 +526,8 @@ pc_poll(struct pollfd *fds, unsigned long count, int timeout)
 			    (fds[i].events & POLLIN)) {
 				if (!PeekNamedPipe(handle, NULL, 0, NULL,
 					&available, NULL)) {
+					/* A reader must wake up to consume EOF.
+					 */
 					if (GetLastError() == ERROR_BROKEN_PIPE)
 						fds[i].revents = POLLIN;
 					else

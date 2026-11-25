@@ -22,6 +22,7 @@ typedef uint64_t rlim_t;
 struct rlimit {
 	rlim_t rlim_cur, rlim_max;
 };
+/* Map the current limit to the job's per-process committed memory ceiling. */
 #define RLIMIT_DATA 1
 #define RLIM_INFINITY UINT64_MAX
 int getrlimit(int, struct rlimit *);

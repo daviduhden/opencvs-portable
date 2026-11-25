@@ -46,11 +46,11 @@ Device namespaces (`\\?\` and `\\.\`) supplied as input, DOS reserved names,
 alternate-stream colons, forbidden characters, and trailing spaces/dots in
 components fail explicitly. Drive-relative paths such as `C:module` fail;
 use an absolute drive path such as `C:/repo`. Normal drive and UNC paths are
-converted using native Unicode APIs. Existing case-only final-component aliases
-and 8.3 final-component aliases fail rather than silently replacing another CVS
-file or merging differently named directories. Use the actual on-disk spelling
-of repository paths. Exact behavior on case-sensitive directories and SMB/DFS shares needs
-specific Windows CI or deployment tests before any broader compatibility claim.
+converted using native Unicode APIs. The handle check rejects case-only
+final-component aliases and 8.3 file aliases. It accepts a directory's 8.3
+spelling when the filesystem confirms it as that directory's short name.
+Use the actual on-disk spelling of repository paths. Case-sensitive
+directories and SMB/DFS shares still require dedicated verification.
 
 Reparse-point traversal and file opens are rejected. Metadata is checked on
 opened handles, including the final canonical path, before truncating a file.

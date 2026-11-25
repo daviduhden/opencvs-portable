@@ -160,6 +160,10 @@ pc_windows_utf8(const wchar_t *text)
 	return out;
 }
 
+/*
+ * Check the name before Win32 normalizes it. DOS devices remain reserved
+ * with an extension, and trailing punctuation can alias another name.
+ */
 static int
 valid_component(const wchar_t *name, size_t length)
 {
@@ -213,7 +217,10 @@ valid_native_path(const wchar_t *path)
 	}
 }
 
-/* Strict UTF-8 input, absolute extended-length output; never ANSI APIs. */
+/*
+ * Convert strict UTF-8 to an owned extended-length Win32 path. Resolve
+ * relative components against the current directory before adding the prefix.
+ */
 wchar_t *
 pc_windows_path(const char *path)
 {
@@ -281,6 +288,10 @@ pc_windows_path(const char *path)
 	return out;
 }
 
+/*
+ * Check the named ancestors for reparse points. A later path-based operation
+ * can still resolve ancestors again, so callers need trusted directories.
+ */
 static int
 check_components(wchar_t *path)
 {
@@ -370,8 +381,10 @@ check_handle(HANDLE handle, const wchar_t *expected)
 	free(actual);
 	base = wcsrchr(expected, L'\\');
 	base = base ? base + 1 : expected;
-	/* Case-only or 8.3 final-name aliases must not overwrite another CVS
-	 * name. */
+	/*
+	 * Compare the final spelling separately. Canonicalization can otherwise
+	 * hide a case-only or 8.3 alias for a different CVS name.
+	 */
 	if (wcsncmp(expected, L"\\\\?\\UNC\\", 8) == 0) {
 		unc_share = wcschr(expected + 8, L'\\');
 		if (unc_share == NULL) {
@@ -505,6 +518,8 @@ pc_open(const char *path, int flags, ...)
 		return -1;
 	}
 	free(wide);
+	/* Delay destructive truncation until the opened object passes
+	 * validation. */
 	if (flags & O_TRUNC) {
 		LARGE_INTEGER zero;
 		zero.QuadPart = 0;
@@ -517,6 +532,8 @@ pc_open(const char *path, int flags, ...)
 	}
 	crtflags = (flags & (O_RDONLY | O_WRONLY | O_RDWR | O_APPEND)) |
 	    _O_BINARY | _O_NOINHERIT;
+	/* The CRT takes ownership of the handle only if it returns a
+	 * descriptor. */
 	fd = _open_osfhandle((intptr_t)handle, crtflags);
 	if (fd == -1)
 		CloseHandle(handle);
@@ -582,6 +599,7 @@ pc_fdopen(int fd, const char *mode)
 	return _fdopen(fd, binary);
 }
 
+/* Convert 100 ns ticks since 1601 to Unix seconds and nonnegative nanos. */
 static struct timespec
 from_filetime(FILETIME value)
 {
@@ -605,6 +623,10 @@ from_filetime(FILETIME value)
 	return out;
 }
 
+/*
+ * Synthesize CVS-facing mode bits from file type and the read-only attribute.
+ * The reported mode and SID-derived UID do not describe Windows ACL access.
+ */
 static int
 stat_handle(HANDLE handle, struct pc_stat *st)
 {
@@ -661,6 +683,8 @@ stat_handle(HANDLE handle, struct pc_stat *st)
 	st->st_blksize = 4096;
 	st->st_atim = from_filetime(info.ftLastAccessTime);
 	st->st_mtim = from_filetime(info.ftLastWriteTime);
+	/* The available creation time is distinct from POSIX status-change
+	 * time. */
 	st->st_ctim = from_filetime(info.ftCreationTime);
 	return 0;
 }
@@ -724,6 +748,10 @@ readonly_attributes(DWORD attrs, int readonly)
 	return attrs != 0 ? attrs : FILE_ATTRIBUTE_NORMAL;
 }
 
+/*
+ * A real return handle pins the object whose attributes were changed.
+ * INVALID_HANDLE_VALUE means no change was made. NULL means failure.
+ */
 static HANDLE
 clear_readonly(const wchar_t *path, FILE_BASIC_INFO *original, int *changed)
 {
@@ -829,6 +857,7 @@ static __declspec(thread) const char *rename_error_stage = "not called";
 static __thread const char *rename_error_stage = "not called";
 #endif
 
+/* The diagnostic describes the calling thread's most recent rename. */
 const char *
 pc_windows_rename_error_stage(void)
 {
@@ -1232,6 +1261,10 @@ pc_access(const char *path, int mode)
 	return 0;
 }
 
+/*
+ * Random suffixes reduce collisions. Exclusive creation decides whether a
+ * candidate is available, and only an existing name warrants another try.
+ */
 static int
 create_temporary(char *template, int directory)
 {
@@ -1475,6 +1508,7 @@ pc_sleep(unsigned int seconds)
 	return 0;
 }
 
+/* FindFirstFileW supplies the first result along with the search handle. */
 struct pc_directory {
 	HANDLE		 find;
 	WIN32_FIND_DATAW data;

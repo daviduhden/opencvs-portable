@@ -198,6 +198,7 @@ struct pc_stat {
 #define X_OK 1
 #define F_OK 0
 #endif
+/* Conversion and path results are allocated. The caller frees them. */
 wchar_t *pc_windows_utf16(const char *);
 char	*pc_windows_utf8(const wchar_t *);
 wchar_t *pc_windows_path(const char *);
@@ -246,6 +247,7 @@ struct tm   *pc_localtime_r(const time_t *, struct tm *);
 char	    *pc_ctime_r(const time_t *, char *);
 char	    *pc_asctime_r(const struct tm *, char *);
 time_t	     pc_timegm(struct tm *);
+/* Let the engine retain its POSIX call sites while using this adapter. */
 #ifndef OPENCVS_WINDOWS_NO_ALIASES
 #define off_t pc_off_t
 #define timeval pc_timeval

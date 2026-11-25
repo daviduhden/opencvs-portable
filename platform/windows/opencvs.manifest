@@ -19,11 +19,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity version="0.1.0.0" processorArchitecture="*" name="PortableOpenCVS.opencvs" type="win32"/>
   <description>Portable OpenCVS</description>
+  <!-- Repository operations run with the launching user's token. -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security><requestedPrivileges><requestedExecutionLevel level="asInvoker" uiAccess="false"/></requestedPrivileges></security>
   </trustInfo>
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
     <windowsSettings>
+      <!-- The backend still uses wide APIs and enforces its own path bounds. -->
       <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
       <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
     </windowsSettings>

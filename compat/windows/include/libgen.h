@@ -17,6 +17,7 @@
  */
 #ifndef OPENCVS_WINDOWS_LIBGEN_H
 #define OPENCVS_WINDOWS_LIBGEN_H
+/* Both calls can edit the path and return a borrowed pointer. */
 char *pc_basename(char *);
 char *pc_dirname(char *);
 #define basename pc_basename

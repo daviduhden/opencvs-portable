@@ -16,4 +16,5 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <windows.h>
+/* Embed the manifest on toolchains that use the resource compiler. */
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "opencvs.manifest"

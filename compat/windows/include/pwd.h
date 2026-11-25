@@ -27,6 +27,7 @@ struct passwd {
 	char *pw_dir;
 	char *pw_shell;
 };
+/* Current-account data is borrowed and released by endpwent. */
 struct passwd *getpwuid(uid_t);
 struct passwd *getpwnam(const char *);
 void	       endpwent(void);

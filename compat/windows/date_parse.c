@@ -38,6 +38,10 @@ number(const char *input, int low, int high, int *out)
 	return input;
 }
 
+/*
+ * Entries uses English ctime fields regardless of the process locale.
+ * Return a pointer to the first unconsumed byte, as strptime does.
+ */
 char *
 pc_strptime(const char *input, const char *format, struct tm *out)
 {

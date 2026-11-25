@@ -54,6 +54,7 @@ pc_errx(int status, const char *format, ...)
 }
 
 #ifdef _MSC_VER
+/* The next call on the same thread can overwrite the returned message. */
 char *
 pc_strerror(int number)
 {

@@ -21,6 +21,7 @@
 
 #include "windows_compat.h"
 
+/* The engine borrows these UTF-8 arguments for the lifetime of the command. */
 static char **startup_argv;
 static int    startup_argc;
 
@@ -50,6 +51,8 @@ pc_windows_startup(int *argc, char ***argv)
 	wchar_t **wide;
 	char	**utf8;
 	int	  count, i;
+	/* Set the CRT default and the already-open protocol streams separately.
+	 */
 	if (_set_fmode(_O_BINARY) != 0 || _setmode(0, _O_BINARY) == -1 ||
 	    _setmode(1, _O_BINARY) == -1 || _setmode(2, _O_BINARY) == -1) {
 		fputs(

@@ -21,6 +21,7 @@
 
 #include "windows_compat.h"
 
+/* Paths have forward slashes here. Keep the drive root or UNC share intact. */
 static size_t
 root_length(const char *path)
 {

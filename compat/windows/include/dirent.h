@@ -22,6 +22,7 @@
 #define DT_DIR 4
 #define DT_REG 8
 #define DT_LNK 10
+/* Enumeration reports type and UTF-8 name. d_fileno is a nonzero sentinel. */
 struct dirent {
 	uint64_t      d_fileno;
 	unsigned char d_type;
@@ -29,6 +30,7 @@ struct dirent {
 };
 typedef struct pc_directory DIR;
 DIR			   *opendir(const char *);
-struct dirent		   *readdir(DIR *);
-int			    closedir(DIR *);
+/* The returned record belongs to DIR and is reused by each read. */
+struct dirent *readdir(DIR *);
+int	       closedir(DIR *);
 #endif

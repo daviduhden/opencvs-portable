@@ -25,6 +25,7 @@ struct pollfd {
 	short events;
 	short revents;
 };
+/* Timeout is in milliseconds. Supports disk files and pipe read readiness. */
 int pc_poll(struct pollfd *, unsigned long, int);
 #define poll pc_poll
 #endif
