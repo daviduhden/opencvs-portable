@@ -1,5 +1,5 @@
 /*
- * Portable OpenCVS formatting changes only; original notices below remain in force.
+ * Portable OpenCVS changes; original notices below remain in force.
  *
  * Copyright (c) 2026, David Uhden Collado <david@uhden.dev>
  *
@@ -137,6 +137,7 @@ cvs_release_local(struct cvs_file *cf)
 			if (verbosity > 0)
 				cvs_log(LP_ERR, "no repository directory: %s",
 				    cf->file_path);
+			cvs_chdir(wdir, 0);
 			return;
 		}
 	}
@@ -179,10 +180,9 @@ cvs_release_local(struct cvs_file *cf)
 		return;
 	}
 
-	/* change back to original working dir */
-	cvs_chdir(wdir, 0);
-
 delete:
+	/* Interpret the operand and continue the walk from the starting cwd. */
+	cvs_chdir(wdir, 0);
 	if (dflag == 1) {
 		if (cvs_rmdir(cf->file_path) != 0)
 			fatal("cvs_release_local: cvs_rmdir failed");

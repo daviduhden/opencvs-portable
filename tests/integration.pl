@@ -781,6 +781,23 @@ test_case core => command_defaults_from_cvsrc => sub {
     equal( read_bytes( path( $s->{base}, 'rc-work', 'sample.txt' ) ), $TEXT );
 };
 
+test_case core => release_keeps_operand_base => sub {
+    my ($s) = @_;
+    my $work = populated( $s, { 'zzz/sample.txt' => $TEXT } );
+    make_path( path( $work, 'aaa' ) );
+    my $result = cvs(
+        $s, [ 'release', 'aaa', 'zzz' ],
+        cwd   => $work,
+        input => "n\n"
+    );
+    check(
+        $result->{stderr} =~ /no repository directory: aaa/,
+        'Release did not report the unversioned directory'
+    );
+    check( $result->{stdout} =~ /release directory `zzz'/,
+        'Release did not reach the next operand from the original directory' );
+};
+
 test_case core => disabled_commands_remain_unavailable => sub {
     my ($s) = @_;
     for my $command (qw(login logout edit editors unedit watch watchers)) {
