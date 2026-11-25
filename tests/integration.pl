@@ -768,6 +768,19 @@ test_case core => unsupported_pserver_is_explicit => sub {
     }
 };
 
+test_case core => command_defaults_from_cvsrc => sub {
+    my ($s) = @_;
+    initialize($s);
+    import_tree($s);
+    write_bytes( path( $s->{base}, '.cvsrc' ), "checkout -d rc-work\n" );
+    invoke(
+        $s, $opencvs,
+        [ '-T', $s->{tmp}, '-d', $s->{repo}, 'checkout', 'module' ],
+        env => { %{ $s->{env} }, HOME => $s->{base} }
+    );
+    equal( read_bytes( path( $s->{base}, 'rc-work', 'sample.txt' ) ), $TEXT );
+};
+
 test_case core => disabled_commands_remain_unavailable => sub {
     my ($s) = @_;
     for my $command (qw(login logout edit editors unedit watch watchers)) {

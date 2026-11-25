@@ -79,6 +79,7 @@ int cvs_cleanup_failed;
 char	     *cvs_tagname = NULL;
 char	     *cvs_defargs; /* default global arguments from .cvsrc */
 static char **cvs_rc_argv;
+static char **cvs_command_argv;
 static int    cvs_rc_argc;
 char	     *cvs_rootstr;
 char	     *cvs_rsh = CVS_RSH_DEFAULT;
@@ -166,6 +167,14 @@ cvs_cleanup(void)
 	free(cvs_rc_argv);
 	cvs_rc_argv = NULL;
 	cvs_rc_argc = 0;
+	free(cvs_command_argv);
+	free(cvs_defargs);
+	cvs_command_argv = NULL;
+	cvs_defargs = NULL;
+	if (cmdp != NULL) {
+		free(cmdp->cmd_defargs);
+		cmdp->cmd_defargs = NULL;
+	}
 }
 
 PC_NORETURN void
@@ -182,7 +191,7 @@ int
 cvs_build_cmd(char ***cmd_argv, char **argv, int argc)
 {
 	int   cmd_argc, i, cur;
-	char *cp, *linebuf, *lp;
+	char *cp, *lp;
 
 	if (cmdp->cmd_defargs == NULL) {
 		*cmd_argv = argv;
@@ -191,11 +200,11 @@ cvs_build_cmd(char ***cmd_argv, char **argv, int argc)
 
 	cur = argc + 2;
 	cmd_argc = 0;
-	*cmd_argv = xcalloc(cur, sizeof(char *));
-	(*cmd_argv)[cmd_argc++] = argv[0];
+	cvs_command_argv = xcalloc(cur, sizeof(char *));
+	cvs_command_argv[cmd_argc++] = argv[0];
 
-	linebuf = xstrdup(cmdp->cmd_defargs);
-	for (lp = linebuf; lp != NULL;) {
+	/* The vector borrows its default arguments from the command buffer. */
+	for (lp = cmdp->cmd_defargs; lp != NULL;) {
 		cp = strsep(&lp, " \t\b\f\n\r\t\v");
 		if (cp == NULL)
 			break;
@@ -204,22 +213,24 @@ cvs_build_cmd(char ***cmd_argv, char **argv, int argc)
 
 		if (cmd_argc == cur) {
 			cur += 8;
-			*cmd_argv =
-			    xreallocarray(*cmd_argv, cur, sizeof(char *));
+			cvs_command_argv = xreallocarray(
+			    cvs_command_argv, cur, sizeof(char *));
 		}
 
-		(*cmd_argv)[cmd_argc++] = cp;
+		cvs_command_argv[cmd_argc++] = cp;
 	}
 
 	if (cmd_argc + argc > cur) {
 		cur = cmd_argc + argc + 1;
-		*cmd_argv = xreallocarray(*cmd_argv, cur, sizeof(char *));
+		cvs_command_argv = xreallocarray(
+		    cvs_command_argv, cur, sizeof(char *));
 	}
 
 	for (i = 1; i < argc; i++)
-		(*cmd_argv)[cmd_argc++] = argv[i];
+		cvs_command_argv[cmd_argc++] = argv[i];
 
-	(*cmd_argv)[cmd_argc] = NULL;
+	cvs_command_argv[cmd_argc] = NULL;
+	*cmd_argv = cvs_command_argv;
 
 	return cmd_argc;
 }
